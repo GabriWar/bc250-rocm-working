@@ -72,9 +72,12 @@ Five things are required. Miss any one and it fails.
    Without it the sampler fails reliably. Do *not* add more warmups.
 5. **VAE decode on CPU** (`--cpu-vae`) — VAE decode on the GPU still fails.
 
-Plus one strongly recommended:
+Plus two strongly recommended:
 
-6. **`amdgpu_ttm.c` NULL check** — turns machine-killing kernel panics into
+6. **The conv2d patch** — `comfyui/bc250_conv_fix.py`. MIOpen's convolution
+   returns numerically wrong data on this chip, silently, with no error. See
+   [docs/11-miopen-conv-corruption.md](docs/11-miopen-conv-corruption.md).
+7. **`amdgpu_ttm.c` NULL check** — turns machine-killing kernel panics into
    ordinary process errors.
 
 Full instructions: [docs/00-setup.md](docs/00-setup.md).
@@ -110,10 +113,16 @@ proof/        generated images
 | [08-address-corruption.md](docs/08-address-corruption.md) | the corrupted instruction-fetch address |
 | [09-building-tensile.md](docs/09-building-tensile.md) | the 7 source changes that make Tensile emit gfx1013 kernels |
 | [10-performance-and-limits.md](docs/10-performance-and-limits.md) | TFLOP/s, the broken GPU timer, telemetry, bf16, wave debugging |
+| [11-miopen-conv-corruption.md](docs/11-miopen-conv-corruption.md) | **MIOpen's conv2d silently returns wrong numbers — and the fix** |
 
 ---
 
 ## Status: honest version
+
+> **Correctness warning.** MIOpen's `conv2d` returns wrong numbers on this chip
+> without reporting any error. Anything generated before applying
+> `comfyui/bc250_conv_fix.py` was consistently — and therefore convincingly —
+> wrong. See [docs/11-miopen-conv-corruption.md](docs/11-miopen-conv-corruption.md).
 
 **Works:** image generation, reproducibly, at usable speed.
 

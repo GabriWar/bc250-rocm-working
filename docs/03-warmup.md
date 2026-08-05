@@ -48,8 +48,58 @@ Three warmups were written. Measured:
 | warmups active | 1st (cold) | 2nd (warm) | result |
 |---|---|---|---|
 | 1 — general | 42.22s | 33.16s | OK |
-| 2 — + VAE shapes | 39.56s | 34.36s | OK, **neutral** |
+| 2 — + VAE shapes | 39.56s | 34.36s | OK on 2026-08-04 — **later shown harmful, see below** |
 | 3 — + BLAS type×transpose | — | — | **died at startup** |
+
+> **Correction, 2026-08-05.** The "neutral" verdict on the VAE warmup was
+> wrong. It holds ~40 VAE-shaped tensors and never frees them, which cuts
+> usable VRAM by roughly 6.5 GB. Re-measured on a clean boot, same kernel and
+> environment in all three rows:
+>
+> | warmups | usable VRAM reported by ComfyUI | result |
+> |---|---|---|
+> | 0 | 8787 MB | `illegal memory access` after 6.36 s, sampler never starts |
+> | **1** | **8789 MB** | **37.27 s / 31.22 s — works** |
+> | 2 | **2245 MB** | sampler hangs at step 0/24, machine hard-hangs |
+>
+> This confirms the main warmup is required and refutes the second being
+> neutral. The VAE warmup starves the sampler of memory rather than doing
+> anything to the ordering bug.
+>
+> It cost roughly six hard hangs before being identified, because each hang
+> poisons the GPU context and makes *every* subsequent run fail — including
+> runs with the configuration already reverted. That sent a bisect chasing four
+> innocent variables (`flush_mapped_vmids`, `keep_kfd_vram`, the clock range,
+> `amd_iommu=off`) whose measurements are therefore void.
+>
+> **Operational rule that follows:** check `dmesg | grep -c "page fault"` is
+> zero before every run, and reboot if it is not. Otherwise you are measuring
+> context poisoning, not your hypothesis.
+
+---
+
+## How much warmup is needed? There is a window
+
+Another BC-250 user (Fabi) reached a working ComfyUI setup with a *three
+operation* prewarm instead of a kernel sweep — context touch, one H2D copy, one
+matmul. Worth testing, since every extra warmup kernel is more heavy GPU work
+before the real work, which is the trigger we are trying to avoid.
+
+Tested on 2026-08-05, same boot, `page fault` verified zero before the run:
+
+| warmup | result |
+|---|---|
+| none | `illegal memory access` after 6.36 s, sampler never starts |
+| **3 ops** (context + H2D copy + matmul) | **`illegal memory access`, no image, sampler never starts** |
+| **~90 kernels** (this node) | **works — 37.27 s / 31.22 s** |
+| ~130 kernels (this node + VAE warmup) | starved of VRAM, hangs at step 0/24 |
+
+So the volume is load-bearing, not padding, and there is a **window**: too
+little fails, too much fails. ~90 sits inside it.
+
+The three-operation approach comes from a different stack — PyTorch 2.5.1 with
+`HSA_OVERRIDE_GFX_VERSION=10.1.0` (gfx1010 spoof), a GGUF model, and
+`--force-fp32`. It does not transfer to native gfx1013 with fp16.
 
 The BLAS warmup walks the (dtype × transposeA × transposeB) matrix to force
 every rocBLAS code object to load early. It **causes** the bug instead of

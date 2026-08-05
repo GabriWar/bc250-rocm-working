@@ -222,8 +222,13 @@ Without it the sampler fails reliably. With it, 6/6 generations succeeded.
 
 Disable with `BC250_WARMUP=0`.
 
-> **Do not add more warmups.** We wrote two more and measured them: a VAE-shape
-> warmup is neutral, and a BLAS type×transpose warmup is *actively harmful* — it
+> **Do not add more warmups.** We wrote two more and measured them: both are
+> harmful. The VAE-shape warmup retains ~40 tensors and never frees them,
+> dropping usable VRAM from 8789 MB to 2245 MB — the sampler then hangs at step
+> 0/24 and takes the machine down. (It was first recorded as "neutral" on
+> 2026-08-04; that was corrected on 2026-08-05 with a three-point measurement,
+> see [03-warmup.md](03-warmup.md).) The BLAS type×transpose warmup is
+> *actively harmful* too — it
 > triggers the bug during startup and poisons the GPU context so ComfyUI never
 > comes up. Stacking warmups increases the chance of tripping the bug, because
 > each one is more heavy GPU work before the real work. See
