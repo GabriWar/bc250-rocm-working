@@ -1,0 +1,40 @@
+--- a/Tensile/Source/client/source/ResultFileReporter.cpp
++++ b/Tensile/Source/client/source/ResultFileReporter.cpp
+@@ -28,6 +28,18 @@
+ 
+ #include <cstddef>
+ 
++
++// BC-250 / gfx1013: a placa nao expoe telemetria completa (rocm-smi lanca
++// "Exception caught: map::at"), entao GfxFrequency/Power/TemperatureHot podem
++// vir vazios. std::stoi sem protecao abortava o cliente inteiro (SIGABRT 134).
++namespace
++{
++    int safeStoi(std::string const& v)
++    {
++        try { return std::stoi(v); } catch(...) { return 0; }
++    }
++}
++
+ namespace Tensile
+ {
+     namespace Client
+@@ -112,15 +124,15 @@
+             }
+             else if(key == ResultKey::GfxFrequency)
+             {
+-                m_currGfxClock = static_cast<uint16_t>(std::stoi(valueStr));
++                m_currGfxClock = static_cast<uint16_t>(safeStoi(valueStr));
+             }
+             else if(key == ResultKey::Power)
+             {
+-                m_currPower = static_cast<uint16_t>(std::stoi(valueStr));
++                m_currPower = static_cast<uint16_t>(safeStoi(valueStr));
+             }
+             else if(key == ResultKey::TemperatureHot)
+             {
+-                m_currTemperatureHot = static_cast<uint16_t>(std::stoi(valueStr));
++                m_currTemperatureHot = static_cast<uint16_t>(safeStoi(valueStr));
+             }
+             else
+             {

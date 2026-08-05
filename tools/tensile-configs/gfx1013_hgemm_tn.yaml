@@ -1,0 +1,98 @@
+# Tuning Tensile para gfx1013 (AMD BC-250 / Cyan Skillfish)
+# Gerado a partir do perfil real de Stable Diffusion 1.5 nesta placa.
+# Modelado nos configs oficiais rocblas_hgemm_*_asm_full.yaml da navi21,
+# com arquitetura e tamanhos corrigidos para RDNA1 / gfx1013 / 20 WGPs.
+GlobalParameters:
+  MinimumRequiredVersion: 4.9.0
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  NumBenchmarks: 1
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: 128      # VALIDA numericamente cada kernel
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  KernelTime: False            # BC-250: temporizador da GPU devolve lixo
+  PreciseKernelTime: False
+  SleepPercent: 200
+  DataInitTypeAlpha: 1
+  DataInitTypeBeta: 0
+  PrintSolutionRejectionReason: True
+  PrintWinnersOnly: True
+
+BenchmarkProblems:
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: h
+      DestDataType: h
+      ComputeDataType: s
+      HighPrecisionAccumulate: True
+      TransposeA: True
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+      StridedBatched: True
+
+    - # BenchmarkProblemSizeGroup
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+      ForkParameters:
+        - WavefrontSize: [32]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [  4,  4 ]
+          - [  4,  8 ]
+          - [  8,  8 ]
+        - WorkGroup:
+          - [  8,  8,  1 ]
+          - [ 16,  8,  1 ]
+          - [ 16, 16,  1 ]
+        - DepthU: [ 8, 16, 32 ]
+        - VectorWidth: [1, 2, 4]
+        - GlobalSplitU: [1]
+        - StaggerU: [0, 32]
+        - WorkGroupMapping: [1, 4, 8]
+        - ExpandPointerSwap: [False]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [320, 8192, 1, 320]
+          - Exact: [640, 2048, 1, 640]
+          - Exact: [1280, 512, 1, 1280]
+          - Exact: [1280, 2, 1, 1280]
+          - Exact: [1280, 154, 1, 768]
+          - Exact: [320, 154, 1, 768]
+          - Exact: [640, 154, 1, 768]
+          - Exact: [1280, 128, 1, 1280]
+          - Exact: [320, 2, 1, 1280]
+          - Exact: [2560, 8192, 1, 320]
+          - Exact: [320, 8192, 1, 1280]
+          - Exact: [640, 2, 1, 1280]
+          - Exact: [5120, 2048, 1, 640]
+          - Exact: [640, 2048, 1, 2560]
+          - Exact: [10240, 512, 1, 1280]
+          - Exact: [1280, 512, 1, 5120]
+          - Exact: [1280, 2, 1, 320]
+          - Exact: [10240, 128, 1, 1280]
+          - Exact: [1280, 128, 1, 5120]
+          - Exact: [256, 256, 1, 256]
+
+LibraryLogic:
+  ScheduleName: "cyan_skillfish"
+  DeviceNames: ["Device 13fe"]
+  ArchitectureName: "gfx1013"
+
+LibraryClient:

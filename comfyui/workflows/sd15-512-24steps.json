@@ -1,0 +1,13 @@
+{"prompt":{
+ "1":{"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":"cyberrealistic_final.safetensors"}},
+ "2":{"class_type":"CLIPTextEncode","inputs":{"clip":["1",1],
+      "text":"professional food photography, a rustic wooden table by a window at golden hour, a steaming cup of black coffee in a ceramic mug, fresh croissant on a linen napkin, scattered coffee beans, soft warm rim light, shallow depth of field, 85mm lens, f/1.8, highly detailed, sharp focus, natural window light, cinematic color grading"}},
+ "3":{"class_type":"CLIPTextEncode","inputs":{"clip":["1",1],
+      "text":"blurry, out of focus, low quality, jpeg artifacts, oversaturated, cartoon, illustration, painting, watermark, text, signature, deformed, ugly, plastic, cgi, 3d render, overexposed, washed out"}},
+ "4":{"class_type":"EmptyLatentImage","inputs":{"width":512,"height":512,"batch_size":1}},
+ "5":{"class_type":"KSampler","inputs":{"seed":20260804,"steps":24,"cfg":7.0,
+      "sampler_name":"dpmpp_2m","scheduler":"karras","denoise":1.0,
+      "model":["1",0],"positive":["2",0],"negative":["3",0],"latent_image":["4",0]}},
+ "6":{"class_type":"VAEDecode","inputs":{"samples":["5",0],"vae":["1",2]}},
+ "7":{"class_type":"SaveImage","inputs":{"filename_prefix":"bc250_elaborado","images":["6",0]}}
+}}

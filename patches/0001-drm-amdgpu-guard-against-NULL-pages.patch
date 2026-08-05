@@ -1,0 +1,60 @@
+From: Gabriel Duarte Guerra <72227489+GabriWar@users.noreply.github.com>
+Subject: [PATCH] drm/amdgpu: guard against NULL entries in ttm->pages during unpopulate
+
+amdgpu_ttm_tt_unpopulate() walks ttm->pages[] and writes to
+pages[i]->mapping without checking for NULL. If a GPU command fails
+partway through, the buffer object can be left partially populated and
+the cleanup path then dereferences a NULL page pointer:
+
+  RIP: 0010:amdgpu_ttm_tt_unpopulate+0x77/0xd0 [amdgpu]
+  CR2: 0000000000000018
+  RAX: 0000000000000000  RBX: ffff8c72d0b6e180  RCX: 0000000000000000
+  Kernel panic - not syncing: Fatal exception
+
+The faulting instruction is the store in the loop:
+
+  48 8b 0b                  mov  (%rbx), %rcx           ; rcx = ttm->pages
+  48 8b 0c c1               mov  (%rcx,%rax,8), %rcx    ; rcx = pages[i]
+  48 c7 41 10 00 00 00 00   movq $0, 0x10(%rcx)
+
+RCX is 0, and CR2 = 0x18 matches the offset of struct page::mapping,
+confirming pages[i] was NULL.
+
+Observed on an AMD BC-250 (gfx1013 / Cyan Skillfish, a PS5-derived APU)
+running ROCm compute workloads. GPU command failures on this part are
+frequent, and every one of them risked taking the whole machine down:
+four hard hangs in a single debugging session, with unclean shutdowns
+and filesystem data loss. With this check the failing process still
+dies, but the machine survives and the error is recoverable.
+
+Note this addresses the crash, not the underlying reason a buffer object
+ends up partially populated, which is a separate issue on this hardware
+and is still under investigation. Regardless, unpopulate should not
+dereference a NULL page.
+
+Tested on 7.0.12 with a full Stable Diffusion pipeline: output is
+unchanged and page faults no longer escalate to kernel panics.
+
+Signed-off-by: Gabriel Duarte Guerra <72227489+GabriWar@users.noreply.github.com>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+index 1234567..89abcde 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+@@ -1255,8 +1255,9 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_device *bdev,
+ 	if (ttm->page_flags & TTM_TT_FLAG_EXTERNAL)
+ 		return;
+ 
+-	for (i = 0; i < ttm->num_pages; ++i)
+-		ttm->pages[i]->mapping = NULL;
++	for (i = 0; i < ttm->num_pages; ++i)
++		if (ttm->pages[i])
++			ttm->pages[i]->mapping = NULL;
+ 
+ 	adev = amdgpu_ttm_adev(bdev);
+ 
+-- 
+2.51.0

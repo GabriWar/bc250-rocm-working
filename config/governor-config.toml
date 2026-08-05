@@ -1,0 +1,47 @@
+[gpu-usage]
+fix-metrics = true
+method = "busy-flag"
+flush-every = 10
+
+[timing.intervals]
+sample = 500
+adjust = 100_000
+
+[timing.ramp-rates]
+normal = 1
+burst = 50
+
+[timing]
+burst-samples = 60
+down-events = 5
+
+[frequency-thresholds]
+adjust = 10
+
+[load-target]
+upper = 0.75
+lower = 0.65
+
+[temperature]
+throttling = 90
+throttling_recovery = 80
+
+[[safe-points]]
+frequency = 1000
+voltage = 800
+
+[[safe-points]]
+frequency = 1500
+voltage = 890
+
+[[safe-points]]
+frequency = 1800
+voltage = 920
+
+[[safe-points]]
+frequency = 2000
+voltage = 940
+
+[[safe-points]]
+frequency = 2050
+voltage = 940

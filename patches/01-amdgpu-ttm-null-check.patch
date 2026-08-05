@@ -1,0 +1,37 @@
+Guard against NULL entries in ttm->pages[] during unpopulate.
+
+amdgpu_ttm_tt_unpopulate() walks ttm->pages[] and writes to
+pages[i]->mapping without checking for NULL. When a GPU command fails
+midway the BO can be left partially populated, and the cleanup path then
+dereferences a NULL page:
+
+  RIP: amdgpu_ttm_tt_unpopulate+0x77/0xd0 [amdgpu]
+  CR2: 0000000000000018
+  RCX: 0000000000000000
+  Kernel panic - not syncing: Fatal exception
+
+CR2=0x18 is offset of struct page::mapping, confirming pages[i] == NULL.
+
+This turned every compute fault on this board into a hard machine hang
+(4 in one session, with unclean shutdowns and data loss). With the check
+the process dies but the machine survives.
+
+The missing NULL check is upstream code, not distro-specific.
+
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+@@ -1255,8 +1255,13 @@
+ 	if (ttm->page_flags & TTM_TT_FLAG_EXTERNAL)
+ 		return;
+ 
++	/* BC-250/gfx1013: pages[] can contain NULL when the BO was only
++	 * partially populated (e.g. a command aborted midway). Without this
++	 * check the kernel panics on NULL->mapping (CR2=0x18).
++	 */
+ 	for (i = 0; i < ttm->num_pages; ++i)
+-		ttm->pages[i]->mapping = NULL;
++		if (ttm->pages[i])
++			ttm->pages[i]->mapping = NULL;
+ 
+ 	adev = amdgpu_ttm_adev(bdev);
+ 
