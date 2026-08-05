@@ -36,7 +36,7 @@ Everything here was measured on real hardware in one session
 | Sampler | DPM++ 2M, Karras, 24 steps |
 | Sampler throughput | **1.53 it/s** |
 | Wall clock, cold server | 40–54 s |
-| Wall clock, warm server | **31–34 s** |
+| Wall clock, warm server | **31–34 s** (19.3 s with GPU VAE) |
 | Page faults / GPU resets | 0 |
 
 Reproduced across 6 generations. Output is byte-size identical across runs with
@@ -70,14 +70,18 @@ Five things are required. Miss any one and it fails.
    `matmul` core-dumps.
 4. **A GPU warmup at startup** — ~90 kernels touched before any model loads.
    Without it the sampler fails reliably. Do *not* add more warmups.
-5. **VAE decode on CPU** (`--cpu-vae`) — VAE decode on the GPU still fails.
+5. **VAE decode on the GPU** — use `--fp16-vae`, not `--cpu-vae`. Needs the two
+   patches below. See [docs/12-gpu-vae-and-empty-cache.md](docs/12-gpu-vae-and-empty-cache.md).
 
 Plus two strongly recommended:
 
 6. **The conv2d patch** — `comfyui/bc250_conv_fix.py`. MIOpen's convolution
    returns numerically wrong data on this chip, silently, with no error. See
    [docs/11-miopen-conv-corruption.md](docs/11-miopen-conv-corruption.md).
-7. **`amdgpu_ttm.c` NULL check** — turns machine-killing kernel panics into
+7. **The empty_cache patch** — `comfyui/bc250_no_empty_cache.py`.
+   `torch.cuda.empty_cache()` corrupts exactly the next GPU operation, which is
+   why VAE decode failed and the UNet never did.
+8. **`amdgpu_ttm.c` NULL check** — turns machine-killing kernel panics into
    ordinary process errors.
 
 Full instructions: [docs/00-setup.md](docs/00-setup.md).
@@ -114,6 +118,7 @@ proof/        generated images
 | [09-building-tensile.md](docs/09-building-tensile.md) | the 7 source changes that make Tensile emit gfx1013 kernels |
 | [10-performance-and-limits.md](docs/10-performance-and-limits.md) | TFLOP/s, the broken GPU timer, telemetry, bf16, wave debugging |
 | [11-miopen-conv-corruption.md](docs/11-miopen-conv-corruption.md) | **MIOpen's conv2d silently returns wrong numbers — and the fix** |
+| [12-gpu-vae-and-empty-cache.md](docs/12-gpu-vae-and-empty-cache.md) | **GPU VAE decode working — `empty_cache()` was corrupting the next op** |
 
 ---
 
@@ -127,7 +132,6 @@ proof/        generated images
 **Works:** image generation, reproducibly, at usable speed.
 
 **Does not work:**
-- VAE decode on the GPU (runs on CPU, costs ~15 s of the 33 s)
 - bfloat16 — fails in all four transpose combinations
 - Tensile tuning — infrastructure fixed, tuning itself not run
 
