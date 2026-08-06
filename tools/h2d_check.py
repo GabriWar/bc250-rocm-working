@@ -13,12 +13,21 @@ Aqui: sobe, traz de volta, compara byte a byte. Sem kernel de conv no meio.
 """
 import os, torch, torch.nn.functional as F
 d="cuda"; torch.manual_seed(0)
-out=open(os.path.expanduser("~/bc250-grimoire/h2d_check.result"),"w",buffering=1)
+import subprocess,time,sys
+out=open(os.path.expanduser("~/bc250-grimoire/h2d_check.historico"),"a",buffering=1)
 def say(s):
     out.write(s+"\n"); out.flush(); os.fsync(out.fileno()); print(s,flush=True)
 
 alvos=[(112,320),(128,320),(104,320),(96,320),(64,320),(64,64)]
 sweep=[(h,c) for h in range(32,136,8) for c in (64,320)]
+_sh=lambda c:(subprocess.run(c,shell=True,capture_output=True,text=True,timeout=10).stdout.strip() or "?")
+_rot=sys.argv[1] if len(sys.argv)>1 else "?"
+say("")
+say("="*70)
+say(f"rotulo={_rot}  boot={_sh('cat /proc/sys/kernel/random/boot_id')[:8]}  "
+    f"{_sh('uptime -p')}  faults={_sh(chr(34)+'printf grdg | sudo -S dmesg 2>/dev/null | grep -ci \'page fault\''+chr(34))}  "
+    f"{time.strftime('%H:%M:%S')}")
+say("="*70)
 say("aquecendo...")
 for _ in range(2):
     for h,c in sweep:

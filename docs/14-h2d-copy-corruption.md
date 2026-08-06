@@ -142,3 +142,32 @@ measured in the same order, the second one carries the blame.
 
 **Concurrent processes.** Two GPU processes overlapped during one battery
 because a backgrounded run never exited. Those numbers were discarded.
+
+---
+
+## Baseline reproduzível (2026-08-05, boot e441f60c)
+
+Quatro processos seguidos, mesmo boot, `tools/h2d_check.py`:
+
+| run | corrompidos (modo A) | observação |
+|---|---|---|
+| 1 | 0 de 3 ciclos | primeiro processo do boot |
+| 2 | 3 de 3 | |
+| 3 | 3 de 3 | offset 2097152 em vez de 1048576 |
+| 4 | 3 de 3 | **byte-idêntica à run 2** |
+
+Modo B (sync a cada upload): **0 falhas em 12 ciclos**.
+
+Run 2 e run 4 coincidem até a unidade — mesmos tensores, mesmos offsets, mesmas
+contagens (1048434 / 1048471 / 1048461). O defeito é determinístico dado o mesmo
+estado.
+
+O primeiro processo de cada boot passa limpo mesmo com aquecimento. Ou seja o
+estado que habilita a falha **atravessa processos**, ao contrário da corrupção
+de conv2d medida antes, que não atravessava. Pergunta aberta: são dois
+mecanismos ou o mesmo visto de dois ângulos.
+
+**Como usar isto para validar um patch:** rodar `h2d_check.py` descartando a
+primeira execução do boot, e comparar 3 execuções com o patch desligado contra
+3 com ele ligado, no mesmo boot. Sem descartar a primeira, o teste mede o
+estado limpo e não a hipótese.
