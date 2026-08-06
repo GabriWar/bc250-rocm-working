@@ -29,17 +29,29 @@ print(json.dumps(w))" > /tmp/wfb_$s.json
   echo "INICIO seed=$s $T0" >>"$RES"
   curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/wfb_$s.json \
        http://127.0.0.1:8188/prompt >/dev/null 2>&1
-  # espera essa imagem aparecer
+  # Espera a imagem aparecer OU o erro de GPU no log.
+  #
+  # Antes isto so olhava o arquivo de saida e esperava os 400 segundos inteiros.
+  # Numa configuracao que falha por erro de GPU o erro aparece no log em menos de
+  # um minuto, entao cada falha custava ~7 minutos de relogio a toa. Numa bateria
+  # A/B de varias rodadas isso vira meia hora parada. Agora sai assim que houver
+  # veredito, nos dois sentidos.
+  ERRO=""
   for i in $(seq 1 400); do
     ls /home/gabriwar/ComfyUI/output/bc250_bench_${s}_*.png >/dev/null 2>&1 && break
-    kill -0 $PID 2>/dev/null || break
+    if grep -qiE 'illegal memory access|hipErrorIllegalAddress|AcceleratorError|HSA_STATUS_ERROR|out of memory' "$L" 2>/dev/null; then
+      ERRO=$(grep -ioE 'illegal memory access|hipErrorIllegalAddress|AcceleratorError|HSA_STATUS_ERROR[A-Z_]*|out of memory' "$L" 2>/dev/null | head -1)
+      break
+    fi
+    kill -0 $PID 2>/dev/null || { ERRO="processo morreu"; break; }
     sleep 1
   done
   T1=$(date +%s.%N)
+  W=$(python3 -c "print(f'{$T1-$T0:.2f}')")
   if ls /home/gabriwar/ComfyUI/output/bc250_bench_${s}_*.png >/dev/null 2>&1; then
-    echo "FIM seed=$s $T1 wall=$(python3 -c "print(f'{$T1-$T0:.2f}')")" >>"$RES"
+    echo "FIM seed=$s $T1 wall=$W" >>"$RES"
   else
-    echo "FALHOU seed=$s" >>"$RES"; break
+    echo "FALHOU seed=$s wall=$W motivo=${ERRO:-timeout}" >>"$RES"; break
   fi
 done
 echo "TERMINADO" >>"$RES"
