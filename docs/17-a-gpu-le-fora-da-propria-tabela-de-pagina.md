@@ -181,6 +181,12 @@ o rótulo fingia que sim.
 causou. Separados depois: a impressão é inofensiva, o tracepoint sem filtro é
 que perturba (938 eventos dentro do laço de escrita de PTE).
 
+**Leitura de MMIO cru numa placa que trava.** Montar o endereço de
+`mmMM_ATC_L2_MISC_CG` e ler por `amdgpu_regs` pendurou a máquina, exigindo reset
+físico. O risco estava documentado no nosso próprio `bc250_dead_gpu_guard`, e o
+próprio driver evita esses registradores neste chip. O erro mais caro da
+investigação, e o mais evitável.
+
 **`sudo -S` engolindo stdin.** `printf senha | sudo -S tee arquivo` faz o `tee`
 receber a senha, não o valor. Aconteceu duas vezes, as duas silenciosas porque
 o `2>/dev/null` escondia o erro. A forma correta é `sudo -S sh -c "echo v > f"`
@@ -238,6 +244,69 @@ outro extremo da VRAM" — consequência de a distribuição ser bimodal, não c
 **Não há invariante de endereço.** Sem ela caem as duas rotas de conserto que
 pareciam abertas: reserva de página física e ajuste de configuração de
 interleave.
+
+## Clockgating do hub de memória: linha encerrada, e o custo
+
+O `gmc_v10_0_get_clockgating_state` tem um caso especial que pula o gfx1013:
+
+```c
+if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(10, 1, 3) ||
+    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(10, 1, 4))
+	return;                       // pula MMHUB e ATHUB
+```
+
+Foram três leituras desse trecho, e só a terceira é a certa.
+
+A primeira: "pula porque `cg_flags = 0` torna a leitura inútil". A segunda,
+invertida: "pula escondendo clockgating que o firmware ligou e o driver não
+gerencia" — que teria sido o mesmo padrão dos registradores de WGP.
+
+**A terceira veio de travar a máquina.** Ler `mmMM_ATC_L2_MISC_CG` e
+`mmDAGB0_CNTL_MISC2` por MMIO cru pendura a CPU. O caso especial é *proteção*,
+não descuido — e o mesmo motivo do nosso `bc250_dead_gpu_guard`: nesta placa uma
+leitura de MMIO não falha, ela trava no fabric interno, que não tem timeout de
+conclusão.
+
+Isso encerra a linha por completo:
+
+- ler os registradores trava
+- patchear o kernel para permitir travaria igual, só que dentro do driver
+- e não há o que desligar: `nv.c` declara `adev->cg_flags = 0` para
+  `IP_VERSION(10, 1, 3)`, então `mmhub_v2_0_update_medium_grain_clock_gating`
+  retorna logo na primeira linha e o clockgating do hub **nunca é ligado**
+
+Como consequência, `amdgpu.cg_mask` também é inócuo aqui: ele só faz
+`adev->cg_flags &= amdgpu_cg_mask`, e mascarar zero dá zero.
+
+**Regra que fica:** nada de leitura de MMIO cru nesta placa. `amdgpu_regs` e
+`/dev/mem` estão fora. O `bc250_dead_gpu_guard` protege o caminho que o driver
+controla, não ferramenta externa.
+
+## Chaves de diagnóstico que continuam sem teste
+
+Escritas em `amdgpu_vm.c` e `amdgpu_gmc.c`, todas default 0 e `0644`, mas o
+build foi interrompido antes do link — o `.ko` instalado ainda é o antigo.
+
+| chave | estado |
+|---|---|
+| `bc250_tlb_extra_types` | **morta**: `get_invalidate_req` já liga `INVALIDATE_L2_PTES/PDE0/PDE1/PDE2` em toda invalidação |
+| `bc250_tlb_all_hub` | **sem teste** |
+| `bc250_tlb_no_seq_skip` | **sem teste** |
+| `bc250_tlb_trace` | instrumentação |
+
+O `all_hub` é o mais interessante dos dois vivos. Em
+`amdgpu_vm_flush_compute_tlb`, `all_hub` só vira verdadeiro para
+`AMDGPU_FAMILY_AI` e `_RV`. Cyan Skillfish é APU mas recebe
+`AMDGPU_FAMILY_NV`, então fica falso e **só o GFXHUB é invalidado**. O MMHUB,
+por onde o SDMA acessa memória, nunca recebe invalidação em mudança de VM de
+processo — e boa parte das medidas de "o que a GPU entrega" passou por
+`hipMemcpy`, que é SDMA.
+
+O `no_seq_skip` remove o `atomic64_xchg(&vm->kfd_last_flushed_seq, tlb_seq) ==
+tlb_seq`, que pula o flush inteiro quando o contador não mudou.
+
+Ambas são de uma linha e, sendo `0644`, permitem A/B no mesmo boot depois de
+carregar o módulo.
 
 ## O que ainda não foi verificado
 
