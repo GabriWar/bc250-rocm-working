@@ -7,6 +7,13 @@
 512×512, SD 1.5, 24 steps (DPM++ 2M / Karras), **33 seconds** per image on a
 warm server. Generated on the board this repo is about.
 
+> **Companion repo:** [**bc250-core-cu-unlock**](https://github.com/GabriWar/bc250-core-cu-unlock)
+> — unlocks the hidden silicon on this board: **8 CPU cores** instead of 6 and
+> **40 GPU compute units** instead of 24. The dormant cores are not fused off,
+> only masked by a writable SMU register. Ships a custom BIOS with **every menu
+> option unlocked** plus the extra cores, so the settings are there without
+> flipping anything at runtime. Measured +26.9% on 7-zip at stock clocks.
+
 ---
 
 ## What this is
