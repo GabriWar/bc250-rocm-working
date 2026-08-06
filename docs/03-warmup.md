@@ -1,6 +1,6 @@
 > **SUPERSEDIDO 2026-08-06.** O warmup deixou de ser necessário: sete
 > execuções sem ele, todas válidas e byte-idênticas. Ver
-> [18-comfyui-funcionando-e-z-image.md](18-comfyui-funcionando-e-z-image.md).
+> [18-comfyui-working-and-z-image.md](18-comfyui-working-and-z-image.md).
 
 # The warmup
 

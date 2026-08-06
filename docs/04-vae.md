@@ -1,5 +1,5 @@
 > **SUPERSEDIDO 2026-08-06.** O VAE roda na GPU com `--fp16-vae`. Ver
-> [18-comfyui-funcionando-e-z-image.md](18-comfyui-funcionando-e-z-image.md).
+> [18-comfyui-working-and-z-image.md](18-comfyui-working-and-z-image.md).
 
 # VAE decode — still on the CPU
 

@@ -4,8 +4,9 @@
 
 ![512x512 generated on a BC-250](proof/coffee-512x512.png)
 
-512×512, SD 1.5, 24 steps (DPM++ 2M / Karras), **33 seconds** per image on a
-warm server. Generated on the board this repo is about.
+512×512, SD 1.5, 24 steps (DPM++ 2M / Karras), **14 seconds** per image on a
+warm server, VAE on the GPU and no warmup. Generated on the board this repo is
+about. Z-Image Turbo runs too — see [Results](#results).
 
 > **Companion repo:** [**bc250-core-cu-unlock**](https://github.com/GabriWar/bc250-core-cu-unlock)
 > — unlocks the hidden silicon on this board: **8 CPU cores** instead of 6 and
@@ -174,18 +175,45 @@ VRAM size in early measurements — 20.4% at 512 MB, 15.7% at 4 GB, 12.0% at
 
 ## Results
 
+### SD 1.5 — no warmup, VAE on the GPU
+
 | | |
 |---|---|
 | Resolution | 512×512 |
 | Model | SD 1.5 (`cyberrealistic_final`) |
 | Sampler | DPM++ 2M, Karras, 24 steps |
-| Sampler throughput | **1.53 it/s** |
-| Wall clock, cold server | 40–54 s |
-| Wall clock, warm server | **31–34 s** (19.3 s with GPU VAE) |
+| VAE | **on the GPU** (`--fp16-vae`) |
+| Warmup | **none** (`BC250_WARMUP=0`) |
+| Wall clock, warm server | **14.1 / 14.2 / 14.5 s** |
+| Wall clock, cold server | 37.5 / 41.7 / 39.0 / 38.7 s (model load) |
 | Page faults / GPU resets | 0 |
 
-Reproduced across 6 generations. Output is byte-size identical across runs with
-the same seed.
+Seven runs, all valid, byte-identical within each seed. Against 33 s with
+`--cpu-vae`, of which ~15 s was the VAE alone on the CPU.
+
+The GPU VAE is correct, not just faster: same seed decoded on CPU and on GPU
+differs by a **mean of 0.729 / 255**. Compare
+[`proof/coffee-512x512.png`](proof/coffee-512x512.png) (CPU) against
+[`proof/sd15-gpu-vae-512x512.png`](proof/sd15-gpu-vae-512x512.png) (GPU).
+
+### Z-Image Turbo
+
+![Z-Image Turbo on a BC-250](proof/z-image-turbo-512x512.png)
+
+| | |
+|---|---|
+| Model | `z-image-turbo-Q5_K_S.gguf` + `Qwen3-4B-Instruct-2507-Q5_K_S.gguf` |
+| Sampler | euler, simple, CFG 1, 8 steps, 512×512 |
+| dtype | **fp32 forced** — bf16 errors out, fp16 returns a flat image |
+| Sampling | **25 s → 3.23 s/step** |
+
+Another BC-250 in the community posted 4.39 s/step for the same 8 steps. Note
+this is fp32, the most expensive dtype this silicon supports — **bf16 does not
+exist here at all**, and fp16 fails silently on this model with exit code zero
+and `std=0.0`.
+
+Setup, dtype ladder and the 2000 MHz clock lock in
+[docs/18](docs/18-comfyui-working-and-z-image.md).
 
 Raw GEMM performance, measured through torch:
 
