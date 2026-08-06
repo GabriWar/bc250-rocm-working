@@ -218,3 +218,754 @@ aquecendo...
      c= 64 h= 64  identico
 
 FIM
+
+======================================================================
+rotulo=ctrl-skip0off-run1  boot=26b0f705  up 1 minute  faults=?  23:16:02
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=ctrl-skip0off-run2  boot=26b0f705  up 1 minute  faults=?  23:16:13
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+
+======================================================================
+rotulo=ctrlB-run1  boot=7109b76f  up 3 minutes  faults=?  23:20:26
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=ctrlB-run2  boot=7109b76f  up 3 minutes  faults=?  23:20:37
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  262120/4014080 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  262111/3461120 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  262112/3461120 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=ctrlB-run3  boot=7109b76f  up 3 minutes  faults=?  23:20:48
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  1048434/4014080 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048471/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048461/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=ctrlB-run4  boot=7109b76f  up 3 minutes  faults=?  23:20:59
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=patchON-run1  boot=a243b8b6  up 2 minutes  faults=?  23:26:36
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  262120/4014080 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  262111/3461120 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  262112/3461120 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=patchON-run2  boot=a243b8b6  up 2 minutes  faults=?  23:26:47
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  1048434/4014080 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048471/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048461/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=patchON-run3  boot=a243b8b6  up 2 minutes  faults=?  23:26:58
+======================================================================
+aquecendo...
+
+======================================================================
+rotulo=skip1-run1  boot=8d8d783b  up 1 minute  faults=?  23:29:26
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  1048461/4014080 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048471/5242880 elementos DIFERENTES  primeiro no indice 4194304
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048468/5242880 elementos DIFERENTES  primeiro no indice 4194304
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=skip1-run2  boot=8d8d783b  up 1 minute  faults=?  23:29:37
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  2096904/5242880 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=skip1-run3  boot=8d8d783b  up 2 minutes  faults=?  23:29:48
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  1048434/4014080 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=128  262112/5242880 elementos DIFERENTES  primeiro no indice 3145728
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1310586/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1310577/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=skip1-run4  boot=8d8d783b  up 2 minutes  faults=?  23:29:58
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  1048434/4014080 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048471/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048461/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=skip1-run5  boot=8d8d783b  up 2 minutes  faults=?  23:30:09
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  1048434/4014080 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048471/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048461/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM
+
+======================================================================
+rotulo=skip1-run6  boot=8d8d783b  up 2 minutes  faults=?  23:30:20
+======================================================================
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048458/5242880 elementos DIFERENTES  primeiro no indice 2097152
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048453/5242880 elementos DIFERENTES  primeiro no indice 2097152
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048466/5242880 elementos DIFERENTES  primeiro no indice 2097152
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM

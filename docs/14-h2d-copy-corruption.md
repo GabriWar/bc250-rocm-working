@@ -111,8 +111,39 @@ off, so it can be A/B tested against the same build.
 neoney's `clr-prefer-sdma1` does the same steering in ROCclr. Doing it in KFD
 covers every client and survives a ROCm rebuild.
 
-**Not yet validated.** Written from the diagnosis above; the module has not
-been built or booted with it.
+**VALIDADO 2026-08-05.** Compilado com clang (`make LLVM=1`), instalado,
+bootado com `amdgpu.bc250_skip_sdma0=1`. O dmesg confirma que o codigo novo
+executou, nao apenas que o parametro foi lido:
+
+```
+amdgpu 0000:01:00.0: BC-250: user SDMA queues restricted to engines 1..1
+```
+
+Resultado, descartando a primeira execucao de cada boot:
+
+| | execucoes que corromperam |
+|---|---|
+| sem patch (baseline, boot e441f60c) | 3 de 3 |
+| sem patch (controle, boot 7109b76f) | 2 de 3 |
+| **com patch (boot 8d8d783b)** | **0 de 5** |
+
+18 ciclos com o patch, nenhum corrompido. Com taxa de 5/6 no controle, cinco
+execucoes limpas por acaso tem probabilidade ~0.01%.
+
+O controle tambem confirmou que o rebuild e neutro: `ctrlB-run3` saiu
+byte-identica ao baseline (1048434 / 1048471 / 1048461), entao o modulo novo
+com o patch desligado se comporta como o antigo.
+
+### Uma previsao minha que estava errada
+
+Eu previ que o patch NAO pegaria, argumentando que com `HSA_ENABLE_SDMA=0` o
+ROCr estaria no caminho de blit e nao usaria filas de SDMA de usuario. Pegou.
+Ou seja, `HSA_ENABLE_SDMA=0` nao impede o ROCr de alocar fila de SDMA pelo KFD
+-- e a primeira fila de cada processo caia no engine 0.
+
+Isso tambem explica por que nenhuma mitigacao de userspace funcionou: memoria
+pinada, `non_blocking` e tamanho de staging mexem em *como* pedir a copia,
+enquanto o defeito estava em *qual engine* atendia.
 
 ---
 
@@ -167,7 +198,19 @@ estado que habilita a falha **atravessa processos**, ao contrário da corrupçã
 de conv2d medida antes, que não atravessava. Pergunta aberta: são dois
 mecanismos ou o mesmo visto de dois ângulos.
 
-**Como usar isto para validar um patch:** rodar `h2d_check.py` descartando a
-primeira execução do boot, e comparar 3 execuções com o patch desligado contra
-3 com ele ligado, no mesmo boot. Sem descartar a primeira, o teste mede o
-estado limpo e não a hipótese.
+**Ressalva sobre o determinismo.** A tabela acima, de um boot so, sugeria que
+toda execucao pos-primeira falha. O boot de controle desmentiu: deu 0 3 3 0.
+Somando os dois boots sem patch, 5 de 6 execuções corromperam -- e quando
+corrompem e sempre 3 de 3 ciclos, nunca parcial. E binario por execucao.
+
+Por isso o braco com patch usou 6 execucoes e nao 3.
+
+**Como usar isto para validar um patch:** descartar a primeira execucao do
+boot, usar pelo menos 6 execucoes por braco, e comparar quantas execucoes
+corromperam -- nao quantos ciclos. Sem descartar a primeira, o teste mede o
+estado limpo e nao a hipotese.
+
+**O tamanho do bloco perdido varia.** Alem dos ~2^20 elementos (2 MiB), o boot
+7109b76f produziu ~2^18 (512 KiB). O que se mantem e o *inicio*: sempre num
+multiplo exato de 2^20. Alinhamento fixo, tamanho variavel -- o que enfraquece
+a leitura de "buffer de staging de tamanho fixo" que este documento sugeria.
