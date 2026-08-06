@@ -214,3 +214,29 @@ estado limpo e nao a hipotese.
 7109b76f produziu ~2^18 (512 KiB). O que se mantem e o *inicio*: sempre num
 multiplo exato de 2^20. Alinhamento fixo, tamanho variavel -- o que enfraquece
 a leitura de "buffer de staging de tamanho fixo" que este documento sugeria.
+
+---
+
+## Os contornos de userspace depois do patch (2026-08-05, boot 8d8d783b)
+
+Geração 512×512, 2 seeds, validada por estatística de pixel:
+
+| configuração | seed 111 | seed 222 |
+|---|---|---|
+| com `conv_fix` | 385KB std=74.41 cores=117062 | 370KB std=75.15 cores=90181 |
+| sem `conv_fix` | 385KB std=74.47 cores=116995 | 370KB std=74.84 cores=89809 |
+| sem `conv_fix` e sem `no_empty_cache` | **395KB std=73.64 cores=105545** | 370KB std=74.84 cores=89809 |
+
+**`bc250_conv_fix.py` é dispensável.** Com o patch de SDMA, a conv do MIOpen dá
+o mesmo resultado que o im2col — tamanhos idênticos ao KB, `std` batendo na
+segunda casa. Confirma que os dois caminhos sempre computaram certo, sobre
+entrada corrompida.
+
+**`bc250_no_empty_cache.py` é inconclusivo.** A seed 222 saiu byte-idêntica; a
+seed 111 mudou (10 KB a mais, 10% menos cores únicas). As duas continuam
+saudáveis pelo critério grosseiro, mas mudou — e `empty_cache()` é exatamente o
+gatilho de rajada de cópias.
+
+Estatística de pixel não distingue "um pouco errado" de "legitimamente
+diferente". Para resolver: repetir a mesma seed várias vezes e ver se ela é
+estável em si mesma, ou comparar contra a mesma seed rodada inteira na CPU.
