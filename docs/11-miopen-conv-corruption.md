@@ -1,3 +1,8 @@
+> **SUPERSEDIDO 2026-08-06.** A atribuição deste documento está errada. A causa
+> real está em [17-a-gpu-le-fora-da-propria-tabela-de-pagina.md](17-a-gpu-le-fora-da-propria-tabela-de-pagina.md):
+> a GPU lê memória física diferente da que a própria tabela de página dela
+> aponta. O que segue fica como histórico de investigação.
+
 # MIOpen's conv2d returns wrong numbers on gfx1013
 
 The single most consequential finding on this board. `conv2d` through MIOpen

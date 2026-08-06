@@ -1,3 +1,8 @@
+> **SUPERSEDIDO 2026-08-06.** A atribuição deste documento está errada. A causa
+> real está em [17-a-gpu-le-fora-da-propria-tabela-de-pagina.md](17-a-gpu-le-fora-da-propria-tabela-de-pagina.md):
+> a GPU lê memória física diferente da que a própria tabela de página dela
+> aponta. O que segue fica como histórico de investigação.
+
 # GPU VAE decode, and why `empty_cache()` was breaking it
 
 VAE decode on the GPU was the longest-standing open problem on this board. It is
