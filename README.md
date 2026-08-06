@@ -57,6 +57,62 @@ bfloat16 doesn't work at all, in
 
 ---
 
+## Open: the GPU reads outside its own page tables
+
+Measured 2026-08-06. The corruption that made every heavy workload unreliable is
+**not** in MIOpen, the copy path, or any software layer — all of them were ruled
+out by direct measurement. Full write-up in
+[docs/17](docs/17-a-gpu-le-fora-da-propria-tabela-de-pagina.md).
+
+Four independent observers of the same address, at the same moment:
+
+| observer | path | result |
+|---|---|---|
+| PTE the driver wrote | `amdgpu_vm_set_ptes` tracepoint | **correct** |
+| PTE sitting in memory | physical read of VRAM | **correct** |
+| data at the PA that PTE points to | `debugfs/dri/1/amdgpu_vram`, no VA involved | **correct** |
+| what the GPU delivers | page table → PA | **wrong** |
+
+Two live `hipMalloc` allocations, distinct BOs, disjoint virtual addresses, are
+treated by the GPU as the same memory. The CPU is never affected and stays
+self-consistent throughout. Reproducer in
+[`tools/hipmalloc_cru.py`](tools/hipmalloc_cru.py), ~2 minutes, hits in roughly
+83% of runs.
+
+Thirteen hypotheses were killed, each by its own measurement, not by argument —
+MIOpen, the compute queue, ROCclr staging and its size, SDMA, races between
+transfers, host buffer lifetime, the PyTorch allocator, the host mapping,
+`bc250_flush_mapped_vmids`, `vm_update_mode`, TTM eviction, the page tables
+themselves, and L2 writeback.
+
+**No fix yet.** A scale collection of 2266 (expected PA, delivered PA) pairs
+found no address invariant — see
+[`docs/data-pares-aliasing.tsv`](docs/data-pares-aliasing.tsv) for the raw data
+if you want to look for what we missed. Page retirement and VA non-reuse both
+died on measurement.
+
+### Current lead
+
+Our kernel carries the stock golden register:
+
+```c
+SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1800ff, 0x00000044),
+```
+
+The BC-250 community reports `0x00100044` as required for ROCm on this board.
+The delta is bit 20, which sits in `NUM_SHADER_ENGINES` (shift `0x13`), taking
+it from 0 to 2. `GB_ADDR_CONFIG` is what the GPU uses to compute addresses —
+pipe interleave, shader-engine swizzle, bank distribution. A wrong shader-engine
+count there makes distinct addresses collide on the same physical location,
+which is exactly the signature above, and explains why only the GPU sees it: the
+CPU never goes through that swizzle.
+
+Untested here. It is one line, and it matters more if you have run the 40 CU
+unlock, since that changes the harvest configuration the register is supposed to
+describe.
+
+---
+
 ## The short version
 
 Five things are required. Miss any one and it fails.
