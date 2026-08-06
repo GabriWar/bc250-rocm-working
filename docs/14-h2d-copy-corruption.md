@@ -111,7 +111,9 @@ off, so it can be A/B tested against the same build.
 neoney's `clr-prefer-sdma1` does the same steering in ROCclr. Doing it in KFD
 covers every client and survives a ROCm rebuild.
 
-**VALIDADO 2026-08-05.** Compilado com clang (`make LLVM=1`), instalado,
+**RETRATADO 2026-08-06 -- ver o aviso no fim deste documento. O que segue neste bloco esta ERRADO e fica registrado apenas como historico.**
+
+**~~VALIDADO 2026-08-05.~~** Compilado com clang (`make LLVM=1`), instalado,
 bootado com `amdgpu.bc250_skip_sdma0=1`. O dmesg confirma que o codigo novo
 executou, nao apenas que o parametro foi lido:
 
@@ -240,3 +242,73 @@ gatilho de rajada de cópias.
 Estatística de pixel não distingue "um pouco errado" de "legitimamente
 diferente". Para resolver: repetir a mesma seed várias vezes e ver se ela é
 estável em si mesma, ou comparar contra a mesma seed rodada inteira na CPU.
+
+
+---
+
+# RETRATACAO (2026-08-06): o patch de SDMA nao corrige a corrupcao
+
+O bloco "VALIDADO" acima esta errado. Ele afirma que com
+`amdgpu.bc250_skip_sdma0=1` foram "0 corrompidos em 18 ciclos", com ~0.01% de
+chance de ser sorte. **Nao foi isso que os dados mostram.**
+
+Contando o mesmo arquivo de historico corretamente, as seis execucoes com o
+patch LIGADO (`skip1-run1` a `skip1-run6`, boot 8d8d783b) corromperam:
+
+```
+skip1-run1   3 corrupcoes
+skip1-run2   1
+skip1-run3   4
+skip1-run4   3
+skip1-run5   3
+skip1-run6   3
+             --
+             17 corrupcoes em 108 oportunidades = 15.7%
+```
+
+Que e indistinguivel do estado sem o patch.
+
+## Como o erro aconteceu
+
+O contador usava ancora de fim de linha:
+
+```bash
+awk '/rotulo=skip1-run'"$r"'$/{f=1;next} /^rotulo=/{f=0} f&&/DIFERENTES/{c++}'
+```
+
+A linha do historico e `rotulo=skip1-run1  boot=8d8d783b  up 1 minute ...`, ou
+seja continua depois do rotulo. Com o `$`, o padrao nunca casa, a flag nunca
+liga, e o `END` imprime `0` para todas as execucoes. Vi seis zeros seguidos e
+declarei vitoria sem abrir o arquivo bruto -- que listava as corrupcoes o tempo
+todo, algumas byte-identicas as do baseline.
+
+O mesmo bug reapareceu em 2026-08-06 medindo carve-out de VRAM, e dessa vez foi
+pego porque eu imprimi o detalhe junto com a contagem.
+
+## O que continua valendo neste documento
+
+- A caracterizacao da corrupcao: rajada de uploads sem sync perde um bloco;
+  tamanhos observados de 512 KiB a 2.5 MiB; offsets em geral multiplos de 2^20,
+  mas nao sempre (visto 733184).
+- **O modo B -- sync a cada upload -- nunca corrompeu em nenhuma configuracao
+  testada.** Esse e o unico resultado que sobreviveu a tudo: VRAM de 512 MB a
+  12 GB, GTT de 1 GB a 12.85 GB, com e sem patches.
+- O diagnostico do SDMA0 (IRQ de conclusao perdida, `Fence fallback timer`) e
+  leitura direta do dmesg e continua valendo como observacao. O que nao vale e
+  a conclusao de que desviar as filas de usuario do engine 0 conserta a
+  corrupcao.
+
+## Taxa por carve-out de VRAM (2026-08-06)
+
+Cada execucao = 3 ciclos x 6 tensores no modo A = 18 oportunidades.
+
+| VRAM | execucoes | corrompidos | taxa | IC95 |
+|---|---|---|---|---|
+| 512 MB | 3 | 11/54 | 20.4% | [11.8%, 32.9%] |
+| 4 GB | 6 | 17/108 | 15.7% | [10.1%, 23.8%] |
+| 12 GB | 6 | 13/108 | 12.0% | [7.2%, 19.5%] |
+
+Tendencia monotonica, mas os tres intervalos se sobrepoem: indicio, nao
+demonstrado. E a comparacao 12 GB contra as outras e confundida, porque nesse
+ponto o `gttsize` tambem mudou (13156 -> 1024). O par limpo e 512 MB contra
+4 GB, mesma configuracao de GTT.
