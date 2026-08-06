@@ -43,6 +43,7 @@ proprio marcador no PA dele, e a base que faz isso acontecer e a certa.
 import ctypes
 import os
 import re
+import sys
 import struct
 import subprocess
 
@@ -111,14 +112,32 @@ root(["sh", "-c", f"echo > {TRC}/trace"])
 root(["sh", "-c", f"echo 1 > {TRC}/tracing_on"])
 
 aquecer()
+# Terceiro modo, "vaVirgem": em vez de liberar a rotatividade, ela e MANTIDA
+# viva. Assim o alocador de VA do ROCr nao tem faixa liberada para reciclar e os
+# blocos de teste caem em enderecos virtuais nunca usados antes.
+#
+# Isso separa o que o discriminador anterior nao separou. Aquele comparava o PA
+# entregue com o historico do proprio VA, mas 0x176000000 aparece no historico de
+# quase todo VA -- e um PA reciclado o tempo todo, porque a rotatividade aloca as
+# mesmas formas na mesma ordem. "Ja foi deste VA" era quase sempre verdade por
+# acaso.
+#
+#   VA virgem e limpo    -> o perigo e o reuso de VA (traducao velha)
+#   VA virgem e corrompe -> o endereco fisico e que aliasa
+VIRGEM = len(sys.argv) > 3 and sys.argv[3] == "vaVirgem"
+segurados = []
 for _ in range(3):
     tmp = []
     for t in TAM:
         p = ctypes.c_void_p()
         ck(hip.hipMalloc(ctypes.byref(p), ctypes.c_size_t(t)), "hipMalloc")
         tmp.append(p)
-    for p in tmp:
-        ck(hip.hipFree(p), "hipFree")
+    if VIRGEM:
+        segurados.extend(tmp)
+    else:
+        for p in tmp:
+            ck(hip.hipFree(p), "hipFree")
+say(f"  modo de VA: {'VIRGEM (rotatividade segurada)' if VIRGEM else 'reusado (rotatividade liberada)'}")
 
 blocos = []
 for rodada in ("A", "B"):
@@ -213,6 +232,48 @@ for k in list(divergentes):
         f"[bruto 0x{got:x}]")
     if dono == k:
         say("      => acertou na segunda: era ordenacao de escrita da CPU, nao lugar errado")
+
+# ---- relacao em BITS entre o PA que a PTE manda e o PA de onde o dado veio ----
+# Se o defeito for de decodificacao de endereco (interleave de canal, linha de
+# endereco presa, hash do data fabric), o par certo-x-entregue tem relacao fixa:
+# XOR com poucos bits, ou sempre os mesmos bits. Se for aleatorio, nao e decode.
+# O PA entregue e sempre 0x176000000 ou 0x176800000, enquanto os esperados se
+# espalham. Duas explicacoes preveem isso:
+#
+#   (a) esses enderecos fisicos aliasam de verdade -> reservar as paginas resolve
+#   (b) a GPU usa uma traducao VELHA daquele mesmo VA, de uma geracao anterior da
+#       rotatividade, presa numa cache que o flush de TLB nao alcanca. Como o
+#       alocador e deterministico, a geracao anterior cai sempre no mesmo PA.
+#
+# O que separa: o PA entregue esta entre os que ESTE VA ja apontou antes?
+say("  --- o PA entregue e uma traducao antiga deste mesmo VA? ---")
+hist = {}
+for k, (rot, p_, t_) in enumerate(blocos):
+    pg = p_.value >> 12
+    hist[k] = [a for s_, fl_, a in seq if s_ == pg and (fl_ & 1)]
+say("  --- relacao de bits entre esperado e entregue ---")
+for k in divergentes:
+    if k not in pa:
+        continue
+    buf = (ctypes.c_ubyte * 8)()
+    ck(hip.hipMemcpy(buf, blocos[k][1], ctypes.c_size_t(8), D2H), "hipMemcpy(3)")
+    got = struct.unpack("<Q", bytes(buf))[0]
+    outro = got - MAGIC if (got >> 48) == 0x5A5A else None
+    if outro is None or outro not in pa:
+        say(f"    {blocos[k][0]}: entregou 0x{got:x}, sem bloco identificavel")
+        continue
+    pe, pd = pa[k], pa[outro]
+    x = pe ^ pd
+    say(f"    {blocos[k][0]}: esperado PA 0x{pe:x}  entregue PA 0x{pd:x}")
+    say(f"      XOR = 0x{x:x}  ({bin(x).count('1')} bits)  bits: "
+        f"{[i for i in range(48) if x >> i & 1]}")
+    say(f"      diferenca = {pd - pe:+d} (0x{abs(pd-pe):x})")
+    ger = hist.get(k, [])
+    say(f"      geracoes anteriores deste VA: {[hex(a) for a in ger]}")
+    if pd in ger:
+        say(f"      >>> 0x{pd:x} JA FOI o PA deste VA: e traducao velha, nao alias fisico")
+    else:
+        say(f"      >>> 0x{pd:x} NUNCA foi o PA deste VA: o endereco fisico e que aliasa")
 
 say("  --- triangulacao ---")
 for k in divergentes:

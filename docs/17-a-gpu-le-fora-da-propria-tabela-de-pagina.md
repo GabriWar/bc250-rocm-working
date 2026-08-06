@@ -66,6 +66,11 @@ Ferramentas de apoio, todas em `tools/`:
 | `quem_erra_escrita_ou_leitura.py` | separa erro de escrita de erro de leitura |
 | `trace_matriz.sh` | captura tracepoints de VM do amdgpu junto do reprodutor |
 | `ab_flush_vmids.sh` | A/B contrabalanceado de `bc250_flush_mapped_vmids` |
+| `coletar_pares.py` | coleta em escala de pares (PA esperado, PA entregue) |
+
+Os 2266 pares coletados estão em
+[`data-pares-aliasing.tsv`](data-pares-aliasing.tsv):
+`ciclo, bloco, tamanho, VA, PA esperado, bloco entregue, PA entregue`.
 
 E dois auxiliares em `~/bc250-grimoire/`, que rodam como root porque
 `/sys/kernel/debug/dri/1/amdgpu_vram` é só-root:
@@ -188,6 +193,52 @@ os próprios endereços no arquivo gravado junto com o trace.
 
 ---
 
+## A busca por invariante de endereço (2266 pares)
+
+Com poucas amostras apareceram duas leituras que se contradiziam: numa o PA
+ENTREGUE era sempre `0x176000000`/`0x176800000`, noutra o PA ESPERADO era sempre
+`0x170000000`. Cada uma sozinha teria justificado um patch diferente. Então foi
+montada uma coleta em escala (`tools/coletar_pares.py`), 6 processos × 40
+ciclos, com âncora física nos dois primeiros ciclos de cada processo.
+
+**Duas armadilhas do próprio instrumento, pegas antes de virarem conclusão:**
+
+A primeira versão escrevia 8 bytes por página de 2 MiB em memória
+write-combining e sincronizava só a GPU. `hipDeviceSynchronize` não descarrega
+buffer de WC da CPU, então a GPU lia o marcador da geração anterior daquele
+endereço. Produziu 7 "divergências" em todos os 40 ciclos, sempre nos mesmos
+blocos e em anel fechado — 1889 pares de puro artefato. O sinal foi a
+regularidade: o fenômeno real é bimodal, constante assim é bug de medida.
+
+Corrigido com duas travas: encher 4 KiB por página, o que força o WC a
+descarregar, e **conferir pela CPU** que o marcador está lá antes de perguntar à
+GPU. Depois disso a taxa continuou alta (10 de 12 blocos por ciclo), o que
+levantou a segunda suspeita — mas a varredura física no ciclo 2 confirmou os
+marcadores no offset que a PTE aponta. As divergências são reais; a rotatividade
+apertada é que empurra a taxa para cima.
+
+**O resultado, com 2266 pares:**
+
+```
+bits(27,28,32,34) = (1,1,1,1)   1794   79.2%
+bits(27,28,32,34) = (0,0,0,0)    472   20.8%
+```
+
+Quatro bits que nunca viram parcialmente pareciam assinatura de decodificação de
+endereço. **Não são.** A forma forte da hipótese — `A` aliasa com
+`A ^ 0x518000000` — falha: o parceiro aparece em 4 de 17 endereços e só 2
+aliasam mutuamente.
+
+Os 17 endereços formam dois grupos, um no começo da janela de VRAM
+(`0x171`–`0x173`, offsets de 16 a 56 MiB) e outro no topo (`0x469`–`0x46f`,
+~11,9 GiB). A máscara `0x518000000` é exatamente o que separa um grupo do outro.
+Então "os quatro bits viram juntos" é só outra forma de dizer "o dado veio do
+outro extremo da VRAM" — consequência de a distribuição ser bimodal, não causa.
+
+**Não há invariante de endereço.** Sem ela caem as duas rotas de conserto que
+pareciam abertas: reserva de página física e ajuste de configuração de
+interleave.
+
 ## O que ainda não foi verificado
 
 **Se o defeito é de configuração ou de silício.** É a única pergunta viva, e a
@@ -241,17 +292,33 @@ Contexto que reforça: é um APU de PS5 com GDDR6 unificada, cuja configuração
 memória foi montada para um sistema que não roda aqui, e que nunca foi auditada
 para compute com endereço virtual reusado.
 
+### Rotas de conserto que morreram
+
+| rota | o que a matou |
+|---|---|
+| reservar páginas físicas ruins | não há conjunto fixo: 17 endereços, todos legítimos, aliasando entre si |
+| não reusar faixa de VA | 1 de 4 contra 2 de 4, sem diferença |
+| emitir tipos extras de flush de TLB | `get_invalidate_req` já liga `INVALIDATE_L2_PTES/PDE0/PDE1/PDE2` em toda invalidação |
+| ajustar interleave por registrador | depende de invariante de endereço, que não existe |
+
 ### Próximos passos, em ordem
 
-1. **Varrer o tamanho de VRAM na BIOS medindo a taxa** com o reprodutor de 2
-   minutos, n≥3 por tamanho. Taxa acompanhando o tamanho de forma sistemática ⇒
-   configuração, e o caminho vira registrador/VBIOS. Taxa constante ⇒ silício.
-2. Se der configuração, procurar os registradores de endereçamento de memória
-   (interleave de canal, aperture, harvest) pelo mesmo método usado em
-   [16-wgp-registers-vem-do-vbios.md](16-wgp-registers-vem-do-vbios.md).
-3. Se for silício, o contorno conhecido é evitar o gatilho: um alocador que
-   nunca reusa faixa de endereço virtual dentro do processo. Custa memória
-   virtual, que sobra. É contorno, não conserto.
+1. **Varrer o tamanho de VRAM na BIOS medindo a taxa**, n≥3 por tamanho. É a
+   última pista de configuração que sobrou, vinda da observação antiga de que a
+   taxa acompanha o tamanho (20,4% em 512 MB, 15,7% em 4 GB, 12,0% em 12 GB).
+2. Se a taxa não acompanhar, encerrar a busca por conserto e ir para
+   **detecção**: a visão da CPU está sempre correta, então dá para verificar
+   integridade depois de subir dado e refazer o que vier errado. Caro, mas
+   confiável, e não depende de entender o hardware.
+
+### Sobre o método
+
+Cinco candidatos dissolveram sob escrutínio no mesmo dia — aliasing físico fixo,
+reuso de VA, tipos extras de flush, delta constante e a invariante de bits.
+Todos pareciam sólidos na primeira amostra. O padrão que se repete é que n
+pequeno produz estrutura aparente, e a estrutura some quando o n cresce.
+Nenhuma conclusão daqui deve ser escrita em patch sem repetir a medida com
+volume.
 
 ---
 
