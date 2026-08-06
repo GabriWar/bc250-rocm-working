@@ -1,0 +1,85 @@
+{
+  "_comentario": [
+    "Equivalente ao print da outra BC-250: z-image-turbo Q5_K_S + Qwen3-4B como",
+    "text encoder + ae.safetensors, 512x512, 8 steps, euler, CFG 1.",
+    "",
+    "Diferencas obrigatorias em relacao ao print, e por que:",
+    "",
+    "  scheduler: o print diz 'discrete', que NAO existe nesta versao do ComfyUI",
+    "  (43c64b63). Os disponiveis sao simple, sgm_uniform, karras, exponential,",
+    "  ddim_uniform, beta, normal, linear_quadratic, kl_optimal. Usado 'simple',",
+    "  que e o default dos modelos de flow matching como este.",
+    "",
+    "  latente: Z-Image herda de Lumina2, cujo latent_format e o do Flux, com 16",
+    "  canais. EmptyLatentImage entrega 4 canais e nao serve. Por isso",
+    "  EmptySD3LatentImage.",
+    "",
+    "  CLIPLoaderGGUF type: a lista de tipos nao tem z_image, mas o ComfyUI",
+    "  detecta o encoder pelo state dict (TEModel.QWEN3_4B -> z_image.te), entao",
+    "  o campo e so um hint. 'qwen_image' e o mais proximo.",
+    "",
+    "Atencao ao dtype: supported_inference_dtypes do Z-Image e",
+    "[bfloat16, float32], e esta placa NAO tem bf16. fp16 so entra se",
+    "extended_fp16_support() (verdadeiro, torch 2.10) E allow_fp16, que e",
+    "decidido pelas estatisticas do proprio arquivo (std < 0.42). Se cair em",
+    "fp32, espere lentidao e o dobro de memoria."
+  ],
+  "prompt": {
+    "1": {
+      "class_type": "UnetLoaderGGUF",
+      "inputs": { "unet_name": "z-image-turbo-Q5_K_S.gguf" }
+    },
+    "2": {
+      "class_type": "CLIPLoaderGGUF",
+      "inputs": {
+        "clip_name": "Qwen3-4B-Instruct-2507-Q5_K_S.gguf",
+        "type": "qwen_image"
+      }
+    },
+    "3": {
+      "class_type": "VAELoader",
+      "inputs": { "vae_name": "ae.safetensors" }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["2", 0],
+        "text": "Blonde Woman Walking along the Beach in a Golden Sunset wearing a light dress. HDR, 8K, Photorealistic"
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["2", 0],
+        "text": "Blurry, Unrealistic, Low Quality"
+      }
+    },
+    "6": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": { "width": 512, "height": 512, "batch_size": 1 }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["1", 0],
+        "positive": ["4", 0],
+        "negative": ["5", 0],
+        "latent_image": ["6", 0],
+        "seed": 111,
+        "steps": 8,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": { "samples": ["7", 0], "vae": ["3", 0] }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": { "images": ["8", 0], "filename_prefix": "bc250_zimage" }
+    }
+  }
+}
