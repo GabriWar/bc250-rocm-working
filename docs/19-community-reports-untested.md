@@ -27,7 +27,29 @@ an older stack does not do that, the defect is a **regression** with a bisectabl
 first-bad-commit, not a permanent property of the silicon — which would change
 the entire approach from "work around it" to "find what changed".
 
+A separate report names versions, which makes this checkable instead of vague:
+
+| stack | reported behaviour |
+|---|---|
+| `5.10.0-hiveos #110.hiveos.220411` (a 2022 mining distribution) | ROCm reported the memory size correctly, and it **did not hang immediately** |
+| Ubuntu 25.04, `6.14.0-33-generic` | the compute queue is said to work, but possibly not enough on its own |
+
+Note the hedge in the first row — "did not hang immediately" is not "worked". It
+is weaker than the claim above it, and both come from different people.
+
 **Untested.** We have never run this board on an older kernel or an older ROCm.
+
+## 1b. Driver and ROCm versions are reported to be coupled and fragile
+
+From the same direction: that the driver has to be a specific version because
+"newer ones broke it", and that ROCm version against supported PyTorch version
+is its own compatibility puzzle.
+
+This is consistent with item 1 but too vague to act on — no version is named.
+Recorded so that if we do bisect, we remember the userspace may need to move
+with the kernel rather than staying fixed.
+
+**Untested, and unfalsifiable as stated.**
 
 ## 2. KIQ handling is reported to have moved from software to firmware
 
@@ -77,7 +99,34 @@ becomes a second reproducer in an unrelated application.
 
 **Untested.** We have not run Blender on this board.
 
-## 5. Not ours — a separate llama.cpp bug
+## 5. A modprobe tweak reported to expose ~15 GB
+
+Not about the fault, but the most immediately actionable thing on this page.
+Raising TTM's page limit is reported to make roughly 15 GB usable, against the
+board's default carve-out:
+
+```
+# /etc/modprobe.d/increase_amd_memory.conf
+options ttm pages_limit=3959290 page_pool_size=3959290
+```
+
+3959290 pages × 4 KiB ≈ 15.1 GiB. A further ~1 GB is said to be eaten by the
+kernel on top of that.
+
+This is worth testing for two independent reasons. It would let larger models
+run — but more interesting to us, **VRAM size is the last untested variable in
+doc 17**: the corruption rate tracked it (20.4% at 512 MB, 15.7% at 4 GB, 12.0%
+at 12 GB) and nothing has explained the trend. Pushing the limit up is another
+point on that curve.
+
+Careful, though: this raises TTM's system-memory pool, which is not the same
+thing as the BIOS UMA carve-out that doc 17's measurements varied. They may not
+be the same axis at all, and reading them as one would be exactly the kind of
+mistake this repo has had to retract before.
+
+**Untested.**
+
+## 6. Not ours — a separate llama.cpp bug
 
 Recorded only so it does not get mistaken for the above. A HIP build of
 llama.cpp on gfx1013 aborts with:
@@ -104,5 +153,15 @@ an older kernel, then run `tools/hipmalloc_cru.py` — the ~2 minute reproducer 
 [17](17-a-gpu-le-fora-da-propria-tabela-de-pagina.md). Twelve runs on each
 kernel, per the three-repetitions-minimum rule this repo uses everywhere else.
 
+The reproducer is what makes this worth doing at all. Every report above is
+somebody's impression that things did or did not work; `hipmalloc_cru.py` turns
+that into a number on the same scale we already have for the current kernel. A
+clean result there is evidence. "It felt more stable" is not.
+
 If the older kernel comes back clean, the next step is a bisect of the amdgpu
 memory-mapping path between the two.
+
+Second priority is item 5, which is a one-line modprobe change and reversible by
+deleting a file — cheap enough that there is no reason to leave it untested.
+
+Item 1b cannot be tested as written until somebody names a version.
