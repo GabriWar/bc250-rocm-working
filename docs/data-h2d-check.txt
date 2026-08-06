@@ -1,0 +1,51 @@
+aquecendo...
+
+--- ciclo 1 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  1048434/4014080 elementos DIFERENTES  primeiro no indice 0
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 2 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048471/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+--- ciclo 3 ---
+  A: uploads em rajada, sync so no fim
+     c=320 h=112  identico
+     c=320 h=128  1048461/5242880 elementos DIFERENTES  primeiro no indice 1048576
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+  B: um upload por vez, sync a cada um
+     c=320 h=112  identico
+     c=320 h=128  identico
+     c=320 h=104  identico
+     c=320 h= 96  identico
+     c=320 h= 64  identico
+     c= 64 h= 64  identico
+
+FIM

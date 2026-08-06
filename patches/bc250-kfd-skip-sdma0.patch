@@ -1,0 +1,94 @@
+BC-250 (Cyan Skillfish, gfx1013): keep user SDMA queues off engine 0
+
+On this board SDMA0 does not deliver its completion interrupt. At every boot,
+before any workload runs, the driver logs:
+
+    amdgpu 0000:01:00.0: Fence fallback timer expired on ring sdma0
+    amdgpu 0000:01:00.0: Fence fallback timer expired on ring sdma0
+    amdgpu 0000:01:00.0: ring sdma0 uses VM inv eng 12 on hub 0
+    amdgpu 0000:01:00.0: ring sdma1 uses VM inv eng 13 on hub 0
+
+That message comes from amdgpu_fence_fallback(), which warns only when
+amdgpu_fence_process() found an already-completed fence:
+
+    if (amdgpu_fence_process(ring))
+            dev_warn(ring->adev->dev,
+                     "Fence fallback timer expired on ring %s\n", ...);
+
+So the work finished and the interrupt was lost -- the engine is not stuck.
+SDMA1 comes up clean and never produces the warning.
+
+Userspace pays for this twice:
+
+  HSA_ENABLE_SDMA=1  a copy queued on SDMA0 completes but never signals, and
+                     the caller spins. Measured: 199% CPU, state R, no progress
+                     for minutes on a warmup that takes seconds otherwise.
+
+  HSA_ENABLE_SDMA=0  the runtime falls back to blit kernels, whose completion
+                     signalling is unreliable the same way. A batch of large
+                     host-to-device copies is reported done early and exactly
+                     one 2 MiB chunk of one of them never lands:
+
+                       1048434 of 4014080 elements differ, first at index 0
+                       1048471 of 5242880 elements differ, first at index 1048576
+                       1048461 of 5242880 elements differ, first at index 1048576
+
+                     2^20 fp16 elements is exactly 2 MiB, and the first bad
+                     index is a multiple of it. Measured with no convolution
+                     involved: upload a tensor, read it back, compare. With a
+                     sync after each upload instead of a batch, 48/48 clean.
+
+allocate_sdma_queue() takes the first free bit and derives the engine as
+
+    sdma_engine_id = sdma_id % kfd_get_num_sdma_engines(dev)
+
+so with two engines the even ids land on engine 0, and the first queue of every
+process lands there. Clearing those bits leaves engine 0 to the kernel's own
+ring and hands user queues only to engine 1.
+
+Costs half the SDMA queue slots. Off by default so it can be A/B tested against
+the same build:  amdgpu.bc250_skip_sdma0=1
+
+Community precedent: neoney's clr-prefer-sdma1 does the same steering inside
+ROCclr ("The BC-250's SDMA0 H2D path stalls; prefer SDMA1 when it is
+available"). Doing it in KFD covers every client and survives a ROCm rebuild.
+
+--- a/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.c
++++ b/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.c
+@@ -25,6 +25,7 @@
+ #include <linux/ratelimit.h>
+ #include <linux/printk.h>
++#include <linux/module.h>
+ #include <linux/slab.h>
+ #include <linux/list.h>
+ #include <linux/types.h>
+@@ -131,6 +132,12 @@
++static int bc250_skip_sdma0;
++module_param(bc250_skip_sdma0, int, 0444);
++MODULE_PARM_DESC(bc250_skip_sdma0,
++	"BC-250: 0=off 1=keep user SDMA queues off engine 0 (its completion IRQ is lost)");
++#define BC250_PCI_DEVICE_ID 0x13FE
++
+ static void init_sdma_bitmaps(struct device_queue_manager *dqm)
+ {
+ 	bitmap_zero(dqm->sdma_bitmap, KFD_MAX_SDMA_QUEUES);
+@@ -142,6 +149,21 @@
+ 	bitmap_clear(dqm->xgmi_sdma_bitmap, 0, kfd_get_num_xgmi_sdma_engines(dqm->dev) *
+ 			dqm->dev->kfd->device_info.num_reserved_sdma_queues_per_engine);
++
++	if (bc250_skip_sdma0 &&
++	    dqm->dev->adev->pdev->device == BC250_PCI_DEVICE_ID) {
++		unsigned int neng = kfd_get_num_sdma_engines(dqm->dev);
++		unsigned int nq = get_num_sdma_queues(dqm);
++		unsigned int bit;
++
++		if (neng > 1) {
++			for (bit = 0; bit < nq; bit++)
++				if (bit % neng == 0)
++					clear_bit(bit, dqm->sdma_bitmap);
++			dev_info_once(dqm->dev->adev->dev,
++				      "BC-250: user SDMA queues restricted to engines 1..%u\n",
++				      neng - 1);
++		}
++	}
+ }

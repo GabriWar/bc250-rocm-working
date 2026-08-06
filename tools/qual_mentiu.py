@@ -91,12 +91,25 @@ def rel(a, b):
     return (a - b).abs().max().item() / max(b.abs().max().item(), 1e-6)
 
 
-def im2col_gemm(xg, wg):
-    """A conv do jeito que bc250_conv_fix.py faz. Fica na GPU."""
+def im2col_fp32(xg, wg):
+    """im2col + GEMM promovendo para fp32. NAO e o que o patch faz -- o GEMM
+    em fp32 usa kernels rocBLAS diferentes dos de fp16."""
     n, cin, hi, wi = xg.shape
     cout = wg.shape[0]
     cols = F.unfold(xg, (3, 3), padding=1)
     o = wg.reshape(cout, -1).float() @ cols.float()
+    return o.reshape(n, cout, hi, wi)
+
+
+def im2col_fp16(xg, wg):
+    """Exatamente o que bc250_conv_fix.py faz: tudo em fp16, sem promover.
+
+    Copiado do corpo de _conv2d_im2col para o caso 3x3 stride 1 padding 1, que
+    e o que estes shapes usam. Se este errar, o patch nao e correcao."""
+    n, cin, hi, wi = xg.shape
+    cout = wg.shape[0]
+    cols = F.unfold(xg, (3, 3), padding=1)
+    o = wg.reshape(cout, -1) @ cols
     return o.reshape(n, cout, hi, wi)
 
 
@@ -129,9 +142,9 @@ else:
     torch.cuda.synchronize()
 say("")
 
-cab = (f"  {'shape':>12}  {'conv':>10}  {'cast':>10}  {'im2col':>10}  "
-       f"{'conv~im2col':>11}  veredito")
-resumo = {"CONV": 0, "CAST": 0, "IM2COL": 0, "ok": 0}
+cab = (f"  {'shape':>12}  {'conv':>10}  {'cast':>10}  {'im2col16':>10}  "
+       f"{'im2col32':>10}  {'1o':>4}  veredito")
+resumo = {"CONV": 0, "CAST": 0, "IM2COL16": 0, "IM2COL32": 0, "ok": 0}
 
 for rep in range(1, reps + 1):
     say(f"--- {modo} rep {rep}/{reps} ---")
@@ -141,38 +154,57 @@ for rep in range(1, reps + 1):
         w = torch.randn(c, c, 3, 3, dtype=torch.float16)
         xg, wg = x.to(DEV), w.to(DEV)
 
-        g = F.conv2d(xg, wg, padding=1)
+        # ORDEM ALTERNADA. Rodar sempre conv primeiro e im2col depois faria o
+        # segundo herdar qualquer envenenamento por posicao, e eu estaria
+        # medindo ordem enquanto acreditava estar medindo operacao. A coluna
+        # `1o` diz quem foi lancado primeiro nesta medida.
+        conv_primeiro = (rep + alvos.index((h, c))) % 2 == 0
+
+        if conv_primeiro:
+            g = F.conv2d(xg, wg, padding=1); torch.cuda.synchronize()
+            r16 = im2col_fp16(xg, wg); r32 = im2col_fp32(xg, wg)
+        else:
+            r16 = im2col_fp16(xg, wg); r32 = im2col_fp32(xg, wg)
+            torch.cuda.synchronize()
+            g = F.conv2d(xg, wg, padding=1)
         torch.cuda.synchronize()
 
         cpu_ref = F.conv2d(x.float(), w.float(), padding=1)
 
         g_puro = g.cpu().float()      # copia o fp16, cast na CPU
         g_cast = g.float().cpu()      # cast na GPU, depois copia
-        ic = im2col_gemm(xg, wg).cpu()
-        torch.cuda.synchronize()
+        i16 = r16.cpu().float()       # o patch, exatamente
+        i32 = r32.cpu()               # variante promovida
 
         e_conv = rel(g_puro, cpu_ref)
         e_cast = (g_cast - g_puro).abs().max().item()
-        e_im2c = rel(ic, cpu_ref)
-        e_cruz = rel(g_puro, ic)
+        e_i16 = rel(i16, cpu_ref)
+        e_i32 = rel(i32, cpu_ref)
+
+        # nan nunca e "ok": qualquer comparacao com nan e falsa, entao um
+        # `> TOL` engole a pior falha possivel. Aconteceu na primeira bateria.
+        def falhou(e):
+            return (not (e == e)) or e > TOL
 
         ruins = []
-        if e_conv > TOL:
+        if falhou(e_conv):
             ruins.append("CONV")
-        if e_cast > 0:
+        if falhou(e_cast) or e_cast > 0:
             ruins.append("CAST")
-        if e_im2c > TOL:
-            ruins.append("IM2COL")
+        if falhou(e_i16):
+            ruins.append("IM2COL16")
+        if falhou(e_i32):
+            ruins.append("IM2COL32")
         for r in ruins:
             resumo[r] += 1
         if not ruins:
             resumo["ok"] += 1
         say(f"  c={c:3d} h={h:3d}  {e_conv:10.3e}  {e_cast:10.3e}  "
-            f"{e_im2c:10.3e}  {e_cruz:11.3e}  {'+'.join(ruins) if ruins else 'ok'}")
+            f"{e_i16:10.3e}  {e_i32:10.3e}  {"conv" if conv_primeiro else "im2c":>4}  {"+".join(ruins) if ruins else "ok"}")
     say("")
 
 n = reps * len(alvos)
 say(f"RESUMO {modo} boot={boot}: de {n} medidas -> "
-    f"CONV {resumo['CONV']}  CAST {resumo['CAST']}  IM2COL {resumo['IM2COL']}  "
+    f"CONV {resumo['CONV']}  CAST {resumo['CAST']}  IM2COL16 {resumo['IM2COL16']}  IM2COL32 {resumo['IM2COL32']}  "
     f"limpas {resumo['ok']}")
 say("FIM")

@@ -1,0 +1,14 @@
+=== modo=base  HSA_ENABLE_SDMA=0 ===
+  aquecendo (2 passadas de 26 conv2d) -- sem isso nada reproduz
+  ciclo 1: 0 tensores corrompidos
+  ciclo 2: 0 tensores corrompidos
+  ciclo 3: 0 tensores corrompidos
+  ciclo 4: 0 tensores corrompidos
+  ciclo 5: 0 tensores corrompidos
+  ciclo 6: 0 tensores corrompidos
+  ciclo 7: 0 tensores corrompidos
+  ciclo 8: 0 tensores corrompidos
+  TOTAL base: 0 corrompidos em 8 ciclos x 6 tensores
+
+=== modo=base  HSA_ENABLE_SDMA=0 ===
+  aquecendo (2 passadas de 26 conv2d) -- sem isso nada reproduz
