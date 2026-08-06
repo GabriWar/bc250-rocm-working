@@ -15,6 +15,12 @@ The BC-250 is a PS5 APU (Oberon, `gfx1013` / "Cyan Skillfish") sold as a mining
 board. ROCm nominally runs on it; heavy compute does not — every attempt hits a
 GPU fault, and often takes the whole machine down with it.
 
+**The core defect is still open, and it is a virtual-to-physical translation
+fault.** The GPU resolves a virtual address to different physical memory than
+its own page tables specify. Everything else in this repo is either a
+workaround for that, or a measurement that narrowed it down. See
+[the open problem](#the-open-problem-the-gpu-resolves-va-to-the-wrong-pa).
+
 This repo documents getting Stable Diffusion working on one, with:
 
 - every patch, config and artifact needed to reproduce it
@@ -24,6 +30,138 @@ This repo documents getting Stable Diffusion working on one, with:
 
 Everything here was measured on real hardware in one session
 (2026-08-04). Where something is assumed rather than measured, it says so.
+
+---
+
+## The open problem: the GPU resolves VA to the wrong PA
+
+**This is the main unresolved defect on this board, and everything else here
+works around it.**
+
+A virtual address handed to the GPU resolves to physical memory that is not the
+one its own page tables point at. Two live `hipMalloc` allocations — distinct
+buffer objects, disjoint virtual ranges — come out sharing memory as far as the
+GPU is concerned. Writing one changes the other.
+
+Measured 2026-08-06. It is **not** MIOpen, not the copy path, and not any
+software layer. Full write-up in
+[docs/17](docs/17-a-gpu-le-fora-da-propria-tabela-de-pagina.md).
+
+### The CPU reads correctly. The GPU does not.
+
+Same pointer, same moment, four phases:
+
+| phase | who writes | who reads | result |
+|---|---|---|---|
+| 1 | CPU | CPU | **correct** — host mappings are self-consistent |
+| 2 | CPU | GPU | **wrong** — GPU returns another block's data |
+| 3 | GPU | CPU | **wrong** — CPU still sees its own earlier value |
+| 4 | GPU | GPU | **wrong** — consistently another block's memory |
+
+The CPU is never affected, in either direction. `/proc/pid/maps` shows the two
+allocations at different offsets into `/dev/dri/renderD128` — different BOs,
+different physical memory — and the CPU honors that. The GPU does not.
+
+### Four independent observers of the same address
+
+| observer | path | result |
+|---|---|---|
+| PTE the driver wrote | `amdgpu_vm_set_ptes` tracepoint | **correct** |
+| PTE sitting in memory | physical read of VRAM | **correct** |
+| data at the PA that PTE points to | `debugfs/dri/1/amdgpu_vram`, no VA involved | **correct** |
+| what the GPU delivers | page table → PA | **wrong** |
+
+The page tables are right, the physical memory is right, and the GPU still
+returns something else. The FB base calibrated at `0x170000000` against 11 of 11
+blocks, which validates the method and not just the failing case.
+
+### What triggers it
+
+| condition | effect |
+|---|---|
+| no prior GPU activity | 0 of 6 runs |
+| with prior GPU activity | 5 of 6 |
+| allocation only, no kernels | 0 of 3 |
+| kernels only, no new allocation | 0 of 3 |
+| allocation and kernels interleaved | 3 of 3 |
+| full serialization (`HIP_LAUNCH_BLOCKING=1`, `AMD_SERIALIZE_*=3`) | reproduces unchanged |
+
+It needs both halves. It reproduces with everything serialized, so it is **not a
+race**. Per process the outcome is bimodal — a process either aliases on nearly
+every cycle or on none — and once established it is deterministic and survives a
+forced TLB invalidation.
+
+### Reproducer and tools
+
+[`tools/hipmalloc_cru.py`](tools/hipmalloc_cru.py) — ~2 minutes, hits in roughly
+83% of runs. No PyTorch in the test itself: raw `hipMalloc`, `hipMemset`,
+`hipDeviceSynchronize` and `hipMemcpy` through `ctypes`. PyTorch only warms the
+GPU into the state where the defect appears.
+
+```
+hipmalloc_cru.py <churn rounds> <warmup mode> [cpu|segurar]
+   warmup modes: orig | so-alloc | so-kernel | sem-aquecer
+```
+
+| tool | what it decides |
+|---|---|
+| [`tools/matriz_cpu_gpu.py`](tools/matriz_cpu_gpu.py) | the who-writes × who-reads matrix above, block by block |
+| [`tools/triangular_fisico.py`](tools/triangular_fisico.py) | triangulates VA / GPU / physical address, calibrates the FB base |
+| [`tools/coletar_pares.py`](tools/coletar_pares.py) | scale collection of (expected PA, delivered PA) pairs |
+| [`tools/sobreposicao.py`](tools/sobreposicao.py) | detects the aliasing with PyTorch tensors instead of raw HIP |
+| [`tools/quem_erra_escrita_ou_leitura.py`](tools/quem_erra_escrita_ou_leitura.py) | separates a bad write from a bad read |
+| [`tools/trace_matriz.sh`](tools/trace_matriz.sh) | captures amdgpu VM tracepoints alongside the reproducer |
+| [`tools/ab_flush_vmids.sh`](tools/ab_flush_vmids.sh) | counterbalanced A/B of `bc250_flush_mapped_vmids` |
+| [`tools/run_wf.sh`](tools/run_wf.sh) | runs a ComfyUI workflow and validates output by pixel statistics |
+
+Two root-only helpers live outside the repo, in `~/bc250-grimoire/`, because
+`/sys/kernel/debug/dri/1/amdgpu_vram` is root-readable only: `varrer_vram.py`
+finds which physical offset a marker actually lives at, and `varrer_ptes.py`
+finds the page-table entries pointing at a given PA.
+
+A valid image is validated by pixel statistics, never by existing: a corrupted
+one gives `std ~10` and ~2000 colors, a good one `std ~75` and ~100k.
+
+### Thirteen hypotheses, each killed by its own measurement
+
+MIOpen · the compute queue · ROCclr staging and its size · SDMA · races between
+transfers · host buffer lifetime · the PyTorch allocator · the host mapping ·
+`bc250_flush_mapped_vmids` (5/6 vs 5/6, counterbalanced, same boot) ·
+`vm_update_mode` CPU vs SDMA (10/12 vs 5/6) · TTM eviction (12288 MB VRAM, 19 MB
+in use, both evict counters at zero) · the page tables themselves · L2 writeback.
+
+None of these fell to argument. Each has the number that killed it in
+[docs/17](docs/17-a-gpu-le-fora-da-propria-tabela-de-pagina.md).
+
+### No fix yet
+
+2266 (expected PA, delivered PA) pairs were collected looking for an address
+invariant. There is none — not in physical address space, not in virtual, not in
+page-table slot space. Raw data in
+[`docs/data-pares-aliasing.tsv`](docs/data-pares-aliasing.tsv) if you want to
+look for what we missed.
+
+Page retirement and VA non-reuse both died on measurement. What survives is that
+the pairing is deterministic **by allocation order** — seven of ten blocks keep a
+100% consistent partner across six processes with different addresses — and we
+could not reduce that to anything simpler.
+
+### A lead that did not survive
+
+The BC-250 community briefly circulated a ROCm setup guide listing two kernel
+patches. One is `flush_pasid_uses_kiq = false`, which this repo already carries.
+The other changed a golden register to
+`mmGB_ADDR_CONFIG = 0x00100044`. `GB_ADDR_CONFIG` computes pipe interleave and
+shader-engine address swizzle, so a wrong engine count there would produce
+exactly this signature.
+
+**The author retracted it four days later**, saying the stock `0x00000044` is
+correct and the change was his mistake. Recorded here so nobody else chases it.
+This repo keeps the stock value.
+
+The one untested angle left is a VRAM size sweep: the corruption rate tracked
+VRAM size in early measurements — 20.4% at 512 MB, 15.7% at 4 GB, 12.0% at
+12 GB — and nothing has explained that yet.
 
 ---
 
@@ -56,64 +194,6 @@ bfloat16 doesn't work at all, in
 [docs/10-performance-and-limits.md](docs/10-performance-and-limits.md).
 
 ---
-
-## Open: the GPU reads outside its own page tables
-
-Measured 2026-08-06. The corruption that made every heavy workload unreliable is
-**not** in MIOpen, the copy path, or any software layer — all of them were ruled
-out by direct measurement. Full write-up in
-[docs/17](docs/17-a-gpu-le-fora-da-propria-tabela-de-pagina.md).
-
-Four independent observers of the same address, at the same moment:
-
-| observer | path | result |
-|---|---|---|
-| PTE the driver wrote | `amdgpu_vm_set_ptes` tracepoint | **correct** |
-| PTE sitting in memory | physical read of VRAM | **correct** |
-| data at the PA that PTE points to | `debugfs/dri/1/amdgpu_vram`, no VA involved | **correct** |
-| what the GPU delivers | page table → PA | **wrong** |
-
-Two live `hipMalloc` allocations, distinct BOs, disjoint virtual addresses, are
-treated by the GPU as the same memory. The CPU is never affected and stays
-self-consistent throughout. Reproducer in
-[`tools/hipmalloc_cru.py`](tools/hipmalloc_cru.py), ~2 minutes, hits in roughly
-83% of runs.
-
-Thirteen hypotheses were killed, each by its own measurement, not by argument —
-MIOpen, the compute queue, ROCclr staging and its size, SDMA, races between
-transfers, host buffer lifetime, the PyTorch allocator, the host mapping,
-`bc250_flush_mapped_vmids`, `vm_update_mode`, TTM eviction, the page tables
-themselves, and L2 writeback.
-
-**No fix yet.** A scale collection of 2266 (expected PA, delivered PA) pairs
-found no address invariant — see
-[`docs/data-pares-aliasing.tsv`](docs/data-pares-aliasing.tsv) for the raw data
-if you want to look for what we missed. Page retirement and VA non-reuse both
-died on measurement.
-
-### A lead that did not survive
-
-The BC-250 community briefly circulated a ROCm setup guide listing two kernel
-patches. One is `flush_pasid_uses_kiq = false`, which this repo already carries.
-The other changed a golden register:
-
-```c
-SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1800ff, 0x00100044),
-```
-
-`GB_ADDR_CONFIG` is what the GPU uses to compute addresses — pipe interleave,
-shader-engine swizzle, bank distribution — and bit 20 of that delta lands in
-`NUM_SHADER_ENGINES`. A wrong engine count there would make distinct addresses
-collide on one physical location, which matches the signature above and would
-explain why only the GPU sees it.
-
-**The author retracted it four days later**, saying the stock `0x00000044` is
-correct and the change was his mistake. Recorded here so nobody else chases it.
-This repo keeps the stock value.
-
-**So there is no current lead.** The remaining untested angle is a VRAM size
-sweep — the corruption rate tracked VRAM size in early measurements (20.4% at
-512 MB, 15.7% at 4 GB, 12.0% at 12 GB), and nothing has explained that yet.
 
 ---
 
