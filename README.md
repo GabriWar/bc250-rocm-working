@@ -147,9 +147,10 @@ packet of a failing dispatch has `completion_signal=0x0`.
 
 ## Credits
 
-- `flush_pasid_uses_kiq` patch: **neoney** (BC-250 community). Independently
-  verified here by A/B.
-- Everything else: measured and written by **gabriwar**.
+- **neoney** (BC-250 community).
+- **Fabi** (BC-250 community).
+- **nightcarnage** (BC-250 community).
+- **GabriWar** (BC-250 community).
 
 ## License
 
