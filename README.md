@@ -171,6 +171,18 @@ The one untested angle left is a VRAM size sweep: the corruption rate tracked
 VRAM size in early measurements — 20.4% at 512 MB, 15.7% at 4 GB, 12.0% at
 12 GB — and nothing has explained that yet.
 
+### Reported by others, not verified here
+
+Other BC-250 owners report that this used to work on an **older kernel and an
+older ROCm**, and that KIQ exit handling moved from software to firmware between
+kernel versions. If either holds, the fault is a regression with a bisectable
+first-bad-commit rather than a property of the silicon — which would change the
+whole approach.
+
+We have not tested any of it. Collected in
+[docs/19](docs/19-community-reports-untested.md), with what it would take to
+check each claim.
+
 ---
 
 ## Results
