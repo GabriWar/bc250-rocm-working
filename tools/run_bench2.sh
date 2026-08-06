@@ -6,6 +6,7 @@ L=$R/bench2.log
 RES=$R/bench2.result
 : > "$L"; : > "$RES"
 source /etc/profile.d/bc250-rocm.sh
+export BC250_CONV_FIX=${BC250_CONV_FIX:-1}
 cd /home/gabriwar/ComfyUI
 ./venv-gfx1013/bin/python main.py --listen 127.0.0.1 --port 8188 --cpu-vae >>"$L" 2>&1 &
 PID=$!
