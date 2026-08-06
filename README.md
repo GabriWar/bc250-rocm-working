@@ -91,25 +91,29 @@ found no address invariant — see
 if you want to look for what we missed. Page retirement and VA non-reuse both
 died on measurement.
 
-### Current lead
+### A lead that did not survive
 
-Our kernel carries the stock golden register:
+The BC-250 community briefly circulated a ROCm setup guide listing two kernel
+patches. One is `flush_pasid_uses_kiq = false`, which this repo already carries.
+The other changed a golden register:
 
 ```c
-SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1800ff, 0x00000044),
+SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1800ff, 0x00100044),
 ```
 
-The BC-250 community reports `0x00100044` as required for ROCm on this board.
-The delta is bit 20, which sits in `NUM_SHADER_ENGINES` (shift `0x13`), taking
-it from 0 to 2. `GB_ADDR_CONFIG` is what the GPU uses to compute addresses —
-pipe interleave, shader-engine swizzle, bank distribution. A wrong shader-engine
-count there makes distinct addresses collide on the same physical location,
-which is exactly the signature above, and explains why only the GPU sees it: the
-CPU never goes through that swizzle.
+`GB_ADDR_CONFIG` is what the GPU uses to compute addresses — pipe interleave,
+shader-engine swizzle, bank distribution — and bit 20 of that delta lands in
+`NUM_SHADER_ENGINES`. A wrong engine count there would make distinct addresses
+collide on one physical location, which matches the signature above and would
+explain why only the GPU sees it.
 
-Untested here. It is one line, and it matters more if you have run the 40 CU
-unlock, since that changes the harvest configuration the register is supposed to
-describe.
+**The author retracted it four days later**, saying the stock `0x00000044` is
+correct and the change was his mistake. Recorded here so nobody else chases it.
+This repo keeps the stock value.
+
+**So there is no current lead.** The remaining untested angle is a VRAM size
+sweep — the corruption rate tracked VRAM size in early measurements (20.4% at
+512 MB, 15.7% at 4 GB, 12.0% at 12 GB), and nothing has explained that yet.
 
 ---
 
