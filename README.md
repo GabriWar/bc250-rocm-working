@@ -53,17 +53,23 @@ Everything here was measured on real hardware in one session
 
 ---
 
-## The open problem: the GPU resolves VA to the wrong PA
+## The core defect: the GPU resolves VA to the wrong PA
 
-**This is the main unresolved defect on this board.**
+**This was the main defect on this board. As of 2026-08-07 the mechanism is
+measured end to end and there is a patch that stops it from being generated.**
 
-> **2026-08-07 — measured mechanism.** The compute TLB on this board is
-> **never invalidated**: the VMID→PASID table that the invalidation path
-> queries is empty, because nothing programs it on gfx10 under hardware
-> scheduling. The sweep matches nothing and returns, while the sequence
-> counter is updated before the attempt and reports success. Page tables are
-> correct at every failing page. Full write-up and raw data in
-> [docs/21](docs/21-the-compute-tlb-is-never-invalidated.md).
+> **The chain, every link measured:**
+> `hipFree` unmaps and asks for a TLB invalidation → the invalidation never
+> happens, because `gmc_v10_0_flush_gpu_tlb_pasid()` searches
+> `mmATC_VMID*_PASID_MAPPING`, which gfx10 under hardware scheduling never
+> writes → `hipMalloc` reuses the same virtual address with new physical
+> memory → the GPU keeps translating through the **previous generation's**
+> mapping of that address.
+>
+> The last link is direct, not inferred: for **15 of 15 failing pages across 3
+> runs**, the physical address the GPU used is exactly what that same VA
+> pointed to earlier. See [docs/24](docs/24-flushing-the-tlb-by-rebuilding-the-runlist.md),
+> [docs/23](docs/23-it-is-the-translation.md), [docs/22](docs/22-the-page-table-cache-is-innocent.md).
 
 A virtual address handed to the GPU resolves to physical memory that is not the
 one its own page tables point at. Two live `hipMalloc` allocations — distinct
@@ -112,6 +118,7 @@ blocks, which validates the method and not just the failing case.
 | kernels only, no new allocation | 0 of 3 |
 | allocation and kernels interleaved | 3 of 3 |
 | full serialization (`HIP_LAUNCH_BLOCKING=1`, `AMD_SERIALIZE_*=3`) | reproduces unchanged |
+| **`bc250_flush_by_runlist=1`** | **0 of 18** — against 13 of 18 stock, p = 3.7e-06 |
 
 It needs both halves. It reproduces with everything serialized, so it is **not a
 race**. Per process the outcome is bimodal — a process either aliases on nearly
@@ -138,7 +145,11 @@ hipmalloc_cru.py <churn rounds> <warmup mode> [cpu|segurar]
 | [`tools/sobreposicao.py`](tools/sobreposicao.py) | detects the aliasing with PyTorch tensors instead of raw HIP |
 | [`tools/quem_erra_escrita_ou_leitura.py`](tools/quem_erra_escrita_ou_leitura.py) | separates a bad write from a bad read |
 | [`tools/trace_matriz.sh`](tools/trace_matriz.sh) | captures amdgpu VM tracepoints alongside the reproducer |
-| [`tools/ab_flush_vmids.sh`](tools/ab_flush_vmids.sh) | counterbalanced A/B of `bc250_flush_mapped_vmids` |
+| [`tools/ab_flush_vmids.sh`](tools/ab_flush_vmids.sh) | A/B of `bc250_flush_mapped_vmids` — **measured a no-op here**: its guard is the same empty ATC query |
+| [`tools/pa_anterior.py`](tools/pa_anterior.py) | was the delivered PA ever *this VA's* translation? the proof of birth |
+| [`tools/cura_propria.py`](tools/cura_propria.py) | can a process repair its own bad translation? (no) |
+| [`tools/cura_por_pressao.py`](tools/cura_por_pressao.py) | eviction pressure, or coupling to the same PA? |
+| [`tools/oscila.py`](tools/oscila.py) | per-read or per-page — classifies with 20 reads, never one |
 | [`tools/run_wf.sh`](tools/run_wf.sh) | runs a ComfyUI workflow and validates output by pixel statistics |
 
 Two root-only helpers live outside the repo, in `~/bc250-grimoire/`, because
@@ -160,18 +171,38 @@ in use, both evict counters at zero) · the page tables themselves · L2 writeba
 None of these fell to argument. Each has the number that killed it in
 [docs/17](docs/17-a-gpu-le-fora-da-propria-tabela-de-pagina.md).
 
-### No fix yet
+### The fix, and what it still owes
 
-2266 (expected PA, delivered PA) pairs were collected looking for an address
-invariant. There is none — not in physical address space, not in virtual, not in
-page-table slot space. Raw data in
-[`docs/data-pares-aliasing.tsv`](docs/data-pares-aliasing.tsv) if you want to
-look for what we missed.
+`bc250_flush_by_runlist=1` rebuilds the runlist on unmap. A process cannot clear
+its own bad translation — 60 re-reads, 32 fresh pages and a compute dispatch all
+leave the page 20/20 wrong — but the activation of a *second* process clears it
+instantly. That activation is a runlist rebuild, and it is the only invalidation
+that works on this silicon: both MMIO routes go unacknowledged and stall the
+translation unit.
 
-Page retirement and VA non-reuse both died on measurement. What survives is that
-the pairing is deterministic **by allocation order** — seven of ten blocks keep a
-100% consistent partner across six processes with different addresses — and we
-could not reduce that to anything simpler.
+```
+stock     13/18 dirty
+runlist    0/18 dirty      Fisher exact, one-tailed: p = 3.7e-06
+```
+
+36 runs counterbalanced inside a single boot, each stamped with its own
+`execute_queues_cpsch` count from ftrace. Raw ComfyUI + Z-Image Turbo, with no
+conv fix and no warmup, generates a valid image in 97 s with 287 forced runlist
+cycles and zero board errors.
+
+**Still owed:** preemption under sustained heavy GEMM is untested — an outside
+report describes `cp queue preemption time out` on this board, and
+`unmap_queues_cpsch()` escalates that straight to a GPU reset. And the patch
+rebuilds the runlist on *every* unmap when only the reused-VA case can produce a
+stale entry, so there is real performance to recover.
+
+**Superseded by the above:** 2266 (expected PA, delivered PA) pairs were once
+collected looking for an address invariant and none was found — raw data in
+[`docs/data-pares-aliasing.tsv`](docs/data-pares-aliasing.tsv). There is no
+invariant because the delivered address is not a function of the current one: it
+is the *previous* translation of the same VA. VA non-reuse was also written off
+at the time, on 1 of 4 against 2 of 4 — an n that decides nothing, and worth
+revisiting now that the mechanism is known.
 
 ### A lead that did not survive
 
@@ -274,7 +305,11 @@ Five things are required. Miss any one and it fails.
    KIQ fence times out, the CP wedges and the GPU reset fails to restore SDMA.
 3. **rocBLAS/Tensile kernels built for gfx1013** — without them even a plain
    `matmul` core-dumps.
-4. **A GPU warmup at startup** — ~90 kernels touched before any model loads.
+4. ~~**A GPU warmup at startup**~~ — **no longer required.** It was a workaround
+   for the translation fault; with `bc250_flush_by_runlist=1`, a raw run with
+   `BC250_WARMUP=0` and no conv fix produces a valid image. Do not add warmups:
+   `bc250_vae_warmup` was measured to be actively harmful. Superseded text:
+   ~90 kernels touched before any model loads.
    Without it the sampler fails reliably. Do *not* add more warmups.
 5. **VAE decode on the GPU** — use `--fp16-vae`, not `--cpu-vae`. Needs the two
    patches below. See [docs/12-gpu-vae-and-empty-cache.md](docs/12-gpu-vae-and-empty-cache.md).
@@ -298,7 +333,7 @@ Full instructions: [docs/00-setup.md](docs/00-setup.md).
 
 ```
 docs/         what we learned, one topic per file
-patches/      three patches, as applicable diffs
+patches/      kernel and userspace patches, as applicable diffs
 artifacts/    the compiled module + rocBLAS gfx1013 kernels
 comfyui/      the warmup node and workflows
 config/       environment and governor configs
@@ -341,7 +376,15 @@ proof/        generated images
 - bfloat16 — fails in all four transpose combinations
 - Tensile tuning — infrastructure fixed, tuning itself not run
 
-**Not understood:** the root cause. We know *that* the first heavy GPU phase
+**Understood, as of 2026-08-07:** the root cause. `hipFree` asks for a TLB
+invalidation this board never performs, so a reused virtual address keeps
+translating through its previous mapping — measured directly on 15 of 15 failing
+pages. `bc250_flush_by_runlist=1` stops it being generated.
+
+The paragraph below is the pre-2026-08-07 state, kept because the warmup story it
+describes was the first clue.
+
+**Was not understood:** the root cause. We know *that* the first heavy GPU phase
 works and the next one fails, and *that* a warmup avoids it. We do not know
 *why*. Six explanations were proposed and refuted during this session; they are
 all in [07-refuted.md](docs/07-refuted.md) so nobody has to rediscover them.
