@@ -43,8 +43,15 @@ Everything here was measured on real hardware in one session
 
 ## The open problem: the GPU resolves VA to the wrong PA
 
-**This is the main unresolved defect on this board, and everything else here
-works around it.**
+**This is the main unresolved defect on this board.**
+
+> **2026-08-07 — measured mechanism.** The compute TLB on this board is
+> **never invalidated**: the VMID→PASID table that the invalidation path
+> queries is empty, because nothing programs it on gfx10 under hardware
+> scheduling. The sweep matches nothing and returns, while the sequence
+> counter is updated before the attempt and reports success. Page tables are
+> correct at every failing page. Full write-up and raw data in
+> [docs/21](docs/21-the-compute-tlb-is-never-invalidated.md).
 
 A virtual address handed to the GPU resolves to physical memory that is not the
 one its own page tables point at. Two live `hipMalloc` allocations — distinct

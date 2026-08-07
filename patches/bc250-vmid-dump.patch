@@ -1,0 +1,343 @@
+--- gmc_v10_0.c.PATCHADO.bak	2026-08-04 21:33:34.511901888 -0300
++++ gmc_v10_0.c	2026-08-07 01:30:48.163405546 -0300
+@@ -21,10 +21,81 @@
+  *
+  */
+ #include <linux/firmware.h>
++#include <linux/module.h>
+ #include <linux/pci.h>
++#include <linux/seq_file.h>
+ 
+ #include <drm/drm_cache.h>
+ 
++/* BC-250/gfx1013: route TLB invalidation around the KIQ ring and invalidate
++ * every mapped VMID directly, instead of trusting the PASID->VMID query.
++ * Off by default so it can be A/B tested against the same build.
++ * Adapted from neoney's bc250-flush-mapped-vmids patch.
++ */
++/* 0644, not 0444: this is read per-flush, so flipping it at runtime switches
++ * behaviour on the next TLB invalidation. That turns a reboot-per-hypothesis
++ * A/B into a two-second one, which is the difference between testing this
++ * properly and not testing it at all.
++ */
++/* BC-250/gfx1013: bail out of TLB flush when MMIO reads come back all-ones.
++ *
++ * Adapted from the project-ariel series (patches 14 and 15), with three
++ * deliberate differences:
++ *
++ *  1. Gated on the BC-250 PCI id. Theirs fires for every gfx10.1.x, which also
++ *     covers Navi10/12/14 -- a Radeon RX 5700 in the same machine would get its
++ *     TLB flush path altered and see log lines about a board it is not.
++ *
++ *  2. Behind a module param, so it can be A/B tested against the same build.
++ *     Every other BC-250 change in this tree follows that rule; without it a
++ *     measurement cannot separate this patch from the build it rode in on.
++ *
++ *  3. On detecting a dead GPU it issues NO further MMIO. Theirs writes the
++ *     invalidate semaphore back on the way out, which is another access to a
++ *     device that just stopped answering -- the exact operation the patch
++ *     exists to avoid. Leaking the semaphore is harmless here: the GPU is gone
++ *     and the next thing that happens is a reset.
++ *
++ * Why all-ones means "gone": a read that never completes on this board's
++ * internal PCIe fabric does not time out, it hangs the CPU. When the fabric
++ * does answer for an absent device, it answers all-ones. Catching that lets us
++ * leave before taking invalidate_lock -- and hanging while holding that
++ * spinlock is a plausible mechanism for the hard host hangs we see, where the
++ * machine dies with nothing in dmesg or the journal.
++ */
++extern int bc250_tlb_trace;   /* definido em amdgpu_vm.c */
++
++static int bc250_dead_gpu_guard;
++module_param(bc250_dead_gpu_guard, int, 0644);
++MODULE_PARM_DESC(bc250_dead_gpu_guard,
++	"BC-250: 0=off 1=abort TLB flush when MMIO reads return 0xFFFFFFFF");
++
++static int bc250_flush_mapped_vmids;
++module_param(bc250_flush_mapped_vmids, int, 0644);
++MODULE_PARM_DESC(bc250_flush_mapped_vmids,
++	"BC-250: 0=off (stock KIQ path) 1=bypass KIQ + invalidate all mapped VMIDs");
++#define BC250_PCI_DEVICE_ID 0x13FE
++
++/* BC-250/gfx1013: dump COMPUTE_PGM_LO/HI on a page fault.
++ *
++ * The SQC (inst) faults on this chip land at addresses whose high byte is
++ * 0xff -- the all-ones pattern of an uninitialised register. COMPUTE_PGM_HI
++ * is exactly the 8-bit register holding shader program address bits [47:40],
++ * so if it reads 0xFF here the corrupted-address theory is confirmed.
++ *
++ * Caveat: these are per-pipe compute registers reached through GRBM, so the
++ * value read in the interrupt handler is not guaranteed to belong to the
++ * faulting wave. Treat the output as indicative, not proof.
++ *
++ * Off by default -- this reads GC registers from an interrupt handler.
++ */
++static int bc250_dump_pgm;
++module_param(bc250_dump_pgm, int, 0644);
++MODULE_PARM_DESC(bc250_dump_pgm,
++	"BC-250: 1=dump COMPUTE_PGM_LO/HI on page fault, 2=also sweep every SE/SA (debug, races with GRBM)");
++#define BC250_mmCOMPUTE_PGM_LO 0x1bac
++#define BC250_mmCOMPUTE_PGM_HI 0x1bad
++
+ #include "amdgpu.h"
+ #include "amdgpu_atomfirmware.h"
+ #include "gmc_v10_0.h"
+@@ -157,6 +228,61 @@
+ 			addr, entry->client_id,
+ 			soc15_ih_clientid_name[entry->client_id]);
+ 
++	/* ===== BC-250: shader program address registers ===== */
++	if (bc250_dump_pgm && adev->pdev->device == BC250_PCI_DEVICE_ID) {
++		uint32_t gc_base = adev->reg_offset[GC_HWIP][0][0];
++		uint32_t pgm_lo = RREG32(gc_base + BC250_mmCOMPUTE_PGM_LO);
++		uint32_t pgm_hi = RREG32(gc_base + BC250_mmCOMPUTE_PGM_HI);
++
++		dev_err(adev->dev,
++			"  BC-250: [bcast] COMPUTE_PGM_LO=0x%08x COMPUTE_PGM_HI=0x%08x "
++			"-> pgm_addr=0x%012llx (fault_addr=0x%016llx)\n",
++			pgm_lo, pgm_hi,
++			(((u64)(pgm_hi & 0xFF)) << 40) | (((u64)pgm_lo) << 8),
++			addr);
++	}
++
++	/* BC-250: sweep every SE/SA.
++	 *
++	 * The broadcast read above returned identical values across faults with
++	 * different fault addresses, so it is not the faulting wave's context.
++	 * COMPUTE_PGM_* are per-pipe and reached through GRBM_GFX_INDEX, and the
++	 * VM fault interrupt does not say which SE/SA the wave was on -- so read
++	 * all of them and let the address matching pick the right one.
++	 *
++	 * RACE, on purpose: this runs in hard IRQ context (amdgpu_irq_handler is
++	 * registered with request_irq, not threaded), so grbm_idx_mutex cannot be
++	 * taken. A concurrent GRBM-indexed access on another CPU can be corrupted
++	 * by this. Acceptable only because it is debug-gated and only fires after
++	 * a page fault has already occurred. Hence the separate opt-in level.
++	 */
++	if (bc250_dump_pgm >= 2 && adev->pdev->device == BC250_PCI_DEVICE_ID &&
++	    adev->gfx.funcs && adev->gfx.funcs->select_se_sh) {
++		uint32_t gc_base = adev->reg_offset[GC_HWIP][0][0];
++		u32 se, sa;
++
++		for (se = 0; se < adev->gfx.config.max_shader_engines; se++) {
++			for (sa = 0; sa < adev->gfx.config.max_sh_per_se; sa++) {
++				u32 lo, hi;
++				u64 pgm;
++
++				amdgpu_gfx_select_se_sh(adev, se, sa, 0xffffffff, 0);
++				lo = RREG32(gc_base + BC250_mmCOMPUTE_PGM_LO);
++				hi = RREG32(gc_base + BC250_mmCOMPUTE_PGM_HI);
++				pgm = (((u64)(hi & 0xFF)) << 40) | (((u64)lo) << 8);
++
++				dev_err(adev->dev,
++					"  BC-250: se%u sa%u LO=0x%08x HI=0x%02x "
++					"pgm=0x%012llx%s\n",
++					se, sa, lo, hi & 0xFF, pgm,
++					(pgm >> 20) == (addr >> 20) ?
++						"  <== BATE COM O FAULT" : "");
++			}
++		}
++		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
++	}
++	/* ===== BC-250 END ===== */
++
+ 	/* Only print L2 fault status if the status register could be read and
+ 	 * contains useful information
+ 	 */
+@@ -255,7 +381,9 @@
+ 	/* This is necessary for SRIOV as well as for GFXOFF to function
+ 	 * properly under bare metal
+ 	 */
+-	if (adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes &&
++	if (!(bc250_flush_mapped_vmids &&
++	      adev->pdev->device == BC250_PCI_DEVICE_ID) &&
++	    adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes &&
+ 	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
+ 		amdgpu_gmc_fw_reg_write_reg_wait(adev, req, ack, inv_req,
+ 						 1 << vmid, GET_INST(GC, 0));
+@@ -265,6 +393,25 @@
+ 	/* This path is needed before KIQ/MES/GFXOFF are set up */
+ 	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ? GC_HWIP : MMHUB_HWIP;
+ 
++	/* BC-250: bail out BEFORE taking invalidate_lock if the GPU is gone.
++	 *
++	 * When this GPU stops responding, an MMIO read does not fail -- it
++	 * hangs the CPU indefinitely on the board's internal PCIe fabric, which
++	 * has no completion timeout. If that happens with invalidate_lock held,
++	 * every other CPU that needs the lock spins forever with interrupts
++	 * disabled, and nothing ever reaches the log. That matches the hard
++	 * hangs we see: host gone, dmesg and journal empty.
++	 *
++	 * A dead read returns all-ones, so probe once here, outside the lock.
++	 */
++	if (bc250_dead_gpu_guard && adev->pdev->device == BC250_PCI_DEVICE_ID &&
++	    RREG32_RLC_NO_KIQ(ack, hub_ip) == 0xFFFFFFFF) {
++		dev_err_ratelimited(adev->dev,
++			"BC-250: GPU unreachable (MMIO reads all-ones), skipping TLB flush vmid=%u hub=%u\n",
++			vmid, vmhub);
++		return;
++	}
++
+ 	spin_lock(&adev->gmc.invalidate_lock);
+ 	/*
+ 	 * It may lose gpuvm invalidate acknowldege state across power-gating
+@@ -278,6 +425,20 @@
+ 		for (i = 0; i < adev->usec_timeout; i++) {
+ 			/* a read return value of 1 means semaphore acuqire */
+ 			tmp = RREG32_RLC_NO_KIQ(sem, hub_ip);
++			/* BC-250: died mid-loop. Drop the lock and leave without
++			 * touching the hardware again -- see the note above the
++			 * pre-lock probe. Deliberately NOT releasing the
++			 * semaphore: that is another MMIO write to a device
++			 * that just stopped answering, and it can hang exactly
++			 * the way we are trying to avoid.
++			 */
++			if (bc250_dead_gpu_guard && tmp == 0xFFFFFFFF &&
++			    adev->pdev->device == BC250_PCI_DEVICE_ID) {
++				dev_err_ratelimited(adev->dev,
++					"BC-250: GPU died acquiring VM flush semaphore\n");
++				spin_unlock(&adev->gmc.invalidate_lock);
++				return;
++			}
+ 			if (tmp & 0x1)
+ 				break;
+ 			udelay(1);
+@@ -300,6 +461,17 @@
+ 	/* Wait for ACK with a delay.*/
+ 	for (i = 0; i < adev->usec_timeout; i++) {
+ 		tmp = RREG32_RLC_NO_KIQ(ack, hub_ip);
++		/* BC-250: same as above -- leave without further MMIO. Checked
++		 * before masking with the vmid bit, because an all-ones read is
++		 * "no answer", not "acknowledged by every vmid".
++		 */
++		if (bc250_dead_gpu_guard && tmp == 0xFFFFFFFF &&
++		    adev->pdev->device == BC250_PCI_DEVICE_ID) {
++			dev_err_ratelimited(adev->dev,
++				"BC-250: GPU died waiting for VM flush ACK\n");
++			spin_unlock(&adev->gmc.invalidate_lock);
++			return;
++		}
+ 		tmp &= 1 << vmid;
+ 		if (tmp)
+ 			break;
+@@ -329,12 +501,97 @@
+  *
+  * Flush the TLB for the requested pasid.
+  */
++
++/* BC-250: quem o hardware acha que e quem.
++ *
++ * A invalidacao de compute (gmc_v10_0_flush_gpu_tlb_pasid) NAO invalida "o
++ * processo": ela varre os 16 VMIDs perguntando ao ATC qual deles carrega o
++ * nosso PASID, e so invalida esse. Se a consulta responder errado -- e a
++ * anotacao acima diz que ela pode -- o flush cai no VMID de outro processo,
++ * ou em nenhum, e volta. E o contador kfd_last_flushed_seq e atualizado ANTES
++ * disso (amdgpu_vm.c:1757), entao ele diz "invalidado" de qualquer forma.
++ *
++ * Este despejo separa as duas visoes:
++ *   ATC pasid      o que o HARDWARE acha que cada VMID contem
++ *   pd_gpu_addr    qual page directory o DRIVER carregou em cada VMID
++ * Se nenhum VMID casar com o nosso PASID, a invalidacao nao atinge nada.
++ */
++void amdgpu_bc250_dump_vmids(struct amdgpu_device *adev, uint64_t nosso_pd,
++			     uint16_t nosso_pasid, struct seq_file *m)
++{
++	struct amdgpu_vmid_mgr *mgr = &adev->vm_manager.id_mgr[AMDGPU_GFXHUB(0)];
++	int vmid, casam_pasid = 0, casam_pd = 0;
++
++	seq_printf(m, "  --- mapa de VMIDs (nosso pasid=0x%x, nosso pd=0x%llx) ---\n",
++		   nosso_pasid, nosso_pd);
++	for (vmid = 0; vmid < AMDGPU_NUM_VMID; vmid++) {
++		uint16_t pasid = 0;
++		bool valid = gmc_v10_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
++								      &pasid);
++		uint64_t pd = mgr->ids[vmid].pd_gpu_addr;
++		const char *marca = "";
++
++		if (valid && pasid == nosso_pasid) {
++			casam_pasid++;
++			marca = "   <<< o ATC diz que este VMID e o NOSSO";
++		} else if (pd && pd == nosso_pd) {
++			casam_pd++;
++			marca = "   <<< o DRIVER carregou nosso page directory aqui";
++		}
++		seq_printf(m, "    vmid %2d  ATC=%-6s pasid=0x%-4x  pd=0x%llx%s\n",
++			   vmid, valid ? "valido" : "INVAL", pasid,
++			   (unsigned long long)pd, marca);
++	}
++	seq_printf(m, "    >>> VMIDs cujo ATC casa com o nosso PASID: %d\n", casam_pasid);
++	if (!casam_pasid) {
++		seq_puts(m, "    >>> NENHUM. A invalidacao por PASID varre os 16, nao casa\n"
++			    "    >>> com nada e volta SEM INVALIDAR -- e mesmo assim o\n"
++			    "    >>> contador ja foi marcado como invalidado.\n");
++		if (casam_pd)
++			seq_printf(m, "    >>> mas o driver TEM nosso page directory em %d VMID(s):\n"
++				      "    >>> a traducao esta viva num VMID que o flush nao alcanca.\n",
++				   casam_pd);
++	}
++}
++
+ static void gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+ 					  uint16_t pasid, uint32_t flush_type,
+ 					  bool all_hub, uint32_t inst)
+ {
+ 	uint16_t queried;
+ 	int vmid, i;
++	int bc250_atingidos = 0;
++
++	/* Oberon's PASID-to-VMID query can race KFD teardown. The
++	 * INVALIDATE_TLBS packet also wedges its KIQ, so invalidate every
++	 * currently mapped process VMID through the direct register path
++	 * instead of depending on PASID equality.
++	 */
++	if (bc250_flush_mapped_vmids &&
++	    adev->pdev->device == BC250_PCI_DEVICE_ID) {
++		dev_info_once(adev->dev,
++			      "BC-250: directly invalidating mapped VMIDs\n");
++		for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
++			if (!gmc_v10_0_get_atc_vmid_pasid_mapping_info(
++				    adev, vmid, &queried))
++				continue;
++			if (all_hub)
++				for_each_set_bit(i, adev->vmhubs_mask,
++						 AMDGPU_MAX_VMHUBS)
++					gmc_v10_0_flush_gpu_tlb(adev, vmid, i,
++								flush_type);
++			else
++				gmc_v10_0_flush_gpu_tlb(adev, vmid,
++							AMDGPU_GFXHUB(0),
++							flush_type);
++			bc250_atingidos++;
++		}
++		if (bc250_tlb_trace)
++			dev_info_ratelimited(adev->dev,
++				"BC-250 tlb: [mapped_vmids] pasid=0x%x -> %d VMID(s) invalidados\n",
++				pasid, bc250_atingidos);
++		return;
++	}
+ 
+ 	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
+ 		bool valid;
+@@ -343,6 +600,7 @@
+ 								  &queried);
+ 		if (!valid || queried != pasid)
+ 			continue;
++		bc250_atingidos++;
+ 
+ 		if (all_hub) {
+ 			for_each_set_bit(i, adev->vmhubs_mask,
+@@ -354,6 +612,14 @@
+ 						flush_type);
+ 		}
+ 	}
++
++	/* zero aqui significa: a invalidacao foi pedida, o contador de sequencia
++	 * ja foi marcado, e nenhum VMID foi realmente invalidado.
++	 */
++	if (bc250_tlb_trace)
++		dev_info_ratelimited(adev->dev,
++			"BC-250 tlb: pasid=0x%x tipo=%u -> %d VMID(s) invalidados\n",
++			pasid, flush_type, bc250_atingidos);
+ }
+ 
+ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,

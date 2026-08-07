@@ -1,5 +1,13 @@
 # Why the compute path is uncovered by an errata the graphics path is protected from
 
+> **SUPERSEDED by [21](21-the-compute-tlb-is-never-invalidated.md).** The
+> question this page opened — is the compute path exposed because its
+> invalidation is unordered? — was answered by measurement, and the answer is
+> different: on this board the compute TLB is **never invalidated at all**.
+> The VMID to PASID table the invalidation depends on is empty, so the sweep
+> matches nothing and returns. Ordering was never the issue; there is nothing
+> to order. Keep this page for the path analysis, which stands.
+>
 > **RETRACTION, added after further source reading.** The addendum at the bottom
 > of this page originally claimed that the `|| vmid` test in
 > `amdgpu_gmc_flush_gpu_tlb()` was a *regression* that removed protection from

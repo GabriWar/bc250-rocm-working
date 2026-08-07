@@ -1,0 +1,2001 @@
+
+==========================================================================
+boot=0ae29b45 pid=2392
+  pasid deste processo: 0x0 (0)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 0 (offset 0 MiB): entregou pag 0 do bloco 4 (A2621440)
+    A8028160 pag 1 (offset 2 MiB): entregou pag 1 do bloco 4 (A2621440)
+    A8028160 pag 2 (offset 4 MiB): entregou pag 4 do bloco 7 (B10485760)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 2 do bloco 3 (A5898240)
+    4 paginas divergentes
+
+  ############ CONTROLE: A10485760 pagina 0 (SEM divergencia) ############
+  VA 0x7fbb70200000
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+
+  ############ FALHA: A8028160 pagina 0 ############
+  VA 0x7fbb70e00000  -- a GPU entregou a pagina 0 do bloco A2621440
+  (esse bloco vive em VA 0x7fbb6a800000, a pagina entregue seria VA 0x7fbb6a800000)
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+
+  ############ FALHA: A8028160 pagina 1 ############
+  VA 0x7fbb71000000  -- a GPU entregou a pagina 1 do bloco A2621440
+  (esse bloco vive em VA 0x7fbb6a800000, a pagina entregue seria VA 0x7fbb6aa00000)
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7fbb71200000  -- a GPU entregou a pagina 4 do bloco B10485760
+  (esse bloco vive em VA 0x7fbb69200000, a pagina entregue seria VA 0x7fbb69a00000)
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7fbb71400000  -- a GPU entregou a pagina 2 do bloco A5898240
+  (esse bloco vive em VA 0x7fbb6ae00000, a pagina entregue seria VA 0x7fbb6b200000)
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+FIM
+
+==========================================================================
+boot=bce34b54 pid=1779
+  pasid deste processo: 0x0 (0)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 2 (offset 4 MiB): entregou pag 0 do bloco 4 (A2621440)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 1 do bloco 4 (A2621440)
+    2 paginas divergentes
+
+  ############ CONTROLE: A8028160 pagina 0 (SEM divergencia) ############
+  VA 0x7fc64a600000
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7fc64aa00000  -- a GPU entregou a pagina 0 do bloco A2621440
+  (esse bloco vive em VA 0x7fc648200000, a pagina entregue seria VA 0x7fc648200000)
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7fc64ac00000  -- a GPU entregou a pagina 1 do bloco A2621440
+  (esse bloco vive em VA 0x7fc648200000, a pagina entregue seria VA 0x7fc648400000)
+  uso: echo "<pasid_hex> <va_hex>" > bc250_ptwalk
+FIM
+
+==========================================================================
+boot=bce34b54 pid=2183
+  PID 2183 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    execucao LIMPA -- nada a investigar nesta rodada
+
+  ############ CONTROLE: A8028160 pagina 0 (SEM divergencia) ############
+  VA 0x7f655dc00000
+    (resolvido por PID 2183)
+  === BC-250 ptwalk  pasid=0x887  va=0x7f655dc00000  pfn=0x7f655dc00 ===
+    vm=00000000a97ec287  compute=1  pasid=0xa
+    tlb_seq=54  kfd_last_flushed_seq=54
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000009d73f2af  gpu_addr=0xf6fffd9000  tam=4096  kptr=000000002d7d7416
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f655dc00 last=0x7f655e3ff offset=0x0 flags=0x6
+      BO por tras: 000000003448c1ef  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=000000009d73f2af gpu_addr=0xf6fffd9000 kptr=000000002d7d7416
+          entrada[254] = 0x0000000170e02001  -> PA 0x170e02000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=405
+          tabela: bo=00000000c195188d gpu_addr=0xf400e02000 kptr=00000000b83b6431
+          entrada[405] = 0x000000046ee23001  -> PA 0x46ee23000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [397]=0x40000000000000 [398]=0x40000000000000 [399]=0x40000000000000 [400]=0x40000000000000 [401]=0x40000000000000 [402]=0x40000000000000 [403]=0x40000000000000 [404]=0x40000000000000 [405]=0x46ee23001 [406]=0x40000000000000 [407]=0x40000000000000 [408]=0x40000000000000 [409]=0x46ee3b001 [410]=0x46ffd7001 [411]=0x40000000000000 [412]=0x46ee3a001 [413]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=238
+          tabela: bo=0000000068ca16c1 gpu_addr=0xf6fee23000 kptr=0000000055e681d6
+          entrada[238] = 0x004000046f000561  -> PA 0x46f000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [230]=0x400001726004e1 [231]=0x40000000000000 [232]=0x400001728005e1 [233]=0x40000172a005e1 [234]=0x40000172c005e1 [235]=0x40000172e005e1 [236]=0x400001706004e1 [237]=0x40000000600580 [238]=0x4000046f000561 [239]=0x4000046f200561 [240]=0x4000046f400561 [241]=0x4000046f600561 [242]=0x40000001000580 [243]=0x40000175c004e1 [244]=0x40000000000000 [245]=0x400001770004e1 [246]=0x40000177200561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f000000
+          >>> BO alvo ocupa [0xf6ff000000, 0xf6ff800000)
+          >>> FORA do BO por 1041798004736 bytes (993536 MiB):
+          >>> a tabela aponta para memoria que NAO e deste BO
+          >>> de quem e o PA que a tabela aponta:
+          >>> NENHUM BO desta VM contem esse PA
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=1853
+  PID 1853 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A10485760 pag 0 (offset 0 MiB): entregou pag 0 do bloco 6 (B8028160)
+    A10485760 pag 1 (offset 2 MiB): entregou pag 1 do bloco 6 (B8028160)
+    A10485760 pag 2 (offset 4 MiB): entregou pag 2 do bloco 6 (B8028160)
+    A10485760 pag 3 (offset 6 MiB): entregou pag 3 do bloco 6 (B8028160)
+    4 paginas divergentes
+
+  ############ CONTROLE: A6922240 pagina 0 (SEM divergencia) ############
+  VA 0x7f5546000000
+
+  ############ FALHA: A10485760 pagina 0 ############
+  VA 0x7f5546a00000  -- a GPU entregou a pagina 0 do bloco B8028160
+  (esse bloco vive em VA 0x7f5545000000, a pagina entregue seria VA 0x7f5545000000)
+
+  ############ FALHA: A10485760 pagina 1 ############
+  VA 0x7f5546c00000  -- a GPU entregou a pagina 1 do bloco B8028160
+  (esse bloco vive em VA 0x7f5545000000, a pagina entregue seria VA 0x7f5545200000)
+
+  ############ FALHA: A10485760 pagina 2 ############
+  VA 0x7f5546e00000  -- a GPU entregou a pagina 2 do bloco B8028160
+  (esse bloco vive em VA 0x7f5545000000, a pagina entregue seria VA 0x7f5545400000)
+
+  ############ FALHA: A10485760 pagina 3 ############
+  VA 0x7f5547000000  -- a GPU entregou a pagina 3 do bloco B8028160
+  (esse bloco vive em VA 0x7f5545000000, a pagina entregue seria VA 0x7f5545600000)
+FIM
+
+==========================================================================
+boot=31f16242 pid=3069
+  PID 3069 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 0 (offset 0 MiB): entregou pag 0 do bloco 4 (A2621440)
+    A8028160 pag 1 (offset 2 MiB): entregou pag 1 do bloco 4 (A2621440)
+    A8028160 pag 2 (offset 4 MiB): entregou pag 2 do bloco 9 (B5898240)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 4 do bloco 1 (A10485760)
+    4 paginas divergentes
+
+  ############ CONTROLE: A10485760 pagina 0 (SEM divergencia) ############
+  VA 0x7faf7c200000
+    (resolvido por PID 3069)
+  === BC-250 ptwalk  pasid=0xbfd  va=0x7faf7c200000  pfn=0x7faf7c200 ===
+    vm=000000007b3c78f1  compute=1  pasid=0xa
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000f2642202  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7faf7c200 last=0x7faf7cbff offset=0x0 flags=0x6
+      BO por tras: 00000000c3a200ce  gpu_addr=0xf6ec600000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000f2642202 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=189
+          tabela: bo=00000000ac08f5ba gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[189] = 0x000000046ffcd001  -> PA 0x46ffcd000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [181]=0x40000000000000 [182]=0x40000000000000 [183]=0x40000000000000 [184]=0x40000000000000 [185]=0x40000000000000 [186]=0x40000000000000 [187]=0x40000000000000 [188]=0x40000000000000 [189]=0x46ffcd001 [190]=0x46ff6f001 [191]=0x40000000000000 [192]=0x40000000000000 [193]=0x40000000000000 [194]=0x46ffc7001 [195]=0x46ffcc001 [196]=0x40000000000000 [197]=0x46ffc6001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=481
+          tabela: bo=00000000fa238bbe gpu_addr=0xf6fffcd000 kptr=0000000095df9a2c
+          entrada[481] = 0x004000045c8004e1  -> PA 0x45c800000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [473]=0x40000000000000 [474]=0x40000000000000 [475]=0x40000000000000 [476]=0x40000000000000 [477]=0x40000000000000 [478]=0x40000000000000 [479]=0x40000000000000 [480]=0x40000000000000 [481]=0x4000045c8004e1 [482]=0x4000045ca00561 [483]=0x4000045cc00561 [484]=0x4000045ce004e1 [485]=0x4000045b6004e1 [486]=0x40000000000000 [487]=0x4000046f0004e1 [488]=0x4000046f200561 [489]=0x4000046f400561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45c800000
+          >>> BO alvo: MC 0xf6ec600000 = PA [0x45c600000, 0x45d000000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000c3a200ce [0x45c600000,0x45d000000) tam=10485760
+          >>> mapeado em VA [0x7faf7c200000,0x7faf7cbfffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 0 ############
+  VA 0x7faf7ce00000  -- a GPU entregou a pagina 0 do bloco A2621440
+  (esse bloco vive em VA 0x7faf76800000, a pagina entregue seria VA 0x7faf76800000)
+    (resolvido por PID 3069)
+  === BC-250 ptwalk  pasid=0xbfd  va=0x7faf7ce00000  pfn=0x7faf7ce00 ===
+    vm=000000007b3c78f1  compute=1  pasid=0xa
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000f2642202  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7faf7ce00 last=0x7faf7d5ff offset=0x0 flags=0x6
+      BO por tras: 000000005a022581  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000f2642202 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=189
+          tabela: bo=00000000ac08f5ba gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[189] = 0x000000046ffcd001  -> PA 0x46ffcd000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [181]=0x40000000000000 [182]=0x40000000000000 [183]=0x40000000000000 [184]=0x40000000000000 [185]=0x40000000000000 [186]=0x40000000000000 [187]=0x40000000000000 [188]=0x40000000000000 [189]=0x46ffcd001 [190]=0x46ff6f001 [191]=0x40000000000000 [192]=0x40000000000000 [193]=0x40000000000000 [194]=0x46ffc7001 [195]=0x46ffcc001 [196]=0x40000000000000 [197]=0x46ffc6001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=487
+          tabela: bo=00000000fa238bbe gpu_addr=0xf6fffcd000 kptr=0000000095df9a2c
+          entrada[487] = 0x004000046f0004e1  -> PA 0x46f000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [479]=0x40000000000000 [480]=0x40000000000000 [481]=0x4000045c8004e1 [482]=0x4000045ca00561 [483]=0x4000045cc00561 [484]=0x4000045ce004e1 [485]=0x4000045b6004e1 [486]=0x40000000000000 [487]=0x4000046f0004e1 [488]=0x4000046f200561 [489]=0x4000046f400561 [490]=0x4000046f6004e1 [491]=0x40000000800600 [492]=0x4000045b8005e1 [493]=0x4000045ba005e1 [494]=0x4000045bc005e1 [495]=0x4000045be005e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f000000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000005a022581 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7faf7ce00000,0x7faf7d5fffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 1 ############
+  VA 0x7faf7d000000  -- a GPU entregou a pagina 1 do bloco A2621440
+  (esse bloco vive em VA 0x7faf76800000, a pagina entregue seria VA 0x7faf76a00000)
+    (resolvido por PID 3069)
+  === BC-250 ptwalk  pasid=0xbfd  va=0x7faf7d000000  pfn=0x7faf7d000 ===
+    vm=000000007b3c78f1  compute=1  pasid=0xa
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000f2642202  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7faf7ce00 last=0x7faf7d5ff offset=0x0 flags=0x6
+      BO por tras: 000000005a022581  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000f2642202 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=189
+          tabela: bo=00000000ac08f5ba gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[189] = 0x000000046ffcd001  -> PA 0x46ffcd000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [181]=0x40000000000000 [182]=0x40000000000000 [183]=0x40000000000000 [184]=0x40000000000000 [185]=0x40000000000000 [186]=0x40000000000000 [187]=0x40000000000000 [188]=0x40000000000000 [189]=0x46ffcd001 [190]=0x46ff6f001 [191]=0x40000000000000 [192]=0x40000000000000 [193]=0x40000000000000 [194]=0x46ffc7001 [195]=0x46ffcc001 [196]=0x40000000000000 [197]=0x46ffc6001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=488
+          tabela: bo=00000000fa238bbe gpu_addr=0xf6fffcd000 kptr=0000000095df9a2c
+          entrada[488] = 0x004000046f200561  -> PA 0x46f200000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [480]=0x40000000000000 [481]=0x4000045c8004e1 [482]=0x4000045ca00561 [483]=0x4000045cc00561 [484]=0x4000045ce004e1 [485]=0x4000045b6004e1 [486]=0x40000000000000 [487]=0x4000046f0004e1 [488]=0x4000046f200561 [489]=0x4000046f400561 [490]=0x4000046f6004e1 [491]=0x40000000800600 [492]=0x4000045b8005e1 [493]=0x4000045ba005e1 [494]=0x4000045bc005e1 [495]=0x4000045be005e1 [496]=0x400004692004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f200000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000005a022581 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7faf7ce00000,0x7faf7d5fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7faf7d200000  -- a GPU entregou a pagina 2 do bloco B5898240
+  (esse bloco vive em VA 0x7faf74000000, a pagina entregue seria VA 0x7faf74400000)
+    (resolvido por PID 3069)
+  === BC-250 ptwalk  pasid=0xbfd  va=0x7faf7d200000  pfn=0x7faf7d200 ===
+    vm=000000007b3c78f1  compute=1  pasid=0xa
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000f2642202  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7faf7ce00 last=0x7faf7d5ff offset=0x0 flags=0x6
+      BO por tras: 000000005a022581  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000f2642202 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=189
+          tabela: bo=00000000ac08f5ba gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[189] = 0x000000046ffcd001  -> PA 0x46ffcd000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [181]=0x40000000000000 [182]=0x40000000000000 [183]=0x40000000000000 [184]=0x40000000000000 [185]=0x40000000000000 [186]=0x40000000000000 [187]=0x40000000000000 [188]=0x40000000000000 [189]=0x46ffcd001 [190]=0x46ff6f001 [191]=0x40000000000000 [192]=0x40000000000000 [193]=0x40000000000000 [194]=0x46ffc7001 [195]=0x46ffcc001 [196]=0x40000000000000 [197]=0x46ffc6001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=489
+          tabela: bo=00000000fa238bbe gpu_addr=0xf6fffcd000 kptr=0000000095df9a2c
+          entrada[489] = 0x004000046f400561  -> PA 0x46f400000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [481]=0x4000045c8004e1 [482]=0x4000045ca00561 [483]=0x4000045cc00561 [484]=0x4000045ce004e1 [485]=0x4000045b6004e1 [486]=0x40000000000000 [487]=0x4000046f0004e1 [488]=0x4000046f200561 [489]=0x4000046f400561 [490]=0x4000046f6004e1 [491]=0x40000000800600 [492]=0x4000045b8005e1 [493]=0x4000045ba005e1 [494]=0x4000045bc005e1 [495]=0x4000045be005e1 [496]=0x400004692004e1 [497]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f400000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x400000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000005a022581 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7faf7ce00000,0x7faf7d5fffff], offset dentro dele 0x400000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7faf7d400000  -- a GPU entregou a pagina 4 do bloco A10485760
+  (esse bloco vive em VA 0x7faf7c200000, a pagina entregue seria VA 0x7faf7ca00000)
+    (resolvido por PID 3069)
+  === BC-250 ptwalk  pasid=0xbfd  va=0x7faf7d400000  pfn=0x7faf7d400 ===
+    vm=000000007b3c78f1  compute=1  pasid=0xa
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000f2642202  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7faf7ce00 last=0x7faf7d5ff offset=0x0 flags=0x6
+      BO por tras: 000000005a022581  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000f2642202 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=189
+          tabela: bo=00000000ac08f5ba gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[189] = 0x000000046ffcd001  -> PA 0x46ffcd000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [181]=0x40000000000000 [182]=0x40000000000000 [183]=0x40000000000000 [184]=0x40000000000000 [185]=0x40000000000000 [186]=0x40000000000000 [187]=0x40000000000000 [188]=0x40000000000000 [189]=0x46ffcd001 [190]=0x46ff6f001 [191]=0x40000000000000 [192]=0x40000000000000 [193]=0x40000000000000 [194]=0x46ffc7001 [195]=0x46ffcc001 [196]=0x40000000000000 [197]=0x46ffc6001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=490
+          tabela: bo=00000000fa238bbe gpu_addr=0xf6fffcd000 kptr=0000000095df9a2c
+          entrada[490] = 0x004000046f6004e1  -> PA 0x46f600000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [482]=0x4000045ca00561 [483]=0x4000045cc00561 [484]=0x4000045ce004e1 [485]=0x4000045b6004e1 [486]=0x40000000000000 [487]=0x4000046f0004e1 [488]=0x4000046f200561 [489]=0x4000046f400561 [490]=0x4000046f6004e1 [491]=0x40000000800600 [492]=0x4000045b8005e1 [493]=0x4000045ba005e1 [494]=0x4000045bc005e1 [495]=0x4000045be005e1 [496]=0x400004692004e1 [497]=0x40000000000000 [498]=0x4000046a000561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f600000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x600000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000005a022581 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7faf7ce00000,0x7faf7d5fffff], offset dentro dele 0x600000
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=3835
+  PID 3835 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 2 (offset 4 MiB): entregou pag 0 do bloco 8 (B6922240)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 1 do bloco 8 (B6922240)
+    2 paginas divergentes
+
+  ############ CONTROLE: A8028160 pagina 0 (SEM divergencia) ############
+  VA 0x7f9e0a200000
+    (resolvido por PID 3835)
+  === BC-250 ptwalk  pasid=0xefb  va=0x7f9e0a200000  pfn=0x7f9e0a200 ===
+    vm=00000000c9795cc7  compute=1  pasid=0xd
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000007f946e65  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f9e0a200 last=0x7f9e0a9ff offset=0x0 flags=0x6
+      BO por tras: 00000000778b05bb  gpu_addr=0xf6fe000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=000000007f946e65 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=120
+          tabela: bo=000000003765bb3a gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[120] = 0x000000046ffd1001  -> PA 0x46ffd1000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [112]=0x40000000000000 [113]=0x40000000000000 [114]=0x40000000000000 [115]=0x40000000000000 [116]=0x40000000000000 [117]=0x40000000000000 [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x46ffd1001 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x46ffc7001 [125]=0x469792001 [126]=0x40000000000000 [127]=0x46ff6b001 [128]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=81
+          tabela: bo=00000000847cc91d gpu_addr=0xf6fffd1000 kptr=00000000cf4be1b0
+          entrada[81] = 0x004000046e0004e1  -> PA 0x46e000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [73]=0x4000045b600561 [74]=0x40000000000000 [75]=0x4000045b8004e1 [76]=0x4000045ba00561 [77]=0x4000045bc00561 [78]=0x4000045be004e1 [79]=0x4000045ae004e1 [80]=0x40000000000000 [81]=0x4000046e0004e1 [82]=0x4000046e200561 [83]=0x4000046e400561 [84]=0x4000046e6004e1 [85]=0x40000000400580 [86]=0x4000046b0004e1 [87]=0x40000000800580 [88]=0x400004698005e1 [89]=0x40000469a005e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46e000000
+          >>> BO alvo: MC 0xf6fe000000 = PA [0x46e000000, 0x46e800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000778b05bb [0x46e000000,0x46e800000) tam=8388608
+          >>> mapeado em VA [0x7f9e0a200000,0x7f9e0a9fffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7f9e0a600000  -- a GPU entregou a pagina 0 do bloco B6922240
+  (esse bloco vive em VA 0x7f9e05e00000, a pagina entregue seria VA 0x7f9e05e00000)
+    (resolvido por PID 3835)
+  === BC-250 ptwalk  pasid=0xefb  va=0x7f9e0a600000  pfn=0x7f9e0a600 ===
+    vm=00000000c9795cc7  compute=1  pasid=0xd
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000007f946e65  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f9e0a200 last=0x7f9e0a9ff offset=0x0 flags=0x6
+      BO por tras: 00000000778b05bb  gpu_addr=0xf6fe000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=000000007f946e65 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=120
+          tabela: bo=000000003765bb3a gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[120] = 0x000000046ffd1001  -> PA 0x46ffd1000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [112]=0x40000000000000 [113]=0x40000000000000 [114]=0x40000000000000 [115]=0x40000000000000 [116]=0x40000000000000 [117]=0x40000000000000 [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x46ffd1001 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x46ffc7001 [125]=0x469792001 [126]=0x40000000000000 [127]=0x46ff6b001 [128]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=83
+          tabela: bo=00000000847cc91d gpu_addr=0xf6fffd1000 kptr=00000000cf4be1b0
+          entrada[83] = 0x004000046e400561  -> PA 0x46e400000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [75]=0x4000045b8004e1 [76]=0x4000045ba00561 [77]=0x4000045bc00561 [78]=0x4000045be004e1 [79]=0x4000045ae004e1 [80]=0x40000000000000 [81]=0x4000046e0004e1 [82]=0x4000046e200561 [83]=0x4000046e400561 [84]=0x4000046e6004e1 [85]=0x40000000400580 [86]=0x4000046b0004e1 [87]=0x40000000800580 [88]=0x400004698005e1 [89]=0x40000469a005e1 [90]=0x40000469c005e1 [91]=0x40000469e005e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46e400000
+          >>> BO alvo: MC 0xf6fe000000 = PA [0x46e000000, 0x46e800000)
+          >>> DENTRO do BO, offset 0x400000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000778b05bb [0x46e000000,0x46e800000) tam=8388608
+          >>> mapeado em VA [0x7f9e0a200000,0x7f9e0a9fffff], offset dentro dele 0x400000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7f9e0a800000  -- a GPU entregou a pagina 1 do bloco B6922240
+  (esse bloco vive em VA 0x7f9e05e00000, a pagina entregue seria VA 0x7f9e06000000)
+    (resolvido por PID 3835)
+  === BC-250 ptwalk  pasid=0xefb  va=0x7f9e0a800000  pfn=0x7f9e0a800 ===
+    vm=00000000c9795cc7  compute=1  pasid=0xd
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000007f946e65  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f9e0a200 last=0x7f9e0a9ff offset=0x0 flags=0x6
+      BO por tras: 00000000778b05bb  gpu_addr=0xf6fe000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=000000007f946e65 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=120
+          tabela: bo=000000003765bb3a gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[120] = 0x000000046ffd1001  -> PA 0x46ffd1000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [112]=0x40000000000000 [113]=0x40000000000000 [114]=0x40000000000000 [115]=0x40000000000000 [116]=0x40000000000000 [117]=0x40000000000000 [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x46ffd1001 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x46ffc7001 [125]=0x469792001 [126]=0x40000000000000 [127]=0x46ff6b001 [128]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=84
+          tabela: bo=00000000847cc91d gpu_addr=0xf6fffd1000 kptr=00000000cf4be1b0
+          entrada[84] = 0x004000046e6004e1  -> PA 0x46e600000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [76]=0x4000045ba00561 [77]=0x4000045bc00561 [78]=0x4000045be004e1 [79]=0x4000045ae004e1 [80]=0x40000000000000 [81]=0x4000046e0004e1 [82]=0x4000046e200561 [83]=0x4000046e400561 [84]=0x4000046e6004e1 [85]=0x40000000400580 [86]=0x4000046b0004e1 [87]=0x40000000800580 [88]=0x400004698005e1 [89]=0x40000469a005e1 [90]=0x40000469c005e1 [91]=0x40000469e005e1 [92]=0x4000046b2004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46e600000
+          >>> BO alvo: MC 0xf6fe000000 = PA [0x46e000000, 0x46e800000)
+          >>> DENTRO do BO, offset 0x600000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000778b05bb [0x46e000000,0x46e800000) tam=8388608
+          >>> mapeado em VA [0x7f9e0a200000,0x7f9e0a9fffff], offset dentro dele 0x600000
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=4051
+  PID 4051 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 0 (offset 0 MiB): entregou pag 0 do bloco 8 (B6922240)
+    A8028160 pag 1 (offset 2 MiB): entregou pag 1 do bloco 8 (B6922240)
+    A8028160 pag 2 (offset 4 MiB): entregou pag 2 do bloco 8 (B6922240)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 3 do bloco 8 (B6922240)
+    4 paginas divergentes
+
+  ############ CONTROLE: A10485760 pagina 0 (SEM divergencia) ############
+  VA 0x7fa1f4200000
+    (resolvido por PID 4051)
+  === BC-250 ptwalk  pasid=0xfd3  va=0x7fa1f4200000  pfn=0x7fa1f4200 ===
+    vm=00000000cf10eae0  compute=1  pasid=0x10
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000027ffa2f1  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa1f4200 last=0x7fa1f4bff offset=0x0 flags=0x6
+      BO por tras: 0000000088aef95c  gpu_addr=0xf6eb400000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000027ffa2f1 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=135
+          tabela: bo=00000000c2dc9e41 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[135] = 0x000000046ffc2001  -> PA 0x46ffc2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x40000000000000 [131]=0x40000000000000 [132]=0x40000000000000 [133]=0x40000000000000 [134]=0x40000000000000 [135]=0x46ffc2001 [136]=0x46ffc1001 [137]=0x40000000000000 [138]=0x40000000000000 [139]=0x40000000000000 [140]=0x46ffc7001 [141]=0x46eaa5001 [142]=0x40000000000000 [143]=0x46ff6b001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=417
+          tabela: bo=000000008ce4a002 gpu_addr=0xf6fffc2000 kptr=0000000047b9aba7
+          entrada[417] = 0x004000045b0004e1  -> PA 0x45b000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [409]=0x40000000000000 [410]=0x40000000000000 [411]=0x40000000000000 [412]=0x40000000000000 [413]=0x40000000000000 [414]=0x40000000000000 [415]=0x40000000000000 [416]=0x40000000000000 [417]=0x4000045b0004e1 [418]=0x4000045b200561 [419]=0x4000045b400561 [420]=0x4000045b6004e1 [421]=0x4000045bc004e1 [422]=0x40000000000000 [423]=0x4000046f0004e1 [424]=0x4000046f200561 [425]=0x4000046f400561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45b000000
+          >>> BO alvo: MC 0xf6eb400000 = PA [0x45b400000, 0x45be00000)
+          >>> FORA do BO por 4194304 bytes (4 MiB):
+          >>> a tabela aponta para memoria que NAO e deste BO
+          >>> de quem e o PA que a tabela aponta:
+          >>> NENHUM BO desta VM contem esse PA
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 0 ############
+  VA 0x7fa1f4e00000  -- a GPU entregou a pagina 0 do bloco B6922240
+  (esse bloco vive em VA 0x7fa1ece00000, a pagina entregue seria VA 0x7fa1ece00000)
+    (resolvido por PID 4051)
+  === BC-250 ptwalk  pasid=0xfd3  va=0x7fa1f4e00000  pfn=0x7fa1f4e00 ===
+    vm=00000000cf10eae0  compute=1  pasid=0x10
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000027ffa2f1  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa1f4e00 last=0x7fa1f55ff offset=0x0 flags=0x6
+      BO por tras: 00000000835db723  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000027ffa2f1 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=135
+          tabela: bo=00000000c2dc9e41 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[135] = 0x000000046ffc2001  -> PA 0x46ffc2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x40000000000000 [131]=0x40000000000000 [132]=0x40000000000000 [133]=0x40000000000000 [134]=0x40000000000000 [135]=0x46ffc2001 [136]=0x46ffc1001 [137]=0x40000000000000 [138]=0x40000000000000 [139]=0x40000000000000 [140]=0x46ffc7001 [141]=0x46eaa5001 [142]=0x40000000000000 [143]=0x46ff6b001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=423
+          tabela: bo=000000008ce4a002 gpu_addr=0xf6fffc2000 kptr=0000000047b9aba7
+          entrada[423] = 0x004000046f0004e1  -> PA 0x46f000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [415]=0x40000000000000 [416]=0x40000000000000 [417]=0x4000045b0004e1 [418]=0x4000045b200561 [419]=0x4000045b400561 [420]=0x4000045b6004e1 [421]=0x4000045bc004e1 [422]=0x40000000000000 [423]=0x4000046f0004e1 [424]=0x4000046f200561 [425]=0x4000046f400561 [426]=0x4000046f6004e1 [427]=0x40000000800600 [428]=0x400004698005e1 [429]=0x40000469a005e1 [430]=0x40000469c005e1 [431]=0x40000469e005e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f000000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000835db723 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fa1f4e00000,0x7fa1f55fffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 1 ############
+  VA 0x7fa1f5000000  -- a GPU entregou a pagina 1 do bloco B6922240
+  (esse bloco vive em VA 0x7fa1ece00000, a pagina entregue seria VA 0x7fa1ed000000)
+    (resolvido por PID 4051)
+  === BC-250 ptwalk  pasid=0xfd3  va=0x7fa1f5000000  pfn=0x7fa1f5000 ===
+    vm=00000000cf10eae0  compute=1  pasid=0x10
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000027ffa2f1  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa1f4e00 last=0x7fa1f55ff offset=0x0 flags=0x6
+      BO por tras: 00000000835db723  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000027ffa2f1 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=135
+          tabela: bo=00000000c2dc9e41 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[135] = 0x000000046ffc2001  -> PA 0x46ffc2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x40000000000000 [131]=0x40000000000000 [132]=0x40000000000000 [133]=0x40000000000000 [134]=0x40000000000000 [135]=0x46ffc2001 [136]=0x46ffc1001 [137]=0x40000000000000 [138]=0x40000000000000 [139]=0x40000000000000 [140]=0x46ffc7001 [141]=0x46eaa5001 [142]=0x40000000000000 [143]=0x46ff6b001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=424
+          tabela: bo=000000008ce4a002 gpu_addr=0xf6fffc2000 kptr=0000000047b9aba7
+          entrada[424] = 0x004000046f200561  -> PA 0x46f200000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [416]=0x40000000000000 [417]=0x4000045b0004e1 [418]=0x4000045b200561 [419]=0x4000045b400561 [420]=0x4000045b6004e1 [421]=0x4000045bc004e1 [422]=0x40000000000000 [423]=0x4000046f0004e1 [424]=0x4000046f200561 [425]=0x4000046f400561 [426]=0x4000046f6004e1 [427]=0x40000000800600 [428]=0x400004698005e1 [429]=0x40000469a005e1 [430]=0x40000469c005e1 [431]=0x40000469e005e1 [432]=0x400004694004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f200000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000835db723 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fa1f4e00000,0x7fa1f55fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7fa1f5200000  -- a GPU entregou a pagina 2 do bloco B6922240
+  (esse bloco vive em VA 0x7fa1ece00000, a pagina entregue seria VA 0x7fa1ed200000)
+    (resolvido por PID 4051)
+  === BC-250 ptwalk  pasid=0xfd3  va=0x7fa1f5200000  pfn=0x7fa1f5200 ===
+    vm=00000000cf10eae0  compute=1  pasid=0x10
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000027ffa2f1  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa1f4e00 last=0x7fa1f55ff offset=0x0 flags=0x6
+      BO por tras: 00000000835db723  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000027ffa2f1 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=135
+          tabela: bo=00000000c2dc9e41 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[135] = 0x000000046ffc2001  -> PA 0x46ffc2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x40000000000000 [131]=0x40000000000000 [132]=0x40000000000000 [133]=0x40000000000000 [134]=0x40000000000000 [135]=0x46ffc2001 [136]=0x46ffc1001 [137]=0x40000000000000 [138]=0x40000000000000 [139]=0x40000000000000 [140]=0x46ffc7001 [141]=0x46eaa5001 [142]=0x40000000000000 [143]=0x46ff6b001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=425
+          tabela: bo=000000008ce4a002 gpu_addr=0xf6fffc2000 kptr=0000000047b9aba7
+          entrada[425] = 0x004000046f400561  -> PA 0x46f400000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [417]=0x4000045b0004e1 [418]=0x4000045b200561 [419]=0x4000045b400561 [420]=0x4000045b6004e1 [421]=0x4000045bc004e1 [422]=0x40000000000000 [423]=0x4000046f0004e1 [424]=0x4000046f200561 [425]=0x4000046f400561 [426]=0x4000046f6004e1 [427]=0x40000000800600 [428]=0x400004698005e1 [429]=0x40000469a005e1 [430]=0x40000469c005e1 [431]=0x40000469e005e1 [432]=0x400004694004e1 [433]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f400000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x400000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000835db723 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fa1f4e00000,0x7fa1f55fffff], offset dentro dele 0x400000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7fa1f5400000  -- a GPU entregou a pagina 3 do bloco B6922240
+  (esse bloco vive em VA 0x7fa1ece00000, a pagina entregue seria VA 0x7fa1ed400000)
+    (resolvido por PID 4051)
+  === BC-250 ptwalk  pasid=0xfd3  va=0x7fa1f5400000  pfn=0x7fa1f5400 ===
+    vm=00000000cf10eae0  compute=1  pasid=0x10
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000027ffa2f1  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa1f4e00 last=0x7fa1f55ff offset=0x0 flags=0x6
+      BO por tras: 00000000835db723  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000027ffa2f1 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=135
+          tabela: bo=00000000c2dc9e41 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[135] = 0x000000046ffc2001  -> PA 0x46ffc2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x40000000000000 [131]=0x40000000000000 [132]=0x40000000000000 [133]=0x40000000000000 [134]=0x40000000000000 [135]=0x46ffc2001 [136]=0x46ffc1001 [137]=0x40000000000000 [138]=0x40000000000000 [139]=0x40000000000000 [140]=0x46ffc7001 [141]=0x46eaa5001 [142]=0x40000000000000 [143]=0x46ff6b001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=426
+          tabela: bo=000000008ce4a002 gpu_addr=0xf6fffc2000 kptr=0000000047b9aba7
+          entrada[426] = 0x004000046f6004e1  -> PA 0x46f600000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [418]=0x4000045b200561 [419]=0x4000045b400561 [420]=0x4000045b6004e1 [421]=0x4000045bc004e1 [422]=0x40000000000000 [423]=0x4000046f0004e1 [424]=0x4000046f200561 [425]=0x4000046f400561 [426]=0x4000046f6004e1 [427]=0x40000000800600 [428]=0x400004698005e1 [429]=0x40000469a005e1 [430]=0x40000469c005e1 [431]=0x40000469e005e1 [432]=0x400004694004e1 [433]=0x40000000000000 [434]=0x40000468000561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f600000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x600000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000835db723 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fa1f4e00000,0x7fa1f55fffff], offset dentro dele 0x600000
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=4284
+  PID 4284 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    execucao LIMPA -- nada a investigar nesta rodada
+    (o gatilho e probabilistico; rode de novo ate sujar)
+
+  ############ CONTROLE: A8028160 pagina 0 (SEM divergencia) ############
+  VA 0x7fdf49e00000
+    (resolvido por PID 4284)
+  === BC-250 ptwalk  pasid=0x10bc  va=0x7fdf49e00000  pfn=0x7fdf49e00 ===
+    vm=0000000018e5377a  compute=1  pasid=0x13
+    tlb_seq=54  kfd_last_flushed_seq=54
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000ebbb062e  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdf49e00 last=0x7fdf4a5ff offset=0x0 flags=0x6
+      BO por tras: 0000000094d096a7  gpu_addr=0xf6fe000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000ebbb062e gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=381
+          tabela: bo=00000000e240e83f gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[381] = 0x000000046e896001  -> PA 0x46e896000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [373]=0x40000000000000 [374]=0x40000000000000 [375]=0x40000000000000 [376]=0x40000000000000 [377]=0x40000000000000 [378]=0x40000000000000 [379]=0x40000000000000 [380]=0x40000000000000 [381]=0x46e896001 [382]=0x40000000000000 [383]=0x40000000000000 [384]=0x40000000000000 [385]=0x46ffc7001 [386]=0x40000000000000 [387]=0x46ff6e001 [388]=0x46ffc6001 [389]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=79
+          tabela: bo=00000000f2fdb2ec gpu_addr=0xf6fe896000 kptr=00000000ee6ff537
+          entrada[79] = 0x004000046e0004e1  -> PA 0x46e000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [71]=0x4000045ae005e1 [72]=0x40000000000000 [73]=0x4000045b0004e1 [74]=0x4000045b200561 [75]=0x4000045b400561 [76]=0x4000045b6004e1 [77]=0x4000045bc004e1 [78]=0x40000000000000 [79]=0x4000046e0004e1 [80]=0x4000046e200561 [81]=0x4000046e400561 [82]=0x4000046e6004e1 [83]=0x40000000400500 [84]=0x400004692004e1 [85]=0x40000000800580 [86]=0x40000469800561 [87]=0x40000469a00561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46e000000
+          >>> BO alvo: MC 0xf6fe000000 = PA [0x46e000000, 0x46e800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 0000000094d096a7 [0x46e000000,0x46e800000) tam=8388608
+          >>> mapeado em VA [0x7fdf49e00000,0x7fdf4a5fffff], offset dentro dele 0x0
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=4440
+  PID 4440 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 0 (offset 0 MiB): entregou pag 0 do bloco 8 (B6922240)
+    A8028160 pag 1 (offset 2 MiB): entregou pag 1 do bloco 8 (B6922240)
+    A8028160 pag 2 (offset 4 MiB): entregou pag 2 do bloco 8 (B6922240)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 3 do bloco 8 (B6922240)
+    4 paginas divergentes
+
+  ############ CONTROLE: A10485760 pagina 0 (SEM divergencia) ############
+  VA 0x7fc8d1e00000
+    (resolvido por PID 4440)
+  === BC-250 ptwalk  pasid=0x1158  va=0x7fc8d1e00000  pfn=0x7fc8d1e00 ===
+    vm=0000000018e5377a  compute=1  pasid=0x16
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000077a8d26d  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fc8d1e00 last=0x7fc8d27ff offset=0x0 flags=0x6
+      BO por tras: 0000000026d77b1e  gpu_addr=0xf6eb600000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000077a8d26d gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=291
+          tabela: bo=0000000054e0e5e6 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[291] = 0x000000046ffd3001  -> PA 0x46ffd3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [283]=0x40000000000000 [284]=0x40000000000000 [285]=0x40000000000000 [286]=0x40000000000000 [287]=0x40000000000000 [288]=0x40000000000000 [289]=0x40000000000000 [290]=0x40000000000000 [291]=0x46ffd3001 [292]=0x40000000000000 [293]=0x40000000000000 [294]=0x40000000000000 [295]=0x46ffc7001 [296]=0x46ff6f001 [297]=0x40000000000000 [298]=0x46ffc6001 [299]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=143
+          tabela: bo=000000001aa9a33c gpu_addr=0xf6fffd3000 kptr=0000000086dbd200
+          entrada[143] = 0x004000045b8004e1  -> PA 0x45b800000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [135]=0x4000046ee00561 [136]=0x4000046da004e1 [137]=0x40000000000000 [138]=0x4000045b000561 [139]=0x4000045b200561 [140]=0x4000045b400561 [141]=0x4000045b600561 [142]=0x40000000000000 [143]=0x4000045b8004e1 [144]=0x4000045ba00561 [145]=0x4000045bc00561 [146]=0x4000045be004e1 [147]=0x4000045ae004e1 [148]=0x40000000000000 [149]=0x4000046f0004e1 [150]=0x4000046f200561 [151]=0x4000046f400561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45b800000
+          >>> BO alvo: MC 0xf6eb600000 = PA [0x45b600000, 0x45c000000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 0000000026d77b1e [0x45b600000,0x45c000000) tam=10485760
+          >>> mapeado em VA [0x7fc8d1e00000,0x7fc8d27fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 0 ############
+  VA 0x7fc8d2a00000  -- a GPU entregou a pagina 0 do bloco B6922240
+  (esse bloco vive em VA 0x7fc8ce600000, a pagina entregue seria VA 0x7fc8ce600000)
+    (resolvido por PID 4440)
+  === BC-250 ptwalk  pasid=0x1158  va=0x7fc8d2a00000  pfn=0x7fc8d2a00 ===
+    vm=0000000018e5377a  compute=1  pasid=0x16
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000077a8d26d  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fc8d2a00 last=0x7fc8d31ff offset=0x0 flags=0x6
+      BO por tras: 00000000823cf3d3  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000077a8d26d gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=291
+          tabela: bo=0000000054e0e5e6 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[291] = 0x000000046ffd3001  -> PA 0x46ffd3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [283]=0x40000000000000 [284]=0x40000000000000 [285]=0x40000000000000 [286]=0x40000000000000 [287]=0x40000000000000 [288]=0x40000000000000 [289]=0x40000000000000 [290]=0x40000000000000 [291]=0x46ffd3001 [292]=0x40000000000000 [293]=0x40000000000000 [294]=0x40000000000000 [295]=0x46ffc7001 [296]=0x46ff6f001 [297]=0x40000000000000 [298]=0x46ffc6001 [299]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=149
+          tabela: bo=000000001aa9a33c gpu_addr=0xf6fffd3000 kptr=0000000086dbd200
+          entrada[149] = 0x004000046f0004e1  -> PA 0x46f000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [141]=0x4000045b600561 [142]=0x40000000000000 [143]=0x4000045b8004e1 [144]=0x4000045ba00561 [145]=0x4000045bc00561 [146]=0x4000045be004e1 [147]=0x4000045ae004e1 [148]=0x40000000000000 [149]=0x4000046f0004e1 [150]=0x4000046f200561 [151]=0x4000046f400561 [152]=0x4000046f6004e1 [153]=0x40000000800580 [154]=0x40000469800561 [155]=0x40000469a00561 [156]=0x40000469c00561 [157]=0x40000469e00561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f000000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000823cf3d3 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fc8d2a00000,0x7fc8d31fffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 1 ############
+  VA 0x7fc8d2c00000  -- a GPU entregou a pagina 1 do bloco B6922240
+  (esse bloco vive em VA 0x7fc8ce600000, a pagina entregue seria VA 0x7fc8ce800000)
+    (resolvido por PID 4440)
+  === BC-250 ptwalk  pasid=0x1158  va=0x7fc8d2c00000  pfn=0x7fc8d2c00 ===
+    vm=0000000018e5377a  compute=1  pasid=0x16
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000077a8d26d  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fc8d2a00 last=0x7fc8d31ff offset=0x0 flags=0x6
+      BO por tras: 00000000823cf3d3  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000077a8d26d gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=291
+          tabela: bo=0000000054e0e5e6 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[291] = 0x000000046ffd3001  -> PA 0x46ffd3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [283]=0x40000000000000 [284]=0x40000000000000 [285]=0x40000000000000 [286]=0x40000000000000 [287]=0x40000000000000 [288]=0x40000000000000 [289]=0x40000000000000 [290]=0x40000000000000 [291]=0x46ffd3001 [292]=0x40000000000000 [293]=0x40000000000000 [294]=0x40000000000000 [295]=0x46ffc7001 [296]=0x46ff6f001 [297]=0x40000000000000 [298]=0x46ffc6001 [299]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=150
+          tabela: bo=000000001aa9a33c gpu_addr=0xf6fffd3000 kptr=0000000086dbd200
+          entrada[150] = 0x004000046f200561  -> PA 0x46f200000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [142]=0x40000000000000 [143]=0x4000045b8004e1 [144]=0x4000045ba00561 [145]=0x4000045bc00561 [146]=0x4000045be004e1 [147]=0x4000045ae004e1 [148]=0x40000000000000 [149]=0x4000046f0004e1 [150]=0x4000046f200561 [151]=0x4000046f400561 [152]=0x4000046f6004e1 [153]=0x40000000800580 [154]=0x40000469800561 [155]=0x40000469a00561 [156]=0x40000469c00561 [157]=0x40000469e00561 [158]=0x400004692004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f200000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000823cf3d3 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fc8d2a00000,0x7fc8d31fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7fc8d2e00000  -- a GPU entregou a pagina 2 do bloco B6922240
+  (esse bloco vive em VA 0x7fc8ce600000, a pagina entregue seria VA 0x7fc8cea00000)
+    (resolvido por PID 4440)
+  === BC-250 ptwalk  pasid=0x1158  va=0x7fc8d2e00000  pfn=0x7fc8d2e00 ===
+    vm=0000000018e5377a  compute=1  pasid=0x16
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000077a8d26d  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fc8d2a00 last=0x7fc8d31ff offset=0x0 flags=0x6
+      BO por tras: 00000000823cf3d3  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000077a8d26d gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=291
+          tabela: bo=0000000054e0e5e6 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[291] = 0x000000046ffd3001  -> PA 0x46ffd3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [283]=0x40000000000000 [284]=0x40000000000000 [285]=0x40000000000000 [286]=0x40000000000000 [287]=0x40000000000000 [288]=0x40000000000000 [289]=0x40000000000000 [290]=0x40000000000000 [291]=0x46ffd3001 [292]=0x40000000000000 [293]=0x40000000000000 [294]=0x40000000000000 [295]=0x46ffc7001 [296]=0x46ff6f001 [297]=0x40000000000000 [298]=0x46ffc6001 [299]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=151
+          tabela: bo=000000001aa9a33c gpu_addr=0xf6fffd3000 kptr=0000000086dbd200
+          entrada[151] = 0x004000046f400561  -> PA 0x46f400000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [143]=0x4000045b8004e1 [144]=0x4000045ba00561 [145]=0x4000045bc00561 [146]=0x4000045be004e1 [147]=0x4000045ae004e1 [148]=0x40000000000000 [149]=0x4000046f0004e1 [150]=0x4000046f200561 [151]=0x4000046f400561 [152]=0x4000046f6004e1 [153]=0x40000000800580 [154]=0x40000469800561 [155]=0x40000469a00561 [156]=0x40000469c00561 [157]=0x40000469e00561 [158]=0x400004692004e1 [159]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f400000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x400000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000823cf3d3 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fc8d2a00000,0x7fc8d31fffff], offset dentro dele 0x400000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7fc8d3000000  -- a GPU entregou a pagina 3 do bloco B6922240
+  (esse bloco vive em VA 0x7fc8ce600000, a pagina entregue seria VA 0x7fc8cec00000)
+    (resolvido por PID 4440)
+  === BC-250 ptwalk  pasid=0x1158  va=0x7fc8d3000000  pfn=0x7fc8d3000 ===
+    vm=0000000018e5377a  compute=1  pasid=0x16
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000077a8d26d  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fc8d2a00 last=0x7fc8d31ff offset=0x0 flags=0x6
+      BO por tras: 00000000823cf3d3  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000077a8d26d gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=291
+          tabela: bo=0000000054e0e5e6 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[291] = 0x000000046ffd3001  -> PA 0x46ffd3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [283]=0x40000000000000 [284]=0x40000000000000 [285]=0x40000000000000 [286]=0x40000000000000 [287]=0x40000000000000 [288]=0x40000000000000 [289]=0x40000000000000 [290]=0x40000000000000 [291]=0x46ffd3001 [292]=0x40000000000000 [293]=0x40000000000000 [294]=0x40000000000000 [295]=0x46ffc7001 [296]=0x46ff6f001 [297]=0x40000000000000 [298]=0x46ffc6001 [299]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=152
+          tabela: bo=000000001aa9a33c gpu_addr=0xf6fffd3000 kptr=0000000086dbd200
+          entrada[152] = 0x004000046f6004e1  -> PA 0x46f600000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [144]=0x4000045ba00561 [145]=0x4000045bc00561 [146]=0x4000045be004e1 [147]=0x4000045ae004e1 [148]=0x40000000000000 [149]=0x4000046f0004e1 [150]=0x4000046f200561 [151]=0x4000046f400561 [152]=0x4000046f6004e1 [153]=0x40000000800580 [154]=0x40000469800561 [155]=0x40000469a00561 [156]=0x40000469c00561 [157]=0x40000469e00561 [158]=0x400004692004e1 [159]=0x40000000000000 [160]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f600000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x600000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000823cf3d3 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fc8d2a00000,0x7fc8d31fffff], offset dentro dele 0x600000
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=4675
+  PID 4675 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 0 (offset 0 MiB): entregou pag 2 do bloco 7 (B10485760)
+    A8028160 pag 1 (offset 2 MiB): entregou pag 3 do bloco 7 (B10485760)
+    A10485760 pag 0 (offset 0 MiB): entregou pag 0 do bloco 8 (B6922240)
+    A10485760 pag 1 (offset 2 MiB): entregou pag 1 do bloco 8 (B6922240)
+    A10485760 pag 2 (offset 4 MiB): entregou pag 2 do bloco 8 (B6922240)
+    A10485760 pag 3 (offset 6 MiB): entregou pag 3 do bloco 8 (B6922240)
+    A10485760 pag 4 (offset 8 MiB): entregou pag 0 do bloco 7 (B10485760)
+    7 paginas divergentes
+
+  ############ CONTROLE: A6922240 pagina 0 (SEM divergencia) ############
+  VA 0x7fdac2000000
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac2000000  pfn=0x7fdac2000 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac2000 last=0x7fdac27ff offset=0x0 flags=0x6
+      BO por tras: 00000000d44c7b4c  gpu_addr=0xf6eb000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=16
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[16] = 0x004000045b0005e1  -> PA 0x45b000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=11 mtype=0
+          vizinhas: [8]=0x40000000000000 [9]=0x4000045a8004e1 [10]=0x4000045aa004e1 [11]=0x40000000000000 [12]=0x4000046dc00561 [13]=0x4000046de00561 [14]=0x4000046c6004e1 [15]=0x40000000000000 [16]=0x4000045b0005e1 [17]=0x4000045b2005e1 [18]=0x4000045b4005e1 [19]=0x4000045b6005e1 [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45b000000
+          >>> BO alvo: MC 0xf6eb000000 = PA [0x45b000000, 0x45b800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000d44c7b4c [0x45b000000,0x45b800000) tam=8388608
+          >>> mapeado em VA [0x7fdac2000000,0x7fdac27fffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 0 ############
+  VA 0x7fdac3600000  -- a GPU entregou a pagina 2 do bloco B10485760
+  (esse bloco vive em VA 0x7fdabfc00000, a pagina entregue seria VA 0x7fdac0000000)
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac3600000  pfn=0x7fdac3600 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac3600 last=0x7fdac3dff offset=0x0 flags=0x6
+      BO por tras: 00000000e4231661  gpu_addr=0xf6fe000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=27
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[27] = 0x004000046e0004e1  -> PA 0x46e000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [19]=0x4000045b6005e1 [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1 [25]=0x4000045ae004e1 [26]=0x40000000a00580 [27]=0x4000046e0004e1 [28]=0x4000046e200561 [29]=0x4000046e400561 [30]=0x4000046e6004e1 [31]=0x40000000000000 [32]=0x40000000000000 [33]=0x40000000000000 [34]=0x40000000000000 [35]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46e000000
+          >>> BO alvo: MC 0xf6fe000000 = PA [0x46e000000, 0x46e800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000e4231661 [0x46e000000,0x46e800000) tam=8388608
+          >>> mapeado em VA [0x7fdac3600000,0x7fdac3dfffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 1 ############
+  VA 0x7fdac3800000  -- a GPU entregou a pagina 3 do bloco B10485760
+  (esse bloco vive em VA 0x7fdabfc00000, a pagina entregue seria VA 0x7fdac0200000)
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac3800000  pfn=0x7fdac3800 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac3600 last=0x7fdac3dff offset=0x0 flags=0x6
+      BO por tras: 00000000e4231661  gpu_addr=0xf6fe000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=28
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[28] = 0x004000046e200561  -> PA 0x46e200000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1 [25]=0x4000045ae004e1 [26]=0x40000000a00580 [27]=0x4000046e0004e1 [28]=0x4000046e200561 [29]=0x4000046e400561 [30]=0x4000046e6004e1 [31]=0x40000000000000 [32]=0x40000000000000 [33]=0x40000000000000 [34]=0x40000000000000 [35]=0x40000000000000 [36]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46e200000
+          >>> BO alvo: MC 0xf6fe000000 = PA [0x46e000000, 0x46e800000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000e4231661 [0x46e000000,0x46e800000) tam=8388608
+          >>> mapeado em VA [0x7fdac3600000,0x7fdac3dfffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A10485760 pagina 0 ############
+  VA 0x7fdac2a00000  -- a GPU entregou a pagina 0 do bloco B6922240
+  (esse bloco vive em VA 0x7fdabf200000, a pagina entregue seria VA 0x7fdabf200000)
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac2a00000  pfn=0x7fdac2a00 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac2a00 last=0x7fdac33ff offset=0x0 flags=0x6
+      BO por tras: 00000000572b3b19  gpu_addr=0xf6eb600000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=21
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[21] = 0x004000045b8004e1  -> PA 0x45b800000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [13]=0x4000046de00561 [14]=0x4000046c6004e1 [15]=0x40000000000000 [16]=0x4000045b0005e1 [17]=0x4000045b2005e1 [18]=0x4000045b4005e1 [19]=0x4000045b6005e1 [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1 [25]=0x4000045ae004e1 [26]=0x40000000a00580 [27]=0x4000046e0004e1 [28]=0x4000046e200561 [29]=0x4000046e400561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45b800000
+          >>> BO alvo: MC 0xf6eb600000 = PA [0x45b600000, 0x45c000000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000572b3b19 [0x45b600000,0x45c000000) tam=10485760
+          >>> mapeado em VA [0x7fdac2a00000,0x7fdac33fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A10485760 pagina 1 ############
+  VA 0x7fdac2c00000  -- a GPU entregou a pagina 1 do bloco B6922240
+  (esse bloco vive em VA 0x7fdabf200000, a pagina entregue seria VA 0x7fdabf400000)
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac2c00000  pfn=0x7fdac2c00 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac2a00 last=0x7fdac33ff offset=0x0 flags=0x6
+      BO por tras: 00000000572b3b19  gpu_addr=0xf6eb600000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=22
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[22] = 0x004000045ba00561  -> PA 0x45ba00000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [14]=0x4000046c6004e1 [15]=0x40000000000000 [16]=0x4000045b0005e1 [17]=0x4000045b2005e1 [18]=0x4000045b4005e1 [19]=0x4000045b6005e1 [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1 [25]=0x4000045ae004e1 [26]=0x40000000a00580 [27]=0x4000046e0004e1 [28]=0x4000046e200561 [29]=0x4000046e400561 [30]=0x4000046e6004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45ba00000
+          >>> BO alvo: MC 0xf6eb600000 = PA [0x45b600000, 0x45c000000)
+          >>> DENTRO do BO, offset 0x400000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000572b3b19 [0x45b600000,0x45c000000) tam=10485760
+          >>> mapeado em VA [0x7fdac2a00000,0x7fdac33fffff], offset dentro dele 0x400000
+  === fim ===
+
+  ############ FALHA: A10485760 pagina 2 ############
+  VA 0x7fdac2e00000  -- a GPU entregou a pagina 2 do bloco B6922240
+  (esse bloco vive em VA 0x7fdabf200000, a pagina entregue seria VA 0x7fdabf600000)
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac2e00000  pfn=0x7fdac2e00 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac2a00 last=0x7fdac33ff offset=0x0 flags=0x6
+      BO por tras: 00000000572b3b19  gpu_addr=0xf6eb600000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=23
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[23] = 0x004000045bc00561  -> PA 0x45bc00000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [15]=0x40000000000000 [16]=0x4000045b0005e1 [17]=0x4000045b2005e1 [18]=0x4000045b4005e1 [19]=0x4000045b6005e1 [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1 [25]=0x4000045ae004e1 [26]=0x40000000a00580 [27]=0x4000046e0004e1 [28]=0x4000046e200561 [29]=0x4000046e400561 [30]=0x4000046e6004e1 [31]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45bc00000
+          >>> BO alvo: MC 0xf6eb600000 = PA [0x45b600000, 0x45c000000)
+          >>> DENTRO do BO, offset 0x600000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000572b3b19 [0x45b600000,0x45c000000) tam=10485760
+          >>> mapeado em VA [0x7fdac2a00000,0x7fdac33fffff], offset dentro dele 0x600000
+  === fim ===
+
+  ############ FALHA: A10485760 pagina 3 ############
+  VA 0x7fdac3000000  -- a GPU entregou a pagina 3 do bloco B6922240
+  (esse bloco vive em VA 0x7fdabf200000, a pagina entregue seria VA 0x7fdabf800000)
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac3000000  pfn=0x7fdac3000 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac2a00 last=0x7fdac33ff offset=0x0 flags=0x6
+      BO por tras: 00000000572b3b19  gpu_addr=0xf6eb600000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=24
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[24] = 0x004000045be004e1  -> PA 0x45be00000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [16]=0x4000045b0005e1 [17]=0x4000045b2005e1 [18]=0x4000045b4005e1 [19]=0x4000045b6005e1 [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1 [25]=0x4000045ae004e1 [26]=0x40000000a00580 [27]=0x4000046e0004e1 [28]=0x4000046e200561 [29]=0x4000046e400561 [30]=0x4000046e6004e1 [31]=0x40000000000000 [32]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45be00000
+          >>> BO alvo: MC 0xf6eb600000 = PA [0x45b600000, 0x45c000000)
+          >>> DENTRO do BO, offset 0x800000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000572b3b19 [0x45b600000,0x45c000000) tam=10485760
+          >>> mapeado em VA [0x7fdac2a00000,0x7fdac33fffff], offset dentro dele 0x800000
+  === fim ===
+
+  ############ FALHA: A10485760 pagina 4 ############
+  VA 0x7fdac3200000  -- a GPU entregou a pagina 0 do bloco B10485760
+  (esse bloco vive em VA 0x7fdabfc00000, a pagina entregue seria VA 0x7fdabfc00000)
+    (resolvido por PID 4675)
+  === BC-250 ptwalk  pasid=0x1243  va=0x7fdac3200000  pfn=0x7fdac3200 ===
+    vm=00000000c7826da6  compute=1  pasid=0x19
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=0000000030f0ad97  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fdac2a00 last=0x7fdac33ff offset=0x0 flags=0x6
+      BO por tras: 00000000572b3b19  gpu_addr=0xf6eb600000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=0000000030f0ad97 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=363
+          tabela: bo=000000009f45d363 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[363] = 0x000000046ffc3001  -> PA 0x46ffc3000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [355]=0x40000000000000 [356]=0x40000000000000 [357]=0x40000000000000 [358]=0x40000000000000 [359]=0x40000000000000 [360]=0x40000000000000 [361]=0x40000000000000 [362]=0x46d79f001 [363]=0x46ffc3001 [364]=0x40000000000000 [365]=0x40000000000000 [366]=0x40000000000000 [367]=0x46ffc7001 [368]=0x40000000000000 [369]=0x46eaa6001 [370]=0x46ffc6001 [371]=0x46ffd3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=25
+          tabela: bo=000000009f06dabc gpu_addr=0xf6fffc3000 kptr=00000000a69e9507
+          entrada[25] = 0x004000045ae004e1  -> PA 0x45ae00000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [17]=0x4000045b2005e1 [18]=0x4000045b4005e1 [19]=0x4000045b6005e1 [20]=0x40000000000000 [21]=0x4000045b8004e1 [22]=0x4000045ba00561 [23]=0x4000045bc00561 [24]=0x4000045be004e1 [25]=0x4000045ae004e1 [26]=0x40000000a00580 [27]=0x4000046e0004e1 [28]=0x4000046e200561 [29]=0x4000046e400561 [30]=0x4000046e6004e1 [31]=0x40000000000000 [32]=0x40000000000000 [33]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45ae00000
+          >>> BO alvo: MC 0xf6eb600000 = PA [0x45b600000, 0x45c000000)
+          >>> FORA do BO por 8388608 bytes (8 MiB):
+          >>> a tabela aponta para memoria que NAO e deste BO
+          >>> de quem e o PA que a tabela aponta:
+          >>> NENHUM BO desta VM contem esse PA
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=4964
+  PID 4964 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A2621440 pag 0 (offset 0 MiB): entregou pag 0 do bloco 1 (A10485760)
+    A2621440 pag 1 (offset 2 MiB): entregou pag 1 do bloco 1 (A10485760)
+    2 paginas divergentes
+
+  ############ CONTROLE: A8028160 pagina 0 (SEM divergencia) ############
+  VA 0x7fa827600000
+    (resolvido por PID 4964)
+  === BC-250 ptwalk  pasid=0x1364  va=0x7fa827600000  pfn=0x7fa827600 ===
+    vm=0000000073f55b02  compute=1  pasid=0x1c
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000ed916a73  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa827600 last=0x7fa827dff offset=0x0 flags=0x6
+      BO por tras: 000000000dc666b4  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000ed916a73 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=160
+          tabela: bo=00000000667fcc3d gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[160] = 0x000000046d79b001  -> PA 0x46d79b000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [152]=0x40000000000000 [153]=0x40000000000000 [154]=0x40000000000000 [155]=0x40000000000000 [156]=0x40000000000000 [157]=0x40000000000000 [158]=0x40000000000000 [159]=0x40000000000000 [160]=0x46d79b001 [161]=0x46ffc2001 [162]=0x40000000000000 [163]=0x40000000000000 [164]=0x46ff4d001 [165]=0x46ffc7001 [166]=0x40000000000000 [167]=0x46ff6b001 [168]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=315
+          tabela: bo=0000000018507028 gpu_addr=0xf6fd79b000 kptr=00000000edf42420
+          entrada[315] = 0x004000046f0004e1  -> PA 0x46f000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [307]=0x4000045c6005e1 [308]=0x40000000000000 [309]=0x4000045e0004e1 [310]=0x4000045e200561 [311]=0x4000045e400561 [312]=0x4000045e6004e1 [313]=0x4000045cc004e1 [314]=0x40000000000000 [315]=0x4000046f0004e1 [316]=0x4000046f200561 [317]=0x4000046f400561 [318]=0x4000046f6004e1 [319]=0x40000000000000 [320]=0x40000000000000 [321]=0x40000000000000 [322]=0x40000000000000 [323]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f000000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000000dc666b4 [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7fa827600000,0x7fa827dfffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A2621440 pagina 0 ############
+  VA 0x7fa82c200000  -- a GPU entregou a pagina 0 do bloco A10485760
+  (esse bloco vive em VA 0x7fa826a00000, a pagina entregue seria VA 0x7fa826a00000)
+    (resolvido por PID 4964)
+  === BC-250 ptwalk  pasid=0x1364  va=0x7fa82c200000  pfn=0x7fa82c200 ===
+    vm=0000000073f55b02  compute=1  pasid=0x1c
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000ed916a73  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa82c200 last=0x7fa82c5ff offset=0x0 flags=0x6
+      BO por tras: 00000000787ed1ed  gpu_addr=0xf6f9000000  tam=4194304  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000ed916a73 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=160
+          tabela: bo=00000000667fcc3d gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[160] = 0x000000046d79b001  -> PA 0x46d79b000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [152]=0x40000000000000 [153]=0x40000000000000 [154]=0x40000000000000 [155]=0x40000000000000 [156]=0x40000000000000 [157]=0x40000000000000 [158]=0x40000000000000 [159]=0x40000000000000 [160]=0x46d79b001 [161]=0x46ffc2001 [162]=0x40000000000000 [163]=0x40000000000000 [164]=0x46ff4d001 [165]=0x46ffc7001 [166]=0x40000000000000 [167]=0x46ff6b001 [168]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=353
+          tabela: bo=0000000018507028 gpu_addr=0xf6fd79b000 kptr=00000000edf42420
+          entrada[353] = 0x00400004690004e1  -> PA 0x469000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [345]=0x40000000000000 [346]=0x40000000000000 [347]=0x40000000000000 [348]=0x40000000000000 [349]=0x40000000000000 [350]=0x40000000000000 [351]=0x40000000000000 [352]=0x40000000000000 [353]=0x400004690004e1 [354]=0x400004692004e1 [355]=0x40000000400500 [356]=0x40000469e004e1 [357]=0x40000000800580 [358]=0x4000045e800561 [359]=0x4000045ea00561 [360]=0x4000045ec00561 [361]=0x4000045ee00561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x469000000
+          >>> BO alvo: MC 0xf6f9000000 = PA [0x469000000, 0x469400000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000787ed1ed [0x469000000,0x469400000) tam=4194304
+          >>> mapeado em VA [0x7fa82c200000,0x7fa82c5fffff], offset dentro dele 0x0
+          >>> BO 0000000055d50d59 [0x468c00000,0x469600000) tam=10485760
+          >>> mapeado em VA [0x7fa82cc00000,0x7fa82d5fffff], offset dentro dele 0x400000
+          >>> BO 00000000a5c27202 [0x468800000,0x469c00000) tam=20971520
+          >>> mapeado em VA [0x7fa82e000000,0x7fa82f3fffff], offset dentro dele 0x800000
+          >>> BO 00000000d0506df5 [0x464800000,0x46d400000) tam=146800640
+          >>> mapeado em VA [0x7fa83bc00000,0x7fa8447fffff], offset dentro dele 0x4800000
+  === fim ===
+
+  ############ FALHA: A2621440 pagina 1 ############
+  VA 0x7fa82c400000  -- a GPU entregou a pagina 1 do bloco A10485760
+  (esse bloco vive em VA 0x7fa826a00000, a pagina entregue seria VA 0x7fa826c00000)
+    (resolvido por PID 4964)
+  === BC-250 ptwalk  pasid=0x1364  va=0x7fa82c400000  pfn=0x7fa82c400 ===
+    vm=0000000073f55b02  compute=1  pasid=0x1c
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000ed916a73  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7fa82c200 last=0x7fa82c5ff offset=0x0 flags=0x6
+      BO por tras: 00000000787ed1ed  gpu_addr=0xf6f9000000  tam=4194304  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=255
+          tabela: bo=00000000ed916a73 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[255] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=160
+          tabela: bo=00000000667fcc3d gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[160] = 0x000000046d79b001  -> PA 0x46d79b000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [152]=0x40000000000000 [153]=0x40000000000000 [154]=0x40000000000000 [155]=0x40000000000000 [156]=0x40000000000000 [157]=0x40000000000000 [158]=0x40000000000000 [159]=0x40000000000000 [160]=0x46d79b001 [161]=0x46ffc2001 [162]=0x40000000000000 [163]=0x40000000000000 [164]=0x46ff4d001 [165]=0x46ffc7001 [166]=0x40000000000000 [167]=0x46ff6b001 [168]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=354
+          tabela: bo=0000000018507028 gpu_addr=0xf6fd79b000 kptr=00000000edf42420
+          entrada[354] = 0x00400004692004e1  -> PA 0x469200000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [346]=0x40000000000000 [347]=0x40000000000000 [348]=0x40000000000000 [349]=0x40000000000000 [350]=0x40000000000000 [351]=0x40000000000000 [352]=0x40000000000000 [353]=0x400004690004e1 [354]=0x400004692004e1 [355]=0x40000000400500 [356]=0x40000469e004e1 [357]=0x40000000800580 [358]=0x4000045e800561 [359]=0x4000045ea00561 [360]=0x4000045ec00561 [361]=0x4000045ee00561 [362]=0x400004694004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x469200000
+          >>> BO alvo: MC 0xf6f9000000 = PA [0x469000000, 0x469400000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000787ed1ed [0x469000000,0x469400000) tam=4194304
+          >>> mapeado em VA [0x7fa82c200000,0x7fa82c5fffff], offset dentro dele 0x200000
+          >>> BO 0000000055d50d59 [0x468c00000,0x469600000) tam=10485760
+          >>> mapeado em VA [0x7fa82cc00000,0x7fa82d5fffff], offset dentro dele 0x600000
+          >>> BO 00000000a5c27202 [0x468800000,0x469c00000) tam=20971520
+          >>> mapeado em VA [0x7fa82e000000,0x7fa82f3fffff], offset dentro dele 0xa00000
+          >>> BO 00000000d0506df5 [0x464800000,0x46d400000) tam=146800640
+          >>> mapeado em VA [0x7fa83bc00000,0x7fa8447fffff], offset dentro dele 0x4a00000
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=5200
+  PID 5200 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 2 (offset 4 MiB): entregou pag 4 do bloco 7 (B10485760)
+    1 paginas divergentes
+
+  ############ CONTROLE: A10485760 pagina 0 (SEM divergencia) ############
+  VA 0x7f04cce00000
+    (resolvido por PID 5200)
+  === BC-250 ptwalk  pasid=0x1450  va=0x7f04cce00000  pfn=0x7f04cce00 ===
+    vm=00000000f12f0a7a  compute=1  pasid=0x1f
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000f69bd068  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f04cce00 last=0x7f04cd7ff offset=0x0 flags=0x6
+      BO por tras: 00000000608f8cc7  gpu_addr=0xf6ede00000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=00000000f69bd068 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[254] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=19
+          tabela: bo=0000000002cbbae9 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[19] = 0x000000046ffd2001  -> PA 0x46ffd2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [11]=0x40000000000000 [12]=0x40000000000000 [13]=0x40000000000000 [14]=0x40000000000000 [15]=0x40000000000000 [16]=0x40000000000000 [17]=0x40000000000000 [18]=0x40000000000000 [19]=0x46ffd2001 [20]=0x40000000000000 [21]=0x40000000000000 [22]=0x40000000000000 [23]=0x46ffc7001 [24]=0x40000000000000 [25]=0x46d8fe001 [26]=0x46ffc6001 [27]=0x46ffc3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=103
+          tabela: bo=000000006e72e973 gpu_addr=0xf6fffd2000 kptr=00000000b061a5d1
+          entrada[103] = 0x004000045e0004e1  -> PA 0x45e000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [95]=0x40000000000000 [96]=0x40000000000000 [97]=0x40000000000000 [98]=0x4000045c000561 [99]=0x4000045c200561 [100]=0x4000045c400561 [101]=0x4000045c600561 [102]=0x40000000000000 [103]=0x4000045e0004e1 [104]=0x4000045e200561 [105]=0x4000045e400561 [106]=0x4000045e6004e1 [107]=0x4000045cc004e1 [108]=0x40000000a00600 [109]=0x4000046e0004e1 [110]=0x4000046e200561 [111]=0x4000046e400561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45e000000
+          >>> BO alvo: MC 0xf6ede00000 = PA [0x45de00000, 0x45e800000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000608f8cc7 [0x45de00000,0x45e800000) tam=10485760
+          >>> mapeado em VA [0x7f04cce00000,0x7f04cd7fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7f04cde00000  -- a GPU entregou a pagina 4 do bloco B10485760
+  (esse bloco vive em VA 0x7f04c5c00000, a pagina entregue seria VA 0x7f04c6400000)
+    (resolvido por PID 5200)
+  === BC-250 ptwalk  pasid=0x1450  va=0x7f04cde00000  pfn=0x7f04cde00 ===
+    vm=00000000f12f0a7a  compute=1  pasid=0x1f
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000f69bd068  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f04cda00 last=0x7f04ce1ff offset=0x0 flags=0x6
+      BO por tras: 00000000f39a74b5  gpu_addr=0xf6fe000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=00000000f69bd068 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[254] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=19
+          tabela: bo=0000000002cbbae9 gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[19] = 0x000000046ffd2001  -> PA 0x46ffd2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [11]=0x40000000000000 [12]=0x40000000000000 [13]=0x40000000000000 [14]=0x40000000000000 [15]=0x40000000000000 [16]=0x40000000000000 [17]=0x40000000000000 [18]=0x40000000000000 [19]=0x46ffd2001 [20]=0x40000000000000 [21]=0x40000000000000 [22]=0x40000000000000 [23]=0x46ffc7001 [24]=0x40000000000000 [25]=0x46d8fe001 [26]=0x46ffc6001 [27]=0x46ffc3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=111
+          tabela: bo=000000006e72e973 gpu_addr=0xf6fffd2000 kptr=00000000b061a5d1
+          entrada[111] = 0x004000046e400561  -> PA 0x46e400000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [103]=0x4000045e0004e1 [104]=0x4000045e200561 [105]=0x4000045e400561 [106]=0x4000045e6004e1 [107]=0x4000045cc004e1 [108]=0x40000000a00600 [109]=0x4000046e0004e1 [110]=0x4000046e200561 [111]=0x4000046e400561 [112]=0x4000046e6004e1 [113]=0x40000000000000 [114]=0x40000468000561 [115]=0x40000468200561 [116]=0x400004684005e1 [117]=0x400004686005e1 [118]=0x400004688005e1 [119]=0x40000468a005e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46e400000
+          >>> BO alvo: MC 0xf6fe000000 = PA [0x46e000000, 0x46e800000)
+          >>> DENTRO do BO, offset 0x400000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000001245556a [0x46e400000,0x46ea00000) tam=6291456
+          >>> mapeado em VA [0x7f04c7800000,0x7f04c7dfffff], offset dentro dele 0x0
+          >>> BO 00000000f39a74b5 [0x46e000000,0x46e800000) tam=8388608
+          >>> mapeado em VA [0x7f04cda00000,0x7f04ce1fffff], offset dentro dele 0x400000
+  === fim ===
+FIM
+
+==========================================================================
+boot=31f16242 pid=5447
+  PID 5447 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 0 (offset 0 MiB): entregou pag 0 do bloco 1 (A10485760)
+    A8028160 pag 1 (offset 2 MiB): entregou pag 1 do bloco 1 (A10485760)
+    A8028160 pag 2 (offset 4 MiB): entregou pag 2 do bloco 1 (A10485760)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 3 do bloco 1 (A10485760)
+    4 paginas divergentes
+
+  ############ CONTROLE: A10485760 pagina 0 (SEM divergencia) ############
+  VA 0x7f34e8200000
+    (resolvido por PID 5447)
+  === BC-250 ptwalk  pasid=0x1547  va=0x7f34e8200000  pfn=0x7f34e8200 ===
+    vm=000000006947d365  compute=1  pasid=0x22
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000001ddab1f8  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f34e8200 last=0x7f34e8bff offset=0x0 flags=0x6
+      BO por tras: 0000000026d77b1e  gpu_addr=0xf6ede00000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=000000001ddab1f8 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[254] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=211
+          tabela: bo=00000000344a725b gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[211] = 0x000000046ffd0001  -> PA 0x46ffd0000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [203]=0x40000000000000 [204]=0x40000000000000 [205]=0x40000000000000 [206]=0x40000000000000 [207]=0x40000000000000 [208]=0x40000000000000 [209]=0x40000000000000 [210]=0x40000000000000 [211]=0x46ffd0001 [212]=0x40000000000000 [213]=0x40000000000000 [214]=0x40000000000000 [215]=0x46ffd2001 [216]=0x46ffc7001 [217]=0x46ff6c001 [218]=0x46ffc6001 [219]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=321
+          tabela: bo=00000000dc059586 gpu_addr=0xf6fffd0000 kptr=00000000641c89d8
+          entrada[321] = 0x004000045e0004e1  -> PA 0x45e000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [313]=0x40000000000000 [314]=0x40000000000000 [315]=0x40000000000000 [316]=0x40000000000000 [317]=0x40000000000000 [318]=0x40000000000000 [319]=0x40000000000000 [320]=0x40000000000000 [321]=0x4000045e0004e1 [322]=0x4000045e200561 [323]=0x4000045e400561 [324]=0x4000045e6004e1 [325]=0x4000045ce004e1 [326]=0x40000000000000 [327]=0x4000046f0004e1 [328]=0x4000046f200561 [329]=0x4000046f400561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45e000000
+          >>> BO alvo: MC 0xf6ede00000 = PA [0x45de00000, 0x45e800000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 0000000026d77b1e [0x45de00000,0x45e800000) tam=10485760
+          >>> mapeado em VA [0x7f34e8200000,0x7f34e8bfffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 0 ############
+  VA 0x7f34e8e00000  -- a GPU entregou a pagina 0 do bloco A10485760
+  (esse bloco vive em VA 0x7f34e8200000, a pagina entregue seria VA 0x7f34e8200000)
+    (resolvido por PID 5447)
+  === BC-250 ptwalk  pasid=0x1547  va=0x7f34e8e00000  pfn=0x7f34e8e00 ===
+    vm=000000006947d365  compute=1  pasid=0x22
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000001ddab1f8  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f34e8e00 last=0x7f34e95ff offset=0x0 flags=0x6
+      BO por tras: 00000000fee2f71e  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=000000001ddab1f8 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[254] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=211
+          tabela: bo=00000000344a725b gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[211] = 0x000000046ffd0001  -> PA 0x46ffd0000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [203]=0x40000000000000 [204]=0x40000000000000 [205]=0x40000000000000 [206]=0x40000000000000 [207]=0x40000000000000 [208]=0x40000000000000 [209]=0x40000000000000 [210]=0x40000000000000 [211]=0x46ffd0001 [212]=0x40000000000000 [213]=0x40000000000000 [214]=0x40000000000000 [215]=0x46ffd2001 [216]=0x46ffc7001 [217]=0x46ff6c001 [218]=0x46ffc6001 [219]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=327
+          tabela: bo=00000000dc059586 gpu_addr=0xf6fffd0000 kptr=00000000641c89d8
+          entrada[327] = 0x004000046f0004e1  -> PA 0x46f000000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [319]=0x40000000000000 [320]=0x40000000000000 [321]=0x4000045e0004e1 [322]=0x4000045e200561 [323]=0x4000045e400561 [324]=0x4000045e6004e1 [325]=0x4000045ce004e1 [326]=0x40000000000000 [327]=0x4000046f0004e1 [328]=0x4000046f200561 [329]=0x4000046f400561 [330]=0x4000046f6004e1 [331]=0x40000000800600 [332]=0x4000045e8005e1 [333]=0x4000045ea005e1 [334]=0x4000045ec005e1 [335]=0x4000045ee005e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f000000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x0: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000fee2f71e [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7f34e8e00000,0x7f34e95fffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 1 ############
+  VA 0x7f34e9000000  -- a GPU entregou a pagina 1 do bloco A10485760
+  (esse bloco vive em VA 0x7f34e8200000, a pagina entregue seria VA 0x7f34e8400000)
+    (resolvido por PID 5447)
+  === BC-250 ptwalk  pasid=0x1547  va=0x7f34e9000000  pfn=0x7f34e9000 ===
+    vm=000000006947d365  compute=1  pasid=0x22
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000001ddab1f8  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f34e8e00 last=0x7f34e95ff offset=0x0 flags=0x6
+      BO por tras: 00000000fee2f71e  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=000000001ddab1f8 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[254] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=211
+          tabela: bo=00000000344a725b gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[211] = 0x000000046ffd0001  -> PA 0x46ffd0000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [203]=0x40000000000000 [204]=0x40000000000000 [205]=0x40000000000000 [206]=0x40000000000000 [207]=0x40000000000000 [208]=0x40000000000000 [209]=0x40000000000000 [210]=0x40000000000000 [211]=0x46ffd0001 [212]=0x40000000000000 [213]=0x40000000000000 [214]=0x40000000000000 [215]=0x46ffd2001 [216]=0x46ffc7001 [217]=0x46ff6c001 [218]=0x46ffc6001 [219]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=328
+          tabela: bo=00000000dc059586 gpu_addr=0xf6fffd0000 kptr=00000000641c89d8
+          entrada[328] = 0x004000046f200561  -> PA 0x46f200000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [320]=0x40000000000000 [321]=0x4000045e0004e1 [322]=0x4000045e200561 [323]=0x4000045e400561 [324]=0x4000045e6004e1 [325]=0x4000045ce004e1 [326]=0x40000000000000 [327]=0x4000046f0004e1 [328]=0x4000046f200561 [329]=0x4000046f400561 [330]=0x4000046f6004e1 [331]=0x40000000800600 [332]=0x4000045e8005e1 [333]=0x4000045ea005e1 [334]=0x4000045ec005e1 [335]=0x4000045ee005e1 [336]=0x40000469e004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f200000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x200000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000fee2f71e [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7f34e8e00000,0x7f34e95fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7f34e9200000  -- a GPU entregou a pagina 2 do bloco A10485760
+  (esse bloco vive em VA 0x7f34e8200000, a pagina entregue seria VA 0x7f34e8600000)
+    (resolvido por PID 5447)
+  === BC-250 ptwalk  pasid=0x1547  va=0x7f34e9200000  pfn=0x7f34e9200 ===
+    vm=000000006947d365  compute=1  pasid=0x22
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000001ddab1f8  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f34e8e00 last=0x7f34e95ff offset=0x0 flags=0x6
+      BO por tras: 00000000fee2f71e  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=000000001ddab1f8 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[254] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=211
+          tabela: bo=00000000344a725b gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[211] = 0x000000046ffd0001  -> PA 0x46ffd0000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [203]=0x40000000000000 [204]=0x40000000000000 [205]=0x40000000000000 [206]=0x40000000000000 [207]=0x40000000000000 [208]=0x40000000000000 [209]=0x40000000000000 [210]=0x40000000000000 [211]=0x46ffd0001 [212]=0x40000000000000 [213]=0x40000000000000 [214]=0x40000000000000 [215]=0x46ffd2001 [216]=0x46ffc7001 [217]=0x46ff6c001 [218]=0x46ffc6001 [219]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=329
+          tabela: bo=00000000dc059586 gpu_addr=0xf6fffd0000 kptr=00000000641c89d8
+          entrada[329] = 0x004000046f400561  -> PA 0x46f400000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [321]=0x4000045e0004e1 [322]=0x4000045e200561 [323]=0x4000045e400561 [324]=0x4000045e6004e1 [325]=0x4000045ce004e1 [326]=0x40000000000000 [327]=0x4000046f0004e1 [328]=0x4000046f200561 [329]=0x4000046f400561 [330]=0x4000046f6004e1 [331]=0x40000000800600 [332]=0x4000045e8005e1 [333]=0x4000045ea005e1 [334]=0x4000045ec005e1 [335]=0x4000045ee005e1 [336]=0x40000469e004e1 [337]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f400000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x400000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000fee2f71e [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7f34e8e00000,0x7f34e95fffff], offset dentro dele 0x400000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7f34e9400000  -- a GPU entregou a pagina 3 do bloco A10485760
+  (esse bloco vive em VA 0x7f34e8200000, a pagina entregue seria VA 0x7f34e8800000)
+    (resolvido por PID 5447)
+  === BC-250 ptwalk  pasid=0x1547  va=0x7f34e9400000  pfn=0x7f34e9400 ===
+    vm=000000006947d365  compute=1  pasid=0x22
+    tlb_seq=50  kfd_last_flushed_seq=50
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=000000001ddab1f8  gpu_addr=0xf6fffd6000  tam=4096  kptr=0000000078267cb8
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f34e8e00 last=0x7f34e95ff offset=0x0 flags=0x6
+      BO por tras: 00000000fee2f71e  gpu_addr=0xf6ff000000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=000000001ddab1f8 gpu_addr=0xf6fffd6000 kptr=0000000078267cb8
+          entrada[254] = 0x000000046ff49001  -> PA 0x46ff49000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=211
+          tabela: bo=00000000344a725b gpu_addr=0xf6fff49000 kptr=00000000c49c8af8
+          entrada[211] = 0x000000046ffd0001  -> PA 0x46ffd0000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [203]=0x40000000000000 [204]=0x40000000000000 [205]=0x40000000000000 [206]=0x40000000000000 [207]=0x40000000000000 [208]=0x40000000000000 [209]=0x40000000000000 [210]=0x40000000000000 [211]=0x46ffd0001 [212]=0x40000000000000 [213]=0x40000000000000 [214]=0x40000000000000 [215]=0x46ffd2001 [216]=0x46ffc7001 [217]=0x46ff6c001 [218]=0x46ffc6001 [219]=0x40000000000000
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=330
+          tabela: bo=00000000dc059586 gpu_addr=0xf6fffd0000 kptr=00000000641c89d8
+          entrada[330] = 0x004000046f6004e1  -> PA 0x46f600000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [322]=0x4000045e200561 [323]=0x4000045e400561 [324]=0x4000045e6004e1 [325]=0x4000045ce004e1 [326]=0x40000000000000 [327]=0x4000046f0004e1 [328]=0x4000046f200561 [329]=0x4000046f400561 [330]=0x4000046f6004e1 [331]=0x40000000800600 [332]=0x4000045e8005e1 [333]=0x4000045ea005e1 [334]=0x4000045ec005e1 [335]=0x4000045ee005e1 [336]=0x40000469e004e1 [337]=0x40000000000000 [338]=0x40000468000561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x46f600000
+          >>> BO alvo: MC 0xf6ff000000 = PA [0x46f000000, 0x46f800000)
+          >>> DENTRO do BO, offset 0x600000: mapeamento COERENTE
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 00000000fee2f71e [0x46f000000,0x46f800000) tam=8388608
+          >>> mapeado em VA [0x7f34e8e00000,0x7f34e95fffff], offset dentro dele 0x600000
+  === fim ===
+FIM
+
+==========================================================================
+boot=47d3c881 pid=1987
+  PID 1987 (o KFD reporta pasid=0, por isso a busca e por PID)
+  --- lendo todas as paginas pela GPU ---
+    A8028160 pag 0 (offset 0 MiB): entregou pag 0 do bloco 6 (B8028160)
+    A8028160 pag 1 (offset 2 MiB): entregou pag 1 do bloco 6 (B8028160)
+    A8028160 pag 2 (offset 4 MiB): entregou pag 2 do bloco 6 (B8028160)
+    A8028160 pag 3 (offset 6 MiB): entregou pag 3 do bloco 6 (B8028160)
+    4 paginas divergentes
+
+  ############ CONTROLE: A10485760 pagina 0 (SEM divergencia) ############
+  VA 0x7f1f80200000
+    (resolvido por PID 1987)
+  === BC-250 ptwalk  pasid=0x7c3  va=0x7f1f80200000  pfn=0x7f1f80200 ===
+    vm=00000000c430fdb8  compute=1  pasid=0x7
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000a83e988d  gpu_addr=0xf6fffd6000  tam=4096  kptr=00000000431f026f
+    --- mapa de VMIDs (nosso pasid=0x7, nosso pd=0xf6fffd6000) ---
+      vmid  0  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  1  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  2  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  3  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  4  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  5  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  6  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  7  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  8  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  9  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 10  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 11  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 12  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 13  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 14  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 15  ATC=INVAL  pasid=0x0     pd=0x0
+      >>> VMIDs cujo ATC casa com o nosso PASID: 0
+      >>> NENHUM. A invalidacao por PASID varre os 16, nao casa
+      >>> com nada e volta SEM INVALIDAR -- e mesmo assim o
+      >>> contador ja foi marcado como invalidado.
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f1f80200 last=0x7f1f80bff offset=0x0 flags=0x6
+      BO por tras: 000000003e604cc9  gpu_addr=0xf6edc00000  tam=10485760  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=00000000a83e988d gpu_addr=0xf6fffd6000 kptr=00000000431f026f
+          entrada[254] = 0x000000046ffd2001  -> PA 0x46ffd2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=126
+          tabela: bo=00000000f29e4810 gpu_addr=0xf6fffd2000 kptr=0000000008b9d7c1
+          entrada[126] = 0x000000046ff69001  -> PA 0x46ff69000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x40000000000000 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x40000000000000 [125]=0x46978e001 [126]=0x46ff69001 [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x46ffcf001 [131]=0x469790001 [132]=0x469792001 [133]=0x46ffce001 [134]=0x46ffc3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=1
+          tabela: bo=0000000097b3f2c3 gpu_addr=0xf6fff69000 kptr=00000000c881e4e5
+          entrada[1] = 0x004000045c8004e1  -> PA 0x45c800000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [0]=0x40000000000000 [1]=0x4000045c8004e1 [2]=0x4000045ca00561 [3]=0x4000045cc00561 [4]=0x4000045ce004e1 [5]=0x4000045e4004e1 [6]=0x40000000000000 [7]=0x4000045d8004e1 [8]=0x4000045da00561 [9]=0x4000045dc00561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45c800000
+          >>> offset no BO 0x0 -> fragmento fisico 0x2ec800000 (mem_type=2)
+          >>> PA que o driver DEVERIA ter escrito: 0x45c800000
+          >>> VEREDITO: a PTE esta CORRETA.
+          >>> A tabela manda no lugar certo e a GPU
+          >>> entregou outra coisa: defeito ABAIXO da tabela.
+          >>> de quem e o PA que a tabela aponta:
+          >>> NENHUM BO desta VM contem esse PA
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 0 ############
+  VA 0x7f1f80e00000  -- a GPU entregou a pagina 0 do bloco B8028160
+  (esse bloco vive em VA 0x7f1f7a400000, a pagina entregue seria VA 0x7f1f7a400000)
+    (resolvido por PID 1987)
+  === BC-250 ptwalk  pasid=0x7c3  va=0x7f1f80e00000  pfn=0x7f1f80e00 ===
+    vm=00000000c430fdb8  compute=1  pasid=0x7
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000a83e988d  gpu_addr=0xf6fffd6000  tam=4096  kptr=00000000431f026f
+    --- mapa de VMIDs (nosso pasid=0x7, nosso pd=0xf6fffd6000) ---
+      vmid  0  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  1  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  2  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  3  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  4  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  5  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  6  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  7  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  8  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  9  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 10  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 11  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 12  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 13  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 14  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 15  ATC=INVAL  pasid=0x0     pd=0x0
+      >>> VMIDs cujo ATC casa com o nosso PASID: 0
+      >>> NENHUM. A invalidacao por PASID varre os 16, nao casa
+      >>> com nada e volta SEM INVALIDAR -- e mesmo assim o
+      >>> contador ja foi marcado como invalidado.
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f1f80e00 last=0x7f1f815ff offset=0x0 flags=0x6
+      BO por tras: 0000000030308994  gpu_addr=0xf6ed800000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=00000000a83e988d gpu_addr=0xf6fffd6000 kptr=00000000431f026f
+          entrada[254] = 0x000000046ffd2001  -> PA 0x46ffd2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=126
+          tabela: bo=00000000f29e4810 gpu_addr=0xf6fffd2000 kptr=0000000008b9d7c1
+          entrada[126] = 0x000000046ff69001  -> PA 0x46ff69000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x40000000000000 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x40000000000000 [125]=0x46978e001 [126]=0x46ff69001 [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x46ffcf001 [131]=0x469790001 [132]=0x469792001 [133]=0x46ffce001 [134]=0x46ffc3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=7
+          tabela: bo=0000000097b3f2c3 gpu_addr=0xf6fff69000 kptr=00000000c881e4e5
+          entrada[7] = 0x004000045d8004e1  -> PA 0x45d800000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [0]=0x40000000000000 [1]=0x4000045c8004e1 [2]=0x4000045ca00561 [3]=0x4000045cc00561 [4]=0x4000045ce004e1 [5]=0x4000045e4004e1 [6]=0x40000000000000 [7]=0x4000045d8004e1 [8]=0x4000045da00561 [9]=0x4000045dc00561 [10]=0x4000045de004e1 [11]=0x40000000800600 [12]=0x4000045f8005e1 [13]=0x4000045fa005e1 [14]=0x4000045fc005e1 [15]=0x4000045fe005e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45d800000
+          >>> offset no BO 0x0 -> fragmento fisico 0x2ed800000 (mem_type=2)
+          >>> PA que o driver DEVERIA ter escrito: 0x45d800000
+          >>> VEREDITO: a PTE esta CORRETA.
+          >>> A tabela manda no lugar certo e a GPU
+          >>> entregou outra coisa: defeito ABAIXO da tabela.
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 0000000030308994 [0x45d800000,0x45e000000) tam=8388608
+          >>> mapeado em VA [0x7f1f80e00000,0x7f1f815fffff], offset dentro dele 0x0
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 1 ############
+  VA 0x7f1f81000000  -- a GPU entregou a pagina 1 do bloco B8028160
+  (esse bloco vive em VA 0x7f1f7a400000, a pagina entregue seria VA 0x7f1f7a600000)
+    (resolvido por PID 1987)
+  === BC-250 ptwalk  pasid=0x7c3  va=0x7f1f81000000  pfn=0x7f1f81000 ===
+    vm=00000000c430fdb8  compute=1  pasid=0x7
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000a83e988d  gpu_addr=0xf6fffd6000  tam=4096  kptr=00000000431f026f
+    --- mapa de VMIDs (nosso pasid=0x7, nosso pd=0xf6fffd6000) ---
+      vmid  0  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  1  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  2  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  3  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  4  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  5  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  6  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  7  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  8  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  9  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 10  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 11  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 12  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 13  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 14  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 15  ATC=INVAL  pasid=0x0     pd=0x0
+      >>> VMIDs cujo ATC casa com o nosso PASID: 0
+      >>> NENHUM. A invalidacao por PASID varre os 16, nao casa
+      >>> com nada e volta SEM INVALIDAR -- e mesmo assim o
+      >>> contador ja foi marcado como invalidado.
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f1f80e00 last=0x7f1f815ff offset=0x0 flags=0x6
+      BO por tras: 0000000030308994  gpu_addr=0xf6ed800000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=00000000a83e988d gpu_addr=0xf6fffd6000 kptr=00000000431f026f
+          entrada[254] = 0x000000046ffd2001  -> PA 0x46ffd2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=126
+          tabela: bo=00000000f29e4810 gpu_addr=0xf6fffd2000 kptr=0000000008b9d7c1
+          entrada[126] = 0x000000046ff69001  -> PA 0x46ff69000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x40000000000000 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x40000000000000 [125]=0x46978e001 [126]=0x46ff69001 [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x46ffcf001 [131]=0x469790001 [132]=0x469792001 [133]=0x46ffce001 [134]=0x46ffc3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=8
+          tabela: bo=0000000097b3f2c3 gpu_addr=0xf6fff69000 kptr=00000000c881e4e5
+          entrada[8] = 0x004000045da00561  -> PA 0x45da00000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [0]=0x40000000000000 [1]=0x4000045c8004e1 [2]=0x4000045ca00561 [3]=0x4000045cc00561 [4]=0x4000045ce004e1 [5]=0x4000045e4004e1 [6]=0x40000000000000 [7]=0x4000045d8004e1 [8]=0x4000045da00561 [9]=0x4000045dc00561 [10]=0x4000045de004e1 [11]=0x40000000800600 [12]=0x4000045f8005e1 [13]=0x4000045fa005e1 [14]=0x4000045fc005e1 [15]=0x4000045fe005e1 [16]=0x4000045ee004e1
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45da00000
+          >>> offset no BO 0x200000 -> fragmento fisico 0x2eda00000 (mem_type=2)
+          >>> PA que o driver DEVERIA ter escrito: 0x45da00000
+          >>> VEREDITO: a PTE esta CORRETA.
+          >>> A tabela manda no lugar certo e a GPU
+          >>> entregou outra coisa: defeito ABAIXO da tabela.
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 0000000030308994 [0x45d800000,0x45e000000) tam=8388608
+          >>> mapeado em VA [0x7f1f80e00000,0x7f1f815fffff], offset dentro dele 0x200000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 2 ############
+  VA 0x7f1f81200000  -- a GPU entregou a pagina 2 do bloco B8028160
+  (esse bloco vive em VA 0x7f1f7a400000, a pagina entregue seria VA 0x7f1f7a800000)
+    (resolvido por PID 1987)
+  === BC-250 ptwalk  pasid=0x7c3  va=0x7f1f81200000  pfn=0x7f1f81200 ===
+    vm=00000000c430fdb8  compute=1  pasid=0x7
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000a83e988d  gpu_addr=0xf6fffd6000  tam=4096  kptr=00000000431f026f
+    --- mapa de VMIDs (nosso pasid=0x7, nosso pd=0xf6fffd6000) ---
+      vmid  0  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  1  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  2  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  3  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  4  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  5  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  6  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  7  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  8  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  9  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 10  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 11  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 12  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 13  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 14  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 15  ATC=INVAL  pasid=0x0     pd=0x0
+      >>> VMIDs cujo ATC casa com o nosso PASID: 0
+      >>> NENHUM. A invalidacao por PASID varre os 16, nao casa
+      >>> com nada e volta SEM INVALIDAR -- e mesmo assim o
+      >>> contador ja foi marcado como invalidado.
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f1f80e00 last=0x7f1f815ff offset=0x0 flags=0x6
+      BO por tras: 0000000030308994  gpu_addr=0xf6ed800000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=00000000a83e988d gpu_addr=0xf6fffd6000 kptr=00000000431f026f
+          entrada[254] = 0x000000046ffd2001  -> PA 0x46ffd2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=126
+          tabela: bo=00000000f29e4810 gpu_addr=0xf6fffd2000 kptr=0000000008b9d7c1
+          entrada[126] = 0x000000046ff69001  -> PA 0x46ff69000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x40000000000000 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x40000000000000 [125]=0x46978e001 [126]=0x46ff69001 [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x46ffcf001 [131]=0x469790001 [132]=0x469792001 [133]=0x46ffce001 [134]=0x46ffc3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=9
+          tabela: bo=0000000097b3f2c3 gpu_addr=0xf6fff69000 kptr=00000000c881e4e5
+          entrada[9] = 0x004000045dc00561  -> PA 0x45dc00000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=10 mtype=0
+          vizinhas: [1]=0x4000045c8004e1 [2]=0x4000045ca00561 [3]=0x4000045cc00561 [4]=0x4000045ce004e1 [5]=0x4000045e4004e1 [6]=0x40000000000000 [7]=0x4000045d8004e1 [8]=0x4000045da00561 [9]=0x4000045dc00561 [10]=0x4000045de004e1 [11]=0x40000000800600 [12]=0x4000045f8005e1 [13]=0x4000045fa005e1 [14]=0x4000045fc005e1 [15]=0x4000045fe005e1 [16]=0x4000045ee004e1 [17]=0x40000000000000
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45dc00000
+          >>> offset no BO 0x400000 -> fragmento fisico 0x2edc00000 (mem_type=2)
+          >>> PA que o driver DEVERIA ter escrito: 0x45dc00000
+          >>> VEREDITO: a PTE esta CORRETA.
+          >>> A tabela manda no lugar certo e a GPU
+          >>> entregou outra coisa: defeito ABAIXO da tabela.
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000003e604cc9 [0x45dc00000,0x45e600000) tam=10485760
+          >>> mapeado em VA [0x7f1f80200000,0x7f1f80bfffff], offset dentro dele 0x0
+          >>> BO 0000000030308994 [0x45d800000,0x45e000000) tam=8388608
+          >>> mapeado em VA [0x7f1f80e00000,0x7f1f815fffff], offset dentro dele 0x400000
+  === fim ===
+
+  ############ FALHA: A8028160 pagina 3 ############
+  VA 0x7f1f81400000  -- a GPU entregou a pagina 3 do bloco B8028160
+  (esse bloco vive em VA 0x7f1f7a400000, a pagina entregue seria VA 0x7f1f7aa00000)
+    (resolvido por PID 1987)
+  === BC-250 ptwalk  pasid=0x7c3  va=0x7f1f81400000  pfn=0x7f1f81400 ===
+    vm=00000000c430fdb8  compute=1  pasid=0x7
+    tlb_seq=52  kfd_last_flushed_seq=52
+    >>> invalidacao EM DIA: nada pendente neste instante
+    geometria: 3 niveis, root_level=1, block_size=9, frag=4
+    raiz: bo=00000000a83e988d  gpu_addr=0xf6fffd6000  tam=4096  kptr=00000000431f026f
+    --- mapa de VMIDs (nosso pasid=0x7, nosso pd=0xf6fffd6000) ---
+      vmid  0  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  1  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  2  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  3  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  4  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  5  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  6  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  7  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  8  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid  9  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 10  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 11  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 12  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 13  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 14  ATC=INVAL  pasid=0x0     pd=0x0
+      vmid 15  ATC=INVAL  pasid=0x0     pd=0x0
+      >>> VMIDs cujo ATC casa com o nosso PASID: 0
+      >>> NENHUM. A invalidacao por PASID varre os 16, nao casa
+      >>> com nada e volta SEM INVALIDAR -- e mesmo assim o
+      >>> contador ja foi marcado como invalidado.
+    --- arvore de intervalos (a intencao do driver) ---
+      mapeamento: start=0x7f1f80e00 last=0x7f1f815ff offset=0x0 flags=0x6
+      BO por tras: 0000000030308994  gpu_addr=0xf6ed800000  tam=8388608  dominio=4
+    --- caminhada na hierarquia (o que o hardware leria) ---
+      [PDB2] raiz, nada a decodificar ainda
+      [PDB1] passo 0  shift=27 mask=0xffffffff idx=254
+          tabela: bo=00000000a83e988d gpu_addr=0xf6fffd6000 kptr=00000000431f026f
+          entrada[254] = 0x000000046ffd2001  -> PA 0x46ffd2000
+          flags: VALID  frag=0 mtype=0
+          vizinhas:
+      [PDB0] passo 1  shift=18 mask=0x1ff idx=126
+          tabela: bo=00000000f29e4810 gpu_addr=0xf6fffd2000 kptr=0000000008b9d7c1
+          entrada[126] = 0x000000046ff69001  -> PA 0x46ff69000
+          flags: VALID  frag=0 mtype=0
+          vizinhas: [118]=0x40000000000000 [119]=0x40000000000000 [120]=0x40000000000000 [121]=0x40000000000000 [122]=0x40000000000000 [123]=0x40000000000000 [124]=0x40000000000000 [125]=0x46978e001 [126]=0x46ff69001 [127]=0x40000000000000 [128]=0x40000000000000 [129]=0x40000000000000 [130]=0x46ffcf001 [131]=0x469790001 [132]=0x469792001 [133]=0x46ffce001 [134]=0x46ffc3001
+      [PTB ] passo 2  shift=9 mask=0x1ff idx=10
+          tabela: bo=0000000097b3f2c3 gpu_addr=0xf6fff69000 kptr=00000000c881e4e5
+          entrada[10] = 0x004000045de004e1  -> PA 0x45de00000
+          flags: VALID READ WRITE PDE_PTE(pagina grande)  frag=9 mtype=0
+          vizinhas: [2]=0x4000045ca00561 [3]=0x4000045cc00561 [4]=0x4000045ce004e1 [5]=0x4000045e4004e1 [6]=0x40000000000000 [7]=0x4000045d8004e1 [8]=0x4000045da00561 [9]=0x4000045dc00561 [10]=0x4000045de004e1 [11]=0x40000000800600 [12]=0x4000045f8005e1 [13]=0x4000045fa005e1 [14]=0x4000045fc005e1 [15]=0x4000045fe005e1 [16]=0x4000045ee004e1 [17]=0x40000000000000 [18]=0x4000046c000561
+          >>> PAGINA GRANDE de 2048 KiB termina aqui
+          >>> PA final = 0x45de00000
+          >>> offset no BO 0x600000 -> fragmento fisico 0x2ede00000 (mem_type=2)
+          >>> PA que o driver DEVERIA ter escrito: 0x45de00000
+          >>> VEREDITO: a PTE esta CORRETA.
+          >>> A tabela manda no lugar certo e a GPU
+          >>> entregou outra coisa: defeito ABAIXO da tabela.
+          >>> de quem e o PA que a tabela aponta:
+          >>> BO 000000003e604cc9 [0x45dc00000,0x45e600000) tam=10485760
+          >>> mapeado em VA [0x7f1f80200000,0x7f1f80bfffff], offset dentro dele 0x200000
+          >>> BO 0000000030308994 [0x45d800000,0x45e000000) tam=8388608
+          >>> mapeado em VA [0x7f1f80e00000,0x7f1f815fffff], offset dentro dele 0x600000
+  === fim ===
+FIM

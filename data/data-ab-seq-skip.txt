@@ -1,0 +1,25 @@
+boot=c0adbcc2 reps=10 por braco  inicio=23:38:46
+exec=1 braco=A pisados=2 faults=0->0 boot=c0adbcc2
+exec=2 braco=B pisados=0 faults=0->0 boot=c0adbcc2
+exec=3 braco=B pisados=2 faults=0->0 boot=c0adbcc2
+exec=4 braco=A pisados=0 faults=0->0 boot=c0adbcc2
+exec=5 braco=A pisados=1 faults=0->0 boot=c0adbcc2
+exec=6 braco=B pisados=0 faults=0->0 boot=c0adbcc2
+exec=7 braco=B pisados=2 faults=0->0 boot=c0adbcc2
+exec=8 braco=A pisados=1 faults=0->0 boot=c0adbcc2
+exec=9 braco=A pisados=1 faults=0->0 boot=c0adbcc2
+exec=10 braco=B pisados=0 faults=0->0 boot=c0adbcc2
+exec=11 braco=B pisados=0 faults=0->0 boot=c0adbcc2
+exec=12 braco=A pisados=1 faults=0->0 boot=c0adbcc2
+exec=13 braco=A pisados=2 faults=0->0 boot=c0adbcc2
+exec=14 braco=B pisados=1 faults=0->0 boot=c0adbcc2
+exec=15 braco=B pisados=1 faults=0->0 boot=c0adbcc2
+exec=16 braco=A pisados=0 faults=0->0 boot=c0adbcc2
+exec=17 braco=A pisados=2 faults=0->0 boot=c0adbcc2
+exec=18 braco=B pisados=1 faults=0->0 boot=c0adbcc2
+exec=19 braco=B pisados=1 faults=0->0 boot=c0adbcc2
+exec=20 braco=A pisados=0 faults=0->0 boot=c0adbcc2
+---- resumo (boot c0adbcc2) ----
+  padrao (metade pulada)         7/10 execucoes sujas   10 blocos no total   [2 0 1 1 1 1 2 0 2 0 ]
+  no_seq_skip=1 (nenhuma pulada) 6/10 execucoes sujas   8 blocos no total   [0 2 0 2 0 0 1 1 1 1 ]
+fim=23:41:19

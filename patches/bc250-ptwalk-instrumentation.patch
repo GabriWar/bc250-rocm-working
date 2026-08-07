@@ -1,0 +1,519 @@
+--- amdgpu_vm_pt.c.pre-ptwalk.bak	2026-08-07 00:01:03.185273260 -0300
++++ amdgpu_vm_pt.c	2026-08-07 01:26:05.078939161 -0300
+@@ -21,11 +21,13 @@
+  * OTHER DEALINGS IN THE SOFTWARE.
+  */
+ 
++#include <linux/seq_file.h>
+ #include <drm/drm_drv.h>
+ 
+ #include "amdgpu.h"
+ #include "amdgpu_trace.h"
+ #include "amdgpu_vm.h"
++#include "amdgpu_res_cursor.h"
+ #include "amdgpu_job.h"
+ 
+ /*
+@@ -975,3 +977,371 @@
+ 
+ 	return 0;
+ }
++
++
++/* ==================================================================
++ * BC-250: percorre a hierarquia de tabelas de pagina para um VA.
++ *
++ * Por que isto existe
++ * -------------------
++ * O doc 17 conclui que as tabelas de pagina estao CORRETAS e que portanto a
++ * GPU le fora delas. Essa conclusao sustenta tudo que veio depois -- e ela foi
++ * tirada conferindo a PTE do offset 0 de cada bloco, enquanto a corrupcao
++ * comeca no rabo (85 de 87 offsets sao multiplos exatos de 2 MiB, e num caso
++ * medido o bloco erra do offset 4 MiB ate o fim).
++ *
++ * Verificar isso de fora e impreciso: com vm_update_mode=3 o campo `pe` do
++ * tracepoint e endereco virtual de KERNEL (amdgpu_vm_cpu.c:87), nao fisico, e
++ * varrer 12 GiB de VRAM atras do valor nao diz a qual VA cada slot pertence.
++ * Aqui dentro os ponteiros sao reais e o cursor e o mesmo que o driver usa.
++ *
++ * Uso
++ * ---
++ *   echo "<pasid_hex> <va_hex>" > /sys/kernel/debug/dri/1/bc250_ptwalk
++ *   cat /sys/kernel/debug/dri/1/bc250_ptwalk
++ *
++ * Imprime, por nivel: indice, entrada crua, flags decodificadas, endereco
++ * fisico, o BO da tabela, e as entradas vizinhas. No fim compara o que a
++ * caminhada encontrou com o que a arvore de intervalos do driver diz que
++ * deveria estar mapeado -- as duas fontes que precisam concordar.
++ *
++ * Somente leitura. Nao toca em registrador nenhum: leitura de MMIO cru nesta
++ * placa ja travou a maquina antes.
++ */
++
++static const char *bc250_nivel(unsigned int l)
++{
++	switch (l) {
++	case AMDGPU_VM_PDB2: return "PDB2";
++	case AMDGPU_VM_PDB1: return "PDB1";
++	case AMDGPU_VM_PDB0: return "PDB0";
++	case AMDGPU_VM_PTB:  return "PTB ";
++	default:             return "????";
++	}
++}
++
++static void bc250_decodifica(struct seq_file *m, uint64_t e)
++{
++	seq_printf(m, "        flags: %s%s%s%s%s%s%s%s frag=%llu mtype=%llu\n",
++		   (e & AMDGPU_PTE_VALID)      ? "VALID "   : "",
++		   (e & AMDGPU_PTE_SYSTEM)     ? "SYSTEM "  : "",
++		   (e & AMDGPU_PTE_SNOOPED)    ? "SNOOP "   : "",
++		   (e & AMDGPU_PTE_EXECUTABLE) ? "EXEC "    : "",
++		   (e & AMDGPU_PTE_READABLE)   ? "READ "    : "",
++		   (e & AMDGPU_PTE_WRITEABLE)  ? "WRITE "   : "",
++		   (e & AMDGPU_PTE_PRT)        ? "PRT "     : "",
++		   (e & AMDGPU_PDE_PTE)        ? "PDE_PTE(pagina grande) " : "",
++		   (e >> 7) & 0x1f,
++		   (e >> 48) & 0x3);
++}
++
++static uint64_t bc250_le_entrada(struct amdgpu_bo *tab, unsigned int idx,
++				 struct seq_file *m)
++{
++	uint64_t *p;
++
++	if (!tab) {
++		seq_puts(m, "        !! BO da tabela e NULL\n");
++		return 0;
++	}
++	p = amdgpu_bo_kptr(tab);
++	if (!p) {
++		seq_puts(m, "        !! tabela nao esta kmapeada (vm_update_mode=0?)\n");
++		return 0;
++	}
++	return p[idx];
++}
++
++void amdgpu_bc250_ptwalk(struct amdgpu_device *adev, u32 pasid, uint64_t va,
++			 struct seq_file *m)
++{
++	struct amdgpu_bo_va_mapping *mapa;
++	struct amdgpu_vm_pt_cursor cur;
++	struct amdgpu_vm *vm;
++	uint64_t pfn = va >> AMDGPU_GPU_PAGE_SHIFT;
++	unsigned long flags;
++	int passo = 0;
++	int grande = 0;
++
++	/* o argumento e tratado como PID primeiro: nesta placa o SVM esta
++	 * desligado pelo BIOS e o KFD reporta pasid=0, entao a xarray de pasids
++	 * nao acha VM de processo de compute. Se falhar, tenta como pasid.
++	 */
++	vm = amdgpu_bc250_vm_from_pid(pasid);
++	if (vm) {
++		seq_printf(m, "  (resolvido por PID %u)\n", pasid);
++	} else {
++		xa_lock_irqsave(&adev->vm_manager.pasids, flags);
++		vm = xa_load(&adev->vm_manager.pasids, pasid);
++		xa_unlock_irqrestore(&adev->vm_manager.pasids, flags);
++		if (vm)
++			seq_printf(m, "  (resolvido por PASID 0x%x)\n", pasid);
++	}
++	if (!vm) {
++		seq_printf(m, "nem PID %u nem PASID 0x%x tem VM registrada\n",
++			   pasid, pasid);
++		return;
++	}
++
++	/* Trava de seguranca: a caminhada segue ponteiros de estruturas que a
++	 * VM pode estar mutando (a hierarquia de tabelas e a arvore de
++	 * mapeamentos). Ler isso concorrentemente com uma alteracao seguiria
++	 * ponteiro morto e derrubaria o kernel.
++	 *
++	 * Entao: trylock. Se a VM estiver ocupada, aborta e diz. Nunca espera,
++	 * para nao poder travar nem o leitor nem o processo alvo -- este e um
++	 * caminho de depuracao, e depuracao que trava a maquina nao serve.
++	 */
++	if (!vm->root.bo) {
++		seq_puts(m, "VM sem BO raiz\n");
++		return;
++	}
++	if (!dma_resv_trylock(vm->root.bo->tbo.base.resv)) {
++		seq_puts(m, "VM OCUPADA: nao consegui o lock sem esperar.\n"
++			    "Abortado de proposito -- seguir ponteiro instavel\n"
++			    "derrubaria o kernel. Deixe o processo alvo parado\n"
++			    "(sem alocar/liberar) e tente de novo.\n");
++		return;
++	}
++
++	seq_printf(m, "=== BC-250 ptwalk  pasid=0x%x  va=0x%llx  pfn=0x%llx ===\n",
++		   pasid, va, pfn);
++	seq_printf(m, "  vm=%p  compute=%d  pasid=0x%x\n",
++		   vm, vm->is_compute_context, vm->pasid);
++	/* --- a invalidacao chegou a acontecer para as mudancas desta VM? ---
++	 *
++	 * tlb_seq conta atualizacoes de tabela; kfd_last_flushed_seq conta o que
++	 * ja foi invalidado. amdgpu_vm_flush_compute_tlb() DESCARTA o flush
++	 * quando os dois sao iguais -- e medimos nesta placa que isso acontece
++	 * em metade das vezes (20 PULADO para 20 FLUSH).
++	 *
++	 * Se aqui, no momento da falha, tlb_seq > kfd_last_flushed_seq, entao
++	 * existem mudancas de mapeamento que a GPU nunca foi avisada, e a
++	 * traducao que ela usou pode ser de antes delas.
++	 */
++	{
++		u64 s = atomic64_read(&vm->tlb_seq);
++		u64 f = atomic64_read(&vm->kfd_last_flushed_seq);
++
++		seq_printf(m, "  tlb_seq=%llu  kfd_last_flushed_seq=%llu\n",
++			   (unsigned long long)s, (unsigned long long)f);
++		if (s > f)
++			seq_printf(m, "  >>> INVALIDACAO PENDENTE: %llu atualizacoes de tabela\n"
++				      "  >>> ainda nao invalidadas. A GPU pode estar usando\n"
++				      "  >>> traducao anterior a elas.\n",
++				   (unsigned long long)(s - f));
++		else if (s == f)
++			seq_puts(m, "  >>> invalidacao EM DIA: nada pendente neste instante\n");
++		else
++			seq_puts(m, "  >>> ESTADO IMPOSSIVEL: flushed > seq (contador correu?)\n");
++	}
++	seq_printf(m, "  geometria: %u niveis, root_level=%u, block_size=%u, frag=%u\n",
++		   adev->vm_manager.num_level, adev->vm_manager.root_level,
++		   adev->vm_manager.block_size, adev->vm_manager.fragment_size);
++	if (vm->root.bo)
++		seq_printf(m, "  raiz: bo=%p  gpu_addr=0x%llx  tam=%llu  kptr=%p\n",
++			   vm->root.bo, amdgpu_bo_gpu_offset_no_check(vm->root.bo),
++			   (unsigned long long)amdgpu_bo_size(vm->root.bo),
++			   amdgpu_bo_kptr(vm->root.bo));
++
++	amdgpu_bc250_dump_vmids(adev,
++				vm->root.bo ? amdgpu_bo_gpu_offset_no_check(vm->root.bo) : 0,
++				vm->pasid, m);
++
++	/* --- o que o driver ACHA que mapeou aqui --- */
++	seq_puts(m, "  --- arvore de intervalos (a intencao do driver) ---\n");
++	mapa = amdgpu_vm_bo_lookup_mapping(vm, pfn);
++	if (!mapa) {
++		seq_printf(m, "    NENHUM mapeamento cobre pfn 0x%llx\n", pfn);
++	} else {
++		struct amdgpu_bo *bo = mapa->bo_va ? mapa->bo_va->base.bo : NULL;
++
++		seq_printf(m, "    mapeamento: start=0x%llx last=0x%llx offset=0x%llx flags=0x%llx\n",
++			   mapa->start, mapa->last, mapa->offset,
++			   (unsigned long long)mapa->flags);
++		if (bo)
++			seq_printf(m, "    BO por tras: %p  gpu_addr=0x%llx  tam=%llu  dominio=%u\n",
++				   bo, amdgpu_bo_gpu_offset_no_check(bo),
++				   (unsigned long long)amdgpu_bo_size(bo),
++				   bo->preferred_domains);
++		else
++			seq_puts(m, "    BO por tras: NENHUM (mapeamento PRT/limpo?)\n");
++	}
++
++	/* --- a caminhada de verdade, nivel a nivel --- */
++	seq_puts(m, "  --- caminhada na hierarquia (o que o hardware leria) ---\n");
++	amdgpu_vm_pt_start(adev, vm, pfn, &cur);
++	do {
++		struct amdgpu_bo *tab = cur.parent ? cur.parent->bo : NULL;
++		unsigned int mask, shift, idx;
++		uint64_t e;
++		int j;
++
++		if (!cur.parent) {          /* logo apos o start: ainda na raiz */
++			seq_printf(m, "    [%s] raiz, nada a decodificar ainda\n",
++				   bc250_nivel(cur.level));
++			continue;
++		}
++		mask  = amdgpu_vm_pt_entries_mask(adev, cur.level - 1);
++		shift = amdgpu_vm_pt_level_shift(adev, cur.level - 1);
++		idx   = (pfn >> shift) & mask;
++		e     = bc250_le_entrada(tab, idx, m);
++
++		seq_printf(m, "    [%s] passo %d  shift=%u mask=0x%x idx=%u\n",
++			   bc250_nivel(cur.level), passo, shift, mask, idx);
++		seq_printf(m, "        tabela: bo=%p gpu_addr=0x%llx kptr=%p\n",
++			   tab, amdgpu_bo_gpu_offset_no_check(tab),
++			   amdgpu_bo_kptr(tab));
++		seq_printf(m, "        entrada[%u] = 0x%016llx  -> PA 0x%llx\n",
++			   idx, e, e & AMDGPU_PTE_MTYPE_NV10_MASK ?
++			   (e & 0x0000FFFFFFFFF000ULL) : (e & 0x0000FFFFFFFFF000ULL));
++		bc250_decodifica(m, e);
++
++		/* vizinhas: revelam a estrutura local da tabela */
++		seq_puts(m, "        vizinhas:");
++		for (j = -8; j <= 8; j++) {
++			int v = (int)idx + j;
++
++			if (v < 0 || v > (int)mask)
++				continue;
++			seq_printf(m, " [%d]=0x%llx", v,
++				   bc250_le_entrada(tab, v, m));
++		}
++		seq_puts(m, "\n");
++
++		if (e & AMDGPU_PDE_PTE) {
++			uint64_t tam = 1ULL << (shift + AMDGPU_GPU_PAGE_SHIFT);
++			uint64_t pa  = (e & 0x0000FFFFFFFFF000ULL) + (va & (tam - 1));
++
++			grande = 1;
++			seq_printf(m, "        >>> PAGINA GRANDE de %llu KiB termina aqui\n",
++				   tam >> 10);
++			seq_printf(m, "        >>> PA final = 0x%llx\n", pa);
++
++			/* O PA da folha bate com o que o driver DEVERIA ter escrito?
++			 *
++			 * Nao da para calcular isso como "base do BO + N * 2 MiB":
++			 * a VRAM e alocada em fragmentos e o BO nao e contiguo.
++			 * Medido: paginas de CONTROLE (que a GPU entrega certo)
++			 * apareciam deslocadas de +2, -4, +2 MiB por essa formula
++			 * ingenua -- ou seja, a formula erra, nao a tabela.
++			 *
++			 * O calculo exato e o mesmo que amdgpu_vm_update_range()
++			 * faz ao ESCREVER a PTE (amdgpu_vm.c:1210):
++			 *     addr = vram_base + cursor.start
++			 * com o cursor percorrendo os fragmentos fisicos reais.
++			 */
++			if (mapa && mapa->bo_va && mapa->bo_va->base.bo &&
++			    mapa->bo_va->base.bo->tbo.resource) {
++				struct amdgpu_bo *b = mapa->bo_va->base.bo;
++				struct amdgpu_res_cursor cur2;
++				uint64_t off_bo, esperado;
++
++				off_bo = mapa->offset +
++					 (pfn - mapa->start) * AMDGPU_GPU_PAGE_SIZE;
++				amdgpu_res_first(b->tbo.resource, off_bo,
++						 AMDGPU_GPU_PAGE_SIZE, &cur2);
++				esperado = adev->vm_manager.vram_base_offset +
++					   cur2.start;
++
++				seq_printf(m, "        >>> offset no BO 0x%llx -> fragmento fisico 0x%llx (mem_type=%u)\n",
++					   off_bo, cur2.start, cur2.mem_type);
++				seq_printf(m, "        >>> PA que o driver DEVERIA ter escrito: 0x%llx\n",
++					   esperado);
++				if (pa == esperado) {
++					seq_puts(m, "        >>> VEREDITO: a PTE esta CORRETA.\n"
++						    "        >>> A tabela manda no lugar certo e a GPU\n"
++						    "        >>> entregou outra coisa: defeito ABAIXO da tabela.\n");
++				} else {
++					seq_printf(m, "        >>> VEREDITO: a PTE esta ERRADA por %lld bytes (%lld MiB).\n"
++						      "        >>> O defeito e CONTEUDO DE TABELA DE PAGINA.\n",
++						   (long long)(pa - esperado),
++						   (long long)(pa - esperado) / (1 << 20));
++				}
++			} else {
++				seq_puts(m, "        >>> sem BO/resource para calcular o esperado\n");
++			}
++
++			/* de QUEM e o endereco fisico que a tabela realmente aponta?
++			 * Varre todos os mapeamentos desta VM e acha o BO cuja faixa
++			 * fisica contem esse PA. Isso responde 'para onde foi' sem
++			 * depender de marcador nenhum no dado.
++			 */
++			{
++				struct rb_node *n;
++				int achou = 0;
++
++				seq_puts(m, "        >>> de quem e o PA que a tabela aponta:\n");
++				for (n = rb_first_cached(&vm->va); n; n = rb_next(n)) {
++					struct amdgpu_bo_va_mapping *mp =
++						rb_entry(n, struct amdgpu_bo_va_mapping, rb);
++					struct amdgpu_bo *b2 =
++						mp->bo_va ? mp->bo_va->base.bo : NULL;
++					uint64_t i2, f2;
++
++					if (!b2)
++						continue;
++					i2 = amdgpu_gmc_vram_pa(adev, b2);
++					f2 = i2 + amdgpu_bo_size(b2);
++					if (pa < i2 || pa >= f2)
++						continue;
++					achou = 1;
++					seq_printf(m,
++						"        >>> BO %p [0x%llx,0x%llx) tam=%llu\n"
++						"        >>> mapeado em VA [0x%llx,0x%llx], offset dentro dele 0x%llx\n",
++						b2, i2, f2, (unsigned long long)amdgpu_bo_size(b2),
++						mp->start << AMDGPU_GPU_PAGE_SHIFT,
++						((mp->last + 1) << AMDGPU_GPU_PAGE_SHIFT) - 1,
++						pa - i2);
++				}
++				if (!achou)
++					seq_puts(m, "        >>> NENHUM BO desta VM contem esse PA\n");
++			}
++			break;
++		}
++		if (!(e & AMDGPU_PTE_VALID)) {
++			seq_puts(m, "        >>> ENTRADA INVALIDA -- caminhada para aqui\n");
++			break;
++		}
++		passo++;
++	} while (amdgpu_vm_pt_descendant(adev, &cur));
++
++	/* A folha de 4 KiB fica na tabela PTB, e o laco acima nao a le: o
++	 * cursor para AO CHEGAR nesse nivel, entao a ultima entrada decodificada
++	 * e a do nivel PDB0. Para mapeamento de 2 MiB isso basta (a pagina
++	 * grande termina em PDB0), mas para mapeamento granular de 4 KiB a
++	 * entrada que realmente decide ficaria de fora.
++	 */
++	if (!grande && cur.level == AMDGPU_VM_PTB && cur.entry && cur.entry->bo) {
++		unsigned int mask  = amdgpu_vm_pt_entries_mask(adev, AMDGPU_VM_PTB);
++		unsigned int shift = amdgpu_vm_pt_level_shift(adev, AMDGPU_VM_PTB);
++		unsigned int idx   = (pfn >> shift) & mask;
++		uint64_t e = bc250_le_entrada(cur.entry->bo, idx, m);
++		int j;
++
++		seq_printf(m, "    [PTB ] folha de 4 KiB  shift=%u mask=0x%x idx=%u\n",
++			   shift, mask, idx);
++		seq_printf(m, "        tabela: bo=%p gpu_addr=0x%llx kptr=%p\n",
++			   cur.entry->bo,
++			   amdgpu_bo_gpu_offset_no_check(cur.entry->bo),
++			   amdgpu_bo_kptr(cur.entry->bo));
++		seq_printf(m, "        entrada[%u] = 0x%016llx  -> PA 0x%llx\n",
++			   idx, e, e & 0x0000FFFFFFFFF000ULL);
++		bc250_decodifica(m, e);
++		seq_puts(m, "        vizinhas:");
++		for (j = -8; j <= 8; j++) {
++			int v = (int)idx + j;
++
++			if (v < 0 || v > (int)mask)
++				continue;
++			seq_printf(m, " [%d]=0x%llx", v,
++				   bc250_le_entrada(cur.entry->bo, v, m));
++		}
++		seq_puts(m, "\n");
++		seq_printf(m, "        >>> PA final = 0x%llx\n",
++			   (e & 0x0000FFFFFFFFF000ULL) + (va & 0xFFF));
++	}
++
++	dma_resv_unlock(vm->root.bo->tbo.base.resv);
++	seq_puts(m, "=== fim ===\n");
++}
+--- amdgpu_debugfs.c.pre-ptwalk.bak	2026-08-07 00:01:03.187273206 -0300
++++ amdgpu_debugfs.c	2026-08-07 00:03:23.333095858 -0300
+@@ -2001,6 +2001,70 @@
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_sclk_set, NULL,
+ 			amdgpu_debugfs_sclk_set, "%llu\n");
+ 
++
++/* ==================================================================
++ * BC-250: /sys/kernel/debug/dri/N/bc250_ptwalk
++ *
++ *   echo "<pasid_hex> <va_hex>" > bc250_ptwalk
++ *   cat bc250_ptwalk
++ *
++ * Percorre a hierarquia de tabelas de pagina de dentro do driver, onde os
++ * ponteiros sao reais. Existe porque conferir isso de fora e impreciso: com
++ * vm_update_mode=3 o campo `pe` do tracepoint e endereco de KERNEL, nao
++ * fisico, e varrer a VRAM atras do valor nao diz a qual VA cada slot pertence.
++ *
++ * Somente leitura de memoria. Nao toca em registrador: MMIO cru nesta placa
++ * ja travou a maquina.
++ */
++static u32 bc250_ptwalk_pasid;
++static u64 bc250_ptwalk_va;
++
++static int bc250_ptwalk_show(struct seq_file *m, void *unused)
++{
++	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
++
++	if (!bc250_ptwalk_pasid) {
++		seq_puts(m, "uso: echo \"<pasid_hex> <va_hex>\" > bc250_ptwalk\n");
++		return 0;
++	}
++	amdgpu_bc250_ptwalk(adev, bc250_ptwalk_pasid, bc250_ptwalk_va, m);
++	return 0;
++}
++
++static int bc250_ptwalk_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, bc250_ptwalk_show, inode->i_private);
++}
++
++static ssize_t bc250_ptwalk_write(struct file *file, const char __user *buf,
++				  size_t len, loff_t *off)
++{
++	char linha[64];
++	u32 pasid;
++	u64 va;
++
++	if (len >= sizeof(linha))
++		return -EINVAL;
++	if (copy_from_user(linha, buf, len))
++		return -EFAULT;
++	linha[len] = 0;
++	if (sscanf(linha, "%x %llx", &pasid, &va) != 2)
++		return -EINVAL;
++	bc250_ptwalk_pasid = pasid;
++	bc250_ptwalk_va = va;
++	return len;
++}
++
++static const struct file_operations bc250_ptwalk_fops = {
++	.owner   = THIS_MODULE,
++	.open    = bc250_ptwalk_open,
++	.read    = seq_read,
++	.write   = bc250_ptwalk_write,
++	.llseek  = seq_lseek,
++	.release = single_release,
++};
++
++
+ int amdgpu_debugfs_init(struct amdgpu_device *adev)
+ {
+ 	struct dentry *root = adev_to_drm(adev)->primary->debugfs_root;
+@@ -2084,6 +2148,8 @@
+ 	amdgpu_fw_attestation_debugfs_init(adev);
+ 	amdgpu_psp_debugfs_init(adev);
+ 
++	debugfs_create_file("bc250_ptwalk", 0644, root, adev,
++			    &bc250_ptwalk_fops);
+ 	debugfs_create_file("amdgpu_evict_vram", 0400, root, adev,
+ 			    &amdgpu_evict_vram_fops);
+ 	debugfs_create_file("amdgpu_evict_gtt", 0400, root, adev,
+--- amdgpu_amdkfd_gpuvm.c.pre-ptwalk.bak	2026-08-07 00:15:49.798760543 -0300
++++ amdgpu_amdkfd_gpuvm.c	2026-08-07 00:15:49.812760764 -0300
+@@ -3267,3 +3267,30 @@
+ }
+ 
+ #endif
++
++/* BC-250: acha a amdgpu_vm de um processo pelo PID.
++ *
++ * Nao da para usar PASID nesta placa: o BIOS desliga SVM
++ * ("SVM disabled (by BIOS) in MSR_VM_CR") e o KFD reporta pasid=0 em
++ * /sys/class/kfd/kfd/proc/<pid>/pasid, entao a xarray adev->vm_manager.pasids
++ * nunca acha a VM de um processo de compute. O PID resolve pelo caminho do
++ * proprio KFD, que e quem de fato tem o ponteiro.
++ */
++struct amdgpu_vm *amdgpu_bc250_vm_from_pid(u32 nr)
++{
++	struct kfd_process *p;
++	struct amdgpu_vm *vm = NULL;
++	struct pid *pid;
++
++	pid = find_get_pid(nr);
++	if (!pid)
++		return NULL;
++	p = kfd_lookup_process_by_pid(pid);
++	put_pid(pid);
++	if (!p)
++		return NULL;
++	if (p->n_pdds > 0 && p->pdds[0] && p->pdds[0]->drm_priv)
++		vm = drm_priv_to_vm(p->pdds[0]->drm_priv);
++	kfd_unref_process(p);
++	return vm;
++}
+--- amdgpu_vm.h.pre-ptwalk.bak	2026-08-07 00:01:03.186273233 -0300
++++ amdgpu_vm.h	2026-08-07 01:26:05.072282483 -0300
+@@ -567,6 +567,13 @@
+ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
+ 				struct amdgpu_vm *vm,
+ 				uint64_t saddr, uint64_t size);
++struct seq_file;
++void amdgpu_bc250_dump_vmids(struct amdgpu_device *adev, uint64_t nosso_pd,
++			     uint16_t nosso_pasid, struct seq_file *m);
++struct amdgpu_vm *amdgpu_bc250_vm_from_pid(u32 nr);
++void amdgpu_bc250_ptwalk(struct amdgpu_device *adev, u32 pasid,
++			 uint64_t va, struct seq_file *m);
++
+ struct amdgpu_bo_va_mapping *amdgpu_vm_bo_lookup_mapping(struct amdgpu_vm *vm,
+ 							 uint64_t addr);
+ void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket);

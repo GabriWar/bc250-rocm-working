@@ -156,9 +156,27 @@ not the same workload as doc 17's reproducer, which specifically needs
 clean result may mean the path is fine, or may mean the trigger was never
 present. Do not read it as exoneration of Vulkan until the workloads match.
 
-**Untested here.** The source-level reading of *why* the two paths could
-differ is in [20](20-why-the-compute-path-is-uncovered.md), and it turns out to
-reframe an A/B we already ran.
+**This report does not mean what it appears to mean.** Upstream Mesa
+disables the compute queue on this chip outright:
+
+```c
+/* GFX1013 is known to have broken compute queue */
+info->ip[AMD_IP_COMPUTE].num_queues = 0;   /* ac_gpu_info.c:519 */
+```
+
+`vulkaninfo` confirms the effect: a single queue family,
+`GRAPHICS | COMPUTE | TRANSFER`, with no dedicated compute family. So a
+Vulkan compute dispatch on this board runs on the **graphics queue**. The
+clean verifier result never touched the hardware in question, and therefore
+is not evidence about the ROCm software path.
+
+It is still worth recording for a different reason: it is an independent
+codebase, predating this investigation, stating in source that this chip's
+compute queue is defective.
+
+Path analysis in [20](20-why-the-compute-path-is-uncovered.md); the
+invalidation question is settled by measurement in
+[21](21-the-compute-tlb-is-never-invalidated.md).
 
 ## 1.6 Blender Cycles reportedly runs, and still crashes intermittently
 
