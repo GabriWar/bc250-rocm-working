@@ -33,6 +33,25 @@ The dump of the hardware's VMID→PASID table, on every query:
 
 **80 VMID lines across 5 dumps. Every single one invalid. Zero valid entries.**
 
+That dump is taken with the process **quiesced**, which leaves an obvious
+objection: what if the firmware binds a VMID only while work is in flight, and
+the table is populated exactly when it matters? A snapshot at rest would not
+show it.
+
+So the count was also taken **inside the invalidation itself**, at the moment
+the flush runs, during a reproducer run that came back dirty (1 of 12 blocks
+stomped):
+
+```
+BC-250 tlb: pasid=0xa tipo=2 -> 0 VMID(s) invalidados      (x20)
+
+  20 flushes issued during real work
+  20 of them hitting zero VMIDs
+```
+
+Both measurements agree, and the second is taken at the only moment that counts.
+The table is not empty because we looked at the wrong time.
+
 `gmc_v10_0_flush_gpu_tlb_pasid()` is the only TLB invalidation the compute path
 has. It works by asking the hardware which VMID holds our PASID:
 
