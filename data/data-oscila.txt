@@ -1,0 +1,47 @@
+
+==========================================================================
+boot=120b5c63 pid=10122 N=200 leituras por pagina
+  execucao LIMPA -- rode de novo ate sujar
+
+==========================================================================
+boot=120b5c63 pid=10335 N=200 leituras por pagina
+  1 pagina(s) divergente(s), 1 de controle
+  RUIM A8028160p0
+  BOA  A8028160p1
+
+  --- 200 leituras por pagina, intercaladas ---
+    BOA    A8028160p1   100/200   50.0% erradas   entregou (1, 4) em 100 delas
+    RUIM   A8028160p0   200/200  100.0% erradas   entregou (7, 4) em 200 delas
+
+  divergentes: 200/200 = 100.0%
+  controle:    100/200 = 50.0%
+
+  >>> PAGINAS BOAS TAMBEM ERRAM. O caminho de leitura e instavel por si,
+  >>> e toda medida deste projeto que usou hipMemcpy para decidir
+  >>> certo/errado precisa ser revista.
+
+==========================================================================
+boot=120b5c63 pid=10949 N=200 leituras por pagina
+  classificacao com 20 leituras por pagina, 38 paginas:
+    sempre erradas:      2
+    as vezes erradas:    1
+    nunca erradas:       35
+      INTERMITENTE A8028160p1: 5/20, alvos [((6, 3), 5)]
+
+  3 pagina(s) divergente(s), 3 de controle
+  RUIM A8028160p0, RUIM A10485760p4, RUIM A8028160p1
+  BOA  A8028160p2, BOA  A5898240p1, BOA  B10485760p2
+
+  --- 200 leituras por pagina, intercaladas ---
+    BOA    A8028160p2     0/200    0.0% erradas
+    BOA    A5898240p1     0/200    0.0% erradas
+    BOA   B10485760p2     0/200    0.0% erradas
+    RUIM   A8028160p0   200/200  100.0% erradas   entregou (6, 2) em 200 delas
+    RUIM   A8028160p1     0/200    0.0% erradas
+    RUIM  A10485760p4   200/200  100.0% erradas   entregou (6, 0) em 200 delas
+
+  divergentes: 400/600 = 66.7%
+  controle:    0/600 = 0.0%
+
+  >>> INTERMITENTE, e so em certos enderecos. Nao e cache:
+  >>> cache erraria sempre. E transiente no caminho de endereco.

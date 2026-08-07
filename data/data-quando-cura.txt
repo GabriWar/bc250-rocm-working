@@ -1,0 +1,106 @@
+
+==========================================================================
+boot=120b5c63 pid=9459
+  1 paginas divergentes: A6922240p3
+
+  etapa 0: 5 releituras seguidas, sem fazer mais nada
+    releitura 1                                          0/1 ainda erradas
+    releitura 2                                          1/1 ainda erradas
+    releitura 3                                          0/1 ainda erradas
+    releitura 4                                          0/1 ainda erradas
+    releitura 5                                          0/1 ainda erradas
+
+  >>> CUROU SO DE RELER. Nao e persistente.
+  >>> A premissa do doc 17 (deterministico e persiste) cai aqui,
+  >>> e nada do resto do experimento e necessario.
+
+==========================================================================
+boot=120b5c63 pid=12532
+  A8028160p1: INTERMITENTE 10/20 -- fora do teste
+  A8028160p2: INTERMITENTE 5/20 -- fora do teste
+  A8028160p3: INTERMITENTE 10/20 -- fora do teste
+  1 paginas divergentes: A8028160p0
+
+  etapa 0: 5 releituras seguidas, sem fazer mais nada
+    releitura 1                              1/1 ainda 100% erradas  [20/20]
+    releitura 2                              1/1 ainda 100% erradas  [20/20]
+    releitura 3                              1/1 ainda 100% erradas  [20/20]
+
+  etapa 1: depois de hipIpcGetMemHandle, sem processo novo
+    apos GetMemHandle                        1/1 ainda 100% erradas  [20/20]
+
+  etapa 2: filho VIVO, handle aberto, ainda NAO leu
+    com o segundo VM mapeado                 1/1 ainda 100% erradas  [20/20]
+
+  etapa 3: filho VIVO, ja leu -> ele viu bloco 0 pag 0  (CERTO)
+    apos a leitura pelo segundo VM           0/1 ainda 100% erradas  [0/20]
+
+  etapa 4: filho fechou o handle e saiu
+    apos teardown do segundo processo        0/1 ainda 100% erradas  [0/20]
+
+  trajetoria (de 1 paginas erradas): 0 releitura=1 -> 1 GetMemHandle=1 -> 2 mapeado=1 -> 3 lido=0 -> 4 saiu=0
+  >>> CUROU NA ETAPA: 3 lido
+
+==========================================================================
+boot=120b5c63 pid=12946
+  A8028160p3: INTERMITENTE 10/20 -- fora do teste
+  1 paginas divergentes: A8028160p2
+
+  etapa 0: 5 releituras seguidas, sem fazer mais nada
+    releitura 1                              1/1 ainda 100% erradas  [20/20]
+    releitura 2                              1/1 ainda 100% erradas  [20/20]
+    releitura 3                              1/1 ainda 100% erradas  [20/20]
+
+  etapa 1: depois de hipIpcGetMemHandle, sem processo novo
+    apos GetMemHandle                        1/1 ainda 100% erradas  [20/20]
+
+  etapa 2: filho VIVO, handle aberto, ainda NAO leu
+    com o segundo VM mapeado                 1/1 ainda 100% erradas  [20/20]
+
+  etapa 3: filho VIVO, ja leu -> ele viu bloco 0 pag 2  (CERTO)
+    apos a leitura pelo segundo VM           0/1 ainda 100% erradas  [0/20]
+
+  etapa 4: filho fechou o handle e saiu
+    apos teardown do segundo processo        0/1 ainda 100% erradas  [0/20]
+
+  trajetoria (de 1 paginas erradas): 0 releitura=1 -> 1 GetMemHandle=1 -> 2 mapeado=1 -> 3 lido=0 -> 4 saiu=0
+  >>> CUROU NA ETAPA: 3 lido
+
+==========================================================================
+boot=120b5c63 pid=13099
+  A10485760p0: INTERMITENTE 10/20 -- fora do teste
+  A6922240p2: INTERMITENTE 5/20 -- fora do teste
+  A6922240p3: INTERMITENTE 10/20 -- fora do teste
+  2 paginas divergentes: A10485760p1, A10485760p2
+
+  etapa 0: 5 releituras seguidas, sem fazer mais nada
+    releitura 1                              2/2 ainda 100% erradas  [20/20 20/20]
+    releitura 2                              2/2 ainda 100% erradas  [20/20 20/20]
+    releitura 3                              2/2 ainda 100% erradas  [20/20 20/20]
+
+  etapa 1: depois de hipIpcGetMemHandle, sem processo novo
+    apos GetMemHandle                        2/2 ainda 100% erradas  [20/20 20/20]
+
+  etapa 2: filho VIVO, handle aberto, ainda NAO leu
+    com o segundo VM mapeado                 2/2 ainda 100% erradas  [20/20 20/20]
+
+  etapa 3: filho VIVO, ja leu -> ele viu bloco 1 pag 1  (CERTO)
+    apos a leitura pelo segundo VM           0/2 ainda 100% erradas  [0/20 0/20]
+
+  etapa 4: filho fechou o handle e saiu
+    apos teardown do segundo processo        0/2 ainda 100% erradas  [0/20 0/20]
+
+  trajetoria (de 2 paginas erradas): 0 releitura=2 -> 1 GetMemHandle=2 -> 2 mapeado=2 -> 3 lido=0 -> 4 saiu=0
+  >>> CUROU NA ETAPA: 3 lido
+
+==========================================================================
+boot=120b5c63 pid=13233
+  execucao LIMPA -- rode de novo ate sujar
+
+==========================================================================
+boot=120b5c63 pid=13355
+  execucao LIMPA -- rode de novo ate sujar
+
+==========================================================================
+boot=120b5c63 pid=13478
+  execucao LIMPA -- rode de novo ate sujar

@@ -1,0 +1,71 @@
+
+==========================================================================
+boot=120b5c63 pid=8708
+  --- lendo tudo pela VA original (VA1) ---
+    A8028160 pag 2: entregou pag 0 do bloco 7
+    A8028160 pag 3: entregou pag 1 do bloco 7
+    2 paginas divergentes
+
+  --- segundo processo: MESMO PA, VA diferente (VA2) ---
+    CONTROLE: VA2=0x0x7fc640200000 entregou bloco 0 pag 0  (CERTO)
+    FALHA0p2: VA2=0x0x7fc640200000 entregou bloco 0 pag 2  (CERTO)
+    FALHA0p3: VA2=0x0x7fc640200000 entregou bloco 0 pag 3  (CERTO)
+
+  --- controle 2: a VA1 ainda erra as mesmas paginas? ---
+    0 de 2 continuam erradas pela VA1
+    as paginas se curaram sozinhas -- a comparacao nao vale
+
+==========================================================================
+boot=120b5c63 pid=11545
+  --- lendo tudo pela VA original (VA1), 20x por pagina ---
+    A5898240 pag 1: 20/20 erradas, sempre bloco 2 pag 0
+    A5898240 pag 2: INTERMITENTE 10/20 -- fora do teste
+    1 paginas divergentes
+
+  --- segundo processo: MESMO PA, VA diferente (VA2) ---
+    CONTROLE: VA2=0x0x7f1d48200000 entregou bloco 0 pag 0  (CERTO)
+    FALHA3p1: VA2=0x0x7f1d48400000 entregou bloco 3 pag 1  (CERTO)
+
+  --- controle 2: a VA1 ainda erra, em 20 leituras? ---
+    A5898240p1: 0/20 erradas pela VA1
+    0 de 1 continuam 100% erradas pela VA1
+    as paginas se curaram sozinhas -- a comparacao nao vale
+
+==========================================================================
+boot=120b5c63 pid=11720
+  --- lendo tudo pela VA original (VA1), 20x por pagina ---
+    A8028160 pag 2: 20/20 erradas, sempre bloco 1 pag 0
+    A8028160 pag 3: INTERMITENTE 10/20 -- fora do teste
+    1 paginas divergentes
+
+  --- segundo processo: MESMO PA, VA diferente (VA2) ---
+    CONTROLE: VA2=0x0x7f0c1e600000 entregou bloco 0 pag 0  (CERTO)
+    FALHA0p2: VA2=0x0x7f0c16000000 entregou bloco 0 pag 2  (CERTO)
+
+  --- controle 2: a VA1 ainda erra, em 20 leituras? ---
+    A8028160p2: 0/20 erradas pela VA1
+    0 de 1 continuam 100% erradas pela VA1
+    as paginas se curaram sozinhas -- a comparacao nao vale
+
+==========================================================================
+boot=120b5c63 pid=11846
+  --- lendo tudo pela VA original (VA1), 20x por pagina ---
+    A10485760 pag 0: INTERMITENTE 5/20 -- fora do teste
+    A10485760 pag 1: INTERMITENTE 10/20 -- fora do teste
+    A10485760 pag 2: 20/20 erradas, sempre bloco 0 pag 3
+    A6922240 pag 0: 20/20 erradas, sempre bloco 9 pag 0
+    A6922240 pag 1: INTERMITENTE 15/20 -- fora do teste
+    A6922240 pag 2: INTERMITENTE 10/20 -- fora do teste
+    A6922240 pag 3: INTERMITENTE 5/20 -- fora do teste
+    2 paginas divergentes
+
+  --- segundo processo: MESMO PA, VA diferente (VA2) ---
+    CONTROLE: VA2=0x0x7f6c37600000 entregou bloco 0 pag 0  (CERTO)
+    FALHA1p2: VA2=0x0x7f6b25200000 entregou bloco 1 pag 2  (CERTO)
+    FALHA2p0: VA2=0x0x7f6b25400000 entregou bloco 2 pag 0  (CERTO)
+
+  --- controle 2: a VA1 ainda erra, em 20 leituras? ---
+    A10485760p2: 0/20 erradas pela VA1
+    A6922240p0: 0/20 erradas pela VA1
+    0 de 2 continuam 100% erradas pela VA1
+    as paginas se curaram sozinhas -- a comparacao nao vale
