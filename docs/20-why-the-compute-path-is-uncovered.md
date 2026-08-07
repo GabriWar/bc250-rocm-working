@@ -422,3 +422,85 @@ The claim was checkable the whole time and was not checked before publishing.
 Recorded because this repo has now had to retract three leads, and the pattern
 in all three is the same: a mechanism that explained the symptom was accepted
 before it was traced to the end.
+
+---
+
+# The three invalidation mechanisms, enumerated
+
+Continued source reading after the retraction, to replace the wrong model with a
+verified one. All three act on the same invalidation registers of the same hub;
+they differ in who writes them and what they can address.
+
+| | ring-emitted | host MMIO | KIQ packet |
+|---|---|---|---|
+| function | `gmc_v10_0_emit_flush_gpu_tlb` | `gmc_v10_0_flush_gpu_tlb` | `gfx10_kiq_invalidate_tlbs` |
+| written by | the ring, as packets | the host, as MMIO | CP/MEC firmware |
+| addressed by | **VMID** (`1 << vmid`) | **VMID** | **PASID** |
+| ordered with GPU work | **yes**, it is in the command stream | **no** | yes, it is a ring packet |
+| invalidation engine | the ring's own, 0–13 | **17**, dedicated | 11 (the KIQ ring's) |
+| used by | graphics, and any job with `vm_needs_flush` | the KFD/compute path | what we had to disable |
+| state here | works | works, but unordered | **wedges this silicon** |
+
+Two things fall out of this table that were not obvious before.
+
+**Engine collision is ruled out.** `gmc_v10_0_flush_gpu_tlb` hard-codes
+`const unsigned int eng = 17`, and this boot assigns rings engines 0 through 13:
+
+```
+ring gfx_0.0.0    uses VM inv eng 0     ring comp_1.3.1  uses VM inv eng 10
+ring comp_1.0.0   uses VM inv eng 1     ring kiq_0.2.1.0 uses VM inv eng 11
+...                                     ring sdma0/1     uses VM inv eng 12/13
+```
+
+The host has a dedicated engine that no ring touches. Whatever the host-issued
+invalidation does, it is not stomping a ring's invalidation registers. That was
+worth checking and it is a clean negative.
+
+**The ring-emitted path is the one to want, and we cannot reach it.** It is
+ordered *and* VMID-targeted *and* needs no firmware PASID lookup — it is
+strictly the best of the three. But it only exists as packets inside a ring
+submission, and a KFD process's queues are user queues managed by the hardware
+scheduler, not amdgpu rings the kernel can append to. There is no job to hang
+the flush packets on.
+
+KIQ is the mechanism AMD designed for exactly this gap — invalidate another
+context's TLB, ordered, from the kernel — and it is a 2-dword packet whose
+entire semantics live in MEC firmware:
+
+```c
+amdgpu_ring_write(ring, PACKET3(PACKET3_INVALIDATE_TLBS, 0));
+amdgpu_ring_write(ring, DST_SEL(dst_sel) | ALL_HUB(all_hub) |
+                        PASID(pasid) | FLUSH_TYPE(flush_type));
+```
+
+The driver contributes nothing but the request. If this board's MEC firmware —
+a PS5-derived build — mishandles that packet, there is no driver-side fix, only
+a bypass. Which is what `flush_pasid_uses_kiq = false` is.
+
+## Where the evidence actually points, and where it does not
+
+Being explicit, because this page has already been wrong once.
+
+Doc 17 established, by measurement: the page tables are correct in physical
+memory, the CPU reads the right data, forced TLB invalidation does not help, and
+the corruption survives full host-side serialisation.
+
+"Forced invalidation does not help" is uncomfortable for **both** invalidation
+stories. If translations were stale, more invalidation should help — it did not.
+If invalidation racing translation were the hazard, the picture is at least
+consistent, but only because the knobs tested addition rather than subtraction.
+
+So the honest position after this study is narrower than when the page opened:
+
+- The **structure** is now verified — separate allocators, identical PTE flags,
+  three invalidation mechanisms with the properties tabulated above.
+- The **cause** is not. Nothing here promotes concurrent-invalidation from
+  plausible to demonstrated, and one attempt to act on it was withdrawn.
+- The cheapest remaining discriminator is still the one never run: the
+  subtractive flush test, and a Vulkan port of the reproducer.
+
+A caution for whoever runs those: the module currently loaded does **not**
+export the `bc250_tlb_*` parameters that exist in the source tree, so the tree
+and the running module are not the same build. Any A/B has to start by
+rebuilding both arms from one tree, or it is measuring the build and not the
+knob.
