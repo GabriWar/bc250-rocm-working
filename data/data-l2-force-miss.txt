@@ -1,0 +1,12 @@
+boot=120b5c63 braco=B marreta(4K+BIGK+PDE) fm=7 tm=-1 bk=0 reps=10 inicio=10:58:42
+exec=1 braco=B marreta(4K+BIGK+PDE) pisados=0 saude=0->0 boot=120b5c63
+exec=2 braco=B marreta(4K+BIGK+PDE) pisados=0 saude=0->0 boot=120b5c63
+exec=3 braco=B marreta(4K+BIGK+PDE) pisados=1 saude=0->0 boot=120b5c63
+exec=4 braco=B marreta(4K+BIGK+PDE) pisados=1 saude=0->0 boot=120b5c63
+exec=5 braco=B marreta(4K+BIGK+PDE) pisados=2 saude=0->0 boot=120b5c63
+exec=6 braco=B marreta(4K+BIGK+PDE) pisados=1 saude=0->0 boot=120b5c63
+exec=7 braco=B marreta(4K+BIGK+PDE) pisados=1 saude=0->0 boot=120b5c63
+exec=8 braco=B marreta(4K+BIGK+PDE) pisados=0 saude=0->0 boot=120b5c63
+exec=9 braco=B marreta(4K+BIGK+PDE) pisados=1 saude=0->0 boot=120b5c63
+exec=10 braco=B marreta(4K+BIGK+PDE) pisados=0 saude=0->0 boot=120b5c63
+---- B marreta(4K+BIGK+PDE): 6/10 execucoes sujas, 7 blocos no total  [0 0 1 1 2 1 1 0 1 0 ]

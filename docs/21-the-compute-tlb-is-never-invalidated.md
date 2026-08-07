@@ -1,5 +1,12 @@
 # The compute TLB on this board is never invalidated
 
+> **Continued, and partly corrected, in [22](22-the-page-table-cache-is-innocent.md).** The probe this page ends
+> with never answered its question: forcing the invalidation does not
+> complete on this hardware, on either route, and stalls the translation
+> unit. The "unmapped VMIDs do not ACK" explanation below is retracted
+> there. The core measurement -- zero VMIDs ever invalidated -- stands, and
+> has since been reproduced on separate hardware.
+
 Measured 2026-08-07, from inside the driver. This is the first mechanism that
 accounts for every observation in
 [17](17-a-gpu-le-fora-da-propria-tabela-de-pagina.md) without any of them having
@@ -214,7 +221,14 @@ in one A/B against the reproducer we already have.
 
 Two follow-up measurements, both zero-cost, that turn the bind into a plan.
 
-## Invalidating every VMID does not work
+## Invalidating every VMID does not work — *for the wrong reason*
+
+> **RETRACTED.** This section originally concluded that invalidating all VMIDs
+> fails because an unmapped VMID never acknowledges. That explanation is wrong.
+> The real cause is KIQ, it applies equally to *mapped* VMIDs, and it says
+> nothing about whether invalidating all sixteen is viable. See
+> [Every forced invalidation was going through a wedged KIQ](#every-forced-invalidation-was-going-through-a-wedged-kiq)
+> below.
 
 The obvious response to "the sweep matches nothing" is to stop matching and
 invalidate all sixteen. Measured, and it fails:
@@ -223,11 +237,48 @@ invalidate all sixteen. Measured, and it fails:
 amdgpu 0000:01:00.0: failed to write reg 28b4 wait reg 28c6      (x14)
 ```
 
-An unmapped VMID never acknowledges the invalidation, so each attempt burns a
-long timeout. The reproducer, normally ~2 minutes, was still running at 3:07
-when it was killed. That is why the community's `flush_mapped_vmids` patch
-guards on the ATC query in the first place — the guard is not optional, even
-though on this board it happens to reject everything.
+The reproducer, normally ~2 minutes, was still running at 3:07 when it was
+killed. The failure is real; the explanation given for it was not.
+
+## Every forced invalidation was going through a wedged KIQ
+
+The probe below was run with `bc250_flush_vmid=8` — a VMID confirmed *mapped*
+by `hqds`, with two live compute queues on it. It failed identically:
+
+```
+09:20:26  BC-250 tlb: FLUSH pasid=10 tipo=2 all_hub=0 seq=2
+          (13 seconds)
+09:20:39  failed to write reg 28b4 wait reg 28c6
+09:20:39  BC-250 tlb: pasid=0xa -> VMID 8 invalidado (alvo fixo)
+09:20:41  ring sdma0 timeout, signaled seq=280, emitted seq=282
+09:20:41  ring kiq_0.2.1.0 test failed (-110)          -> GPU reset
+```
+
+A mapped VMID timing out the same way as an unmapped one kills the
+"unmapped VMIDs never ACK" story. `0x28b4` and `0x28c6` are
+`vm_inv_eng0_req`/`_ack` + `eng_distance * 17` on the GFXHUB, so this is our
+flush and no other.
+
+The actual cause is one condition in `gmc_v10_0_flush_gpu_tlb()`:
+
+```c
+if (!(bc250_flush_mapped_vmids && adev->pdev->device == BC250_PCI_DEVICE_ID) &&
+    adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes && ...) {
+        amdgpu_gmc_fw_reg_write_reg_wait(adev, req, ack, inv_req, 1 << vmid, ...);
+        return;   /* KIQ */
+}
+```
+
+Unless `bc250_flush_mapped_vmids` is set, every invalidation goes through KIQ —
+and **this board's KIQ wedges on `INVALIDATE_TLBS`**, which is the reason that
+knob exists at all. The path had never been exercised before, because the PASID
+sweep never found a VMID to invalidate. The first thing to actually call it was
+our own probe.
+
+So the guard on the ATC query is **not** load-bearing the way this document
+claimed. Invalidating all sixteen VMIDs may well be viable; it has never been
+tested off the KIQ path. Both experiments have to be re-run with KIQ bypassed
+before either result means anything.
 
 ## The VMID is discoverable, and it is not in any of the places the driver looks
 

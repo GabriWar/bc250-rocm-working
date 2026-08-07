@@ -1,0 +1,6 @@
+bc250_flush_vmid=8
+bc250_flush_all_vmids=0
+bc250_flush_mapped_vmids=0
+bc250_tlb_trace=1
+bc250_tlb_all_hub=0
+bc250_tlb_no_seq_skip=0
