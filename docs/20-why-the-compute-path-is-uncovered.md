@@ -1,5 +1,16 @@
 # Why the compute path is uncovered by an errata the graphics path is protected from
 
+> **RETRACTION, added after further source reading.** The addendum at the bottom
+> of this page originally claimed that the `|| vmid` test in
+> `amdgpu_gmc_flush_gpu_tlb()` was a *regression* that removed protection from
+> user VMIDs, and proposed a patch to relax it. **That was wrong, and the patch
+> would have made things worse.** The SDMA workaround cannot invalidate a
+> specific user VMID at all — it ignores its own `vmid` argument. `|| vmid` is a
+> correctness guard, not a narrowing. Details in
+> [What the retraction changes](#what-the-retraction-changes) below. The
+> graphics-versus-compute asymmetry described in the body still stands; the
+> proposed fix does not.
+
 Source analysis, done on the kernel this board actually runs
 (`7.0.12-1-cachyos-bore-lto-bc250`). **No measurement here** — this is a reading
 of the driver, prompted by a community report that Vulkan compute runs clean on
@@ -313,3 +324,101 @@ Cost to check: one small patch, one module rebuild, then twelve runs of
 Either outcome is worth the rebuild. This is the first hypothesis in this repo
 that came with a specific upstream change, a specific line, and a patch small
 enough to be wrong cheaply.
+
+---
+
+# What the retraction changes
+
+## The mistake
+
+The SDMA workaround block in `amdgpu_gmc_flush_gpu_tlb()` is this, in full:
+
+```c
+job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
+job->vm_needs_flush = true;
+job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
+amdgpu_ring_pad_ib(ring, &job->ibs[0]);
+fence = amdgpu_job_submit(job);
+dma_fence_wait(fence, false);
+```
+
+**The function's `vmid`, `vmhub` and `flush_type` arguments appear nowhere in
+it.** It submits a NOP on the SDMA ring with `vm_needs_flush` set and
+`vm_pd_addr` pointing at the GART page directory. What gets invalidated is the
+VMID that kernel job runs under — VMID 0 — regardless of what the caller asked
+for.
+
+Compare the register path a few lines above, which does thread it through:
+
+```c
+adev->gmc.gmc_funcs->flush_gpu_tlb(adev, vmid, vmhub, flush_type);
+```
+
+So `|| vmid` is not upstream taking protection away. It is upstream saying: this
+mechanism can only ever flush VMID 0, so anything else must take the path that
+actually targets the VMID it was given.
+
+The patch this page originally proposed would have routed user-VMID
+invalidations into a function that flushes VMID 0 instead. Those VMIDs would
+then never be invalidated at all — stale translations left live in the TLB.
+That is a correctness bug, and plausibly a *worse* one than what we have.
+
+## What the 5.10 comparison actually shows
+
+The same code exists in 5.10 without the `vmid` test, so in 5.10 a call to
+invalidate VMID *N* on the GFXHUB submitted an SDMA NOP that flushed VMID 0 and
+left *N* alone. That is not "5.10 protected every VMID". It is **5.10 silently
+skipping user-VMID invalidations** on that path.
+
+It mattered less there because it was the fallback: 5.10's primary compute path
+was KIQ (`kiq_invalidate_tlbs`, a packet on a ring with a fence waited on),
+which does target the PASID correctly. The broken fallback only ran when KIQ was
+unavailable.
+
+So the honest version of the 5.10 story is the reverse of what was written here:
+upstream **fixed** a missing-invalidation bug by adding `|| vmid`, and our
+current kernel invalidates user VMIDs correctly where 5.10's fallback did not.
+
+## What still stands
+
+- The two paths really are separate allocators, and the PTE flags really are
+  identical. Nothing about the mapping attributes distinguishes them.
+- Graphics really does emit its invalidation inline in the command stream via
+  `amdgpu_ring_emit_vm_flush`, and compute really does it with an asynchronous
+  host MMIO write. That asymmetry is real and remains the most plausible reason
+  a Vulkan workload could be clean where a HIP one is not.
+- The errata is real and enabled for our GFXHUB.
+- The observation that `ab_tlb_knobs.sh` only ever tested *more* invalidation
+  still holds, and a subtractive test is still unrun.
+
+## What no longer stands
+
+- `|| vmid` as a regression. It is a fix.
+- The proposed patch. Withdrawn; it would cause missing invalidations.
+- "Route compute invalidation through the SDMA workaround" as a fix direction.
+  That mechanism cannot target a user VMID, so there is nothing to route into.
+
+## Where that leaves the fix space
+
+If the hazard is invalidation concurrent with translation, the fix has to be an
+invalidation that is **ordered against GPU work and targets a specific VMID**.
+In this driver there is exactly one such mechanism, and it is KIQ — a packet on
+a ring, fenced, addressed by PASID. Which is the thing we had to disable,
+because `INVALIDATE_TLBS` wedges this silicon
+([02-kernel-patches.md](02-kernel-patches.md)).
+
+So the question this analysis actually leaves is narrower and less comfortable
+than the one it started with: **why does KIQ `INVALIDATE_TLBS` wedge on this
+board, and can that be fixed instead of bypassed?** Every ordered invalidation
+mechanism the driver has runs through it.
+
+That is a harder question than patching a guard, and it is not answered here.
+
+## Method note
+
+This page was written, published, and then found wrong within the same session,
+by reading the twenty lines below the ones that had been read the first time.
+The claim was checkable the whole time and was not checked before publishing.
+Recorded because this repo has now had to retract three leads, and the pattern
+in all three is the same: a mechanism that explained the symptom was accepted
+before it was traced to the end.
