@@ -156,7 +156,9 @@ not the same workload as doc 17's reproducer, which specifically needs
 clean result may mean the path is fine, or may mean the trigger was never
 present. Do not read it as exoneration of Vulkan until the workloads match.
 
-**Untested here.**
+**Untested here.** The source-level reading of *why* the two paths could
+differ is in [20](20-why-the-compute-path-is-uncovered.md), and it turns out to
+reframe an A/B we already ran.
 
 ## 1.6 Blender Cycles reportedly runs, and still crashes intermittently
 
