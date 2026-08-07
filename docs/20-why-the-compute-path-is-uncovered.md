@@ -175,3 +175,141 @@ not been run.
 2. Run the flush knobs in the **subtractive** direction described above.
 3. If both point the same way, the fix to try is routing compute invalidation
    through the SDMA path rather than the register path.
+
+---
+
+# Addendum — the 5.10 comparison, and what it changes
+
+Source fetched from `git.kernel.org` at tag `v5.10` and compared against the
+tree we run. This is still source reading, not measurement, but it is no longer
+one-sided: the two kernels can be diffed directly, and they differ in exactly
+the place this document predicted.
+
+## The errata is older than the narrowing
+
+The errata comment exists in 5.10 too, at `gmc_v10_0.c:323` — one revision
+earlier in wording:
+
+```c
+/* 5.10 */
+/* The SDMA on Navi has a bug which can theoretically result in memory
+ * corruption if an invalidation happens at the same time as an VA
+ * translation. Avoid this by doing the invalidation from the SDMA
+ * itself.
+ */
+```
+
+```c
+/* 7.0 */
+/* The SDMA on Navi 1x has a bug ... Avoid this by doing the invalidation
+ * from the SDMA itself at least for GART.
+ */
+```
+
+`at least for GART` is new. It is the comment admitting a narrowing.
+
+## The guard is the regression
+
+5.10, `gmc_v10_0.c:314` — the condition that falls back to the unprotected
+register-write path:
+
+```c
+if (!adev->mman.buffer_funcs_enabled ||
+    !adev->ib_pool_ready ||
+    amdgpu_in_reset(adev) ||
+    ring->sched.ready == false) {
+```
+
+**No VMID test.** Every VMID on the GFXHUB got the SDMA-based invalidation.
+
+7.0, `amdgpu_gmc.c:719`:
+
+```c
+if (!hub->sdma_invalidation_workaround || vmid ||
+    !adev->mman.buffer_funcs_enabled || !adev->ib_pool_ready ||
+    !ring->sched.ready) {
+```
+
+`|| vmid` was added. Protection went from *all VMIDs* to *VMID 0 only* — from
+every user process to none of them.
+
+## And 5.10's primary compute path was ordered anyway
+
+`gmc_v10_0_flush_gpu_tlb_pasid` in 5.10 does not start with a VMID loop. It
+starts with KIQ:
+
+```c
+if (amdgpu_emu_mode == 0 && ring->sched.ready) {
+        kiq->pmf->kiq_invalidate_tlbs(ring, pasid, flush_type, all_hub);
+        r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
+        amdgpu_ring_commit(ring);
+        r = amdgpu_fence_wait_polling(ring, seq, adev->usec_timeout);
+        return 0;
+}
+/* only if KIQ is unavailable: loop VMIDs -> gmc_v10_0_flush_gpu_tlb */
+```
+
+That is an invalidation **packet on a ring, with a fence waited on** — ordered,
+like the graphics path. The VMID loop was the fallback, and even the fallback
+landed in the SDMA workaround because of the missing `|| vmid`.
+
+So in 5.10, compute invalidation was ordered by one of two mechanisms. Neither
+was a bare asynchronous MMIO write.
+
+## Where that leaves us
+
+| mechanism | 5.10 | this board, today |
+|---|---|---|
+| KIQ ring, fenced | primary | **disabled by our own patch** |
+| SDMA workaround | all VMIDs | **VMID 0 only** (upstream narrowed it) |
+| bare MMIO register write | emulation fallback only | **the only one left** |
+
+Both of 5.10's ordered paths are gone, and they were removed by two unrelated
+decisions that happen to compose badly:
+
+1. Upstream added `|| vmid`, excluding user VMIDs from the workaround.
+2. We set `flush_pasid_uses_kiq = false`, because KIQ `INVALIDATE_TLBS` wedges
+   on this silicon — see [02-kernel-patches.md](02-kernel-patches.md). That
+   patch is not optional; without it the CP wedges and GPU reset fails to
+   restore SDMA.
+
+Our own patch is half of the exposure. It is still the right patch — but it
+solves a hang by moving us onto the path an errata says can corrupt memory, and
+upstream had already removed the guard rail from that path.
+
+This is also a mechanism for the community claim in
+[19](19-community-reports-untested.md) section 1.1 that an older kernel worked,
+without that claim needing to be about "memory being mapped differently" at all.
+
+## The patch this suggests
+
+Restore 5.10's coverage without restoring KIQ — drop the VMID exclusion, or
+gate it to this device:
+
+```c
+/* amdgpu_gmc.c, amdgpu_gmc_flush_gpu_tlb() */
+-       if (!hub->sdma_invalidation_workaround || vmid ||
++       bool bc250 = adev->pdev->device == BC250_PCI_DEVICE_ID;
++
++       if (!hub->sdma_invalidation_workaround || (vmid && !bc250) ||
+            !adev->mman.buffer_funcs_enabled || !adev->ib_pool_ready ||
+            !ring->sched.ready) {
+```
+
+That routes compute invalidation for user VMIDs back through the SDMA-submitted
+path — the thing the errata explicitly tells you to do — while leaving KIQ
+disabled.
+
+Cost to check: one small patch, one module rebuild, then twelve runs of
+`tools/hipmalloc_cru.py` against twelve on the current module. No new tooling.
+
+**Predictions, so this is falsifiable:**
+
+- If the mechanism is right, the aliasing rate should drop sharply, and the
+  subtractive knob test in the section above should also reduce it.
+- If the rate does not move, the errata is not our mechanism, and doc 17's
+  conclusion stands unchanged — the exposure is real but is not what bites us.
+
+Either outcome is worth the rebuild. This is the first hypothesis in this repo
+that came with a specific upstream change, a specific line, and a patch small
+enough to be wrong cheaply.
