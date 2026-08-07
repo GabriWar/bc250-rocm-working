@@ -23,10 +23,22 @@ The BC-250 is a PS5 APU (Oberon, `gfx1013` / "Cyan Skillfish") sold as a mining
 board. ROCm nominally runs on it; heavy compute does not — every attempt hits a
 GPU fault, and often takes the whole machine down with it.
 
-**The core defect is still open, and it is a virtual-to-physical translation
-fault.** The GPU resolves a virtual address to different physical memory than
-its own page tables specify. Everything else in this repo is either a
-workaround for that, or a measurement that narrowed it down. See
+**The core defect is a virtual-to-physical translation fault, and as of
+2026-08-07 there is a patch that stops it from being generated.** The GPU
+resolves a virtual address to different physical memory than its own page tables
+specify — specifically, to whatever that same address mapped to in an *earlier*
+generation, because `hipFree` asks for a TLB invalidation that this board never
+performs. Rebuilding the runlist on unmap makes the firmware invalidate for
+real: **13 of 18 dirty runs become 0 of 18**, p = 3.7 × 10⁻⁶.
+
+See [24 — Flushing the compute TLB by rebuilding the runlist](docs/24-flushing-the-tlb-by-rebuilding-the-runlist.md)
+and [`patches/bc250-flush-tlb-by-runlist.patch`](patches/bc250-flush-tlb-by-runlist.patch).
+
+It is **not finished**: heavier workloads and preemption under sustained load
+are untested, and the patch currently rebuilds the runlist on every unmap when
+only the reused-VA case needs it — there is real performance still to recover.
+Everything else in this repo is either a workaround for the defect, or a
+measurement that narrowed it down. See
 [the open problem](#the-open-problem-the-gpu-resolves-va-to-the-wrong-pa).
 
 This repo documents getting Stable Diffusion working on one, with:

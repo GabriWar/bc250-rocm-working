@@ -1,0 +1,46 @@
+
+boot=37a9838c A/B mesmo-boot: 0=stock 1=runlist. Cada exec traz a contagem de execute_queues_cpsch.
+exec=1 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=2 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=3 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=4 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=5 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=6 braco=0 pisados=0 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=7 braco=0 pisados=1 eq_cpsch=8 saude=0->0 boot=37a9838c
+exec=8 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=9 braco=0 pisados=0 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=10 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=11 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=12 braco=0 pisados=0 eq_cpsch=8 saude=0->0 boot=37a9838c
+---- resumo ----
+  0 stock      3/6 sujas   eq_cpsch medio=7   [1 1 0 1 0 0 ]
+  1 runlist    0/6 sujas   eq_cpsch medio=68   [0 0 0 0 0 0 ]
+
+-- fase 2: +24 execucoes, 12 por braco --
+exec=101 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=102 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=103 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=104 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=105 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=106 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=107 braco=0 pisados=0 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=108 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=109 braco=0 pisados=2 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=110 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=111 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=112 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=113 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=114 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=115 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=116 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=117 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=118 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=119 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=120 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=121 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+exec=122 braco=0 pisados=1 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=123 braco=0 pisados=0 eq_cpsch=6 saude=0->0 boot=37a9838c
+exec=124 braco=1 pisados=0 eq_cpsch=68 saude=0->0 boot=37a9838c
+---- resumo GERAL do boot 37a9838c ----
+  0 stock      13/18 sujas   eq_cpsch medio=6   [1 1 0 1 0 0 1 1 1 0 2 1 1 1 1 1 1 0 ]
+  1 runlist    0/18 sujas   eq_cpsch medio=68   [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]

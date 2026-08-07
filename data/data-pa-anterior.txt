@@ -1,0 +1,263 @@
+
+==========================================================================
+boot=37a9838c pid=211896
+  fase 1: geracao 0 (churn), registrando VA -> PA
+      churn rodada 0: 19 VAs mapeadas, 0 caminhadas sem PA
+      churn rodada 1: 19 VAs mapeadas, 0 caminhadas sem PA
+      churn rodada 2: 19 VAs mapeadas, 0 caminhadas sem PA
+  fase 2: geracao 1 (final), registrando VA -> PA
+      geracao 1: 38 VAs mapeadas, 0 caminhadas sem PA
+  VAs reusadas entre as geracoes: 19 de 38
+  fase 3: classificando paginas (20 leituras cada)
+
+  fase 4: veredito, 2 pagina(s)
+    A8028160p2  VA=0x7fb323a00000
+      deveria (tabela hoje) : 0x46c400000
+      usado   (dado veio de): 0x458c00000  = B8028160p2
+      antes   (mesma VA ger0): 0x458400000
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A8028160p3  VA=0x7fb323c00000
+      deveria (tabela hoje) : 0x46c600000
+      usado   (dado veio de): 0x458e00000  = B8028160p3
+      antes   (mesma VA ger0): 0x458600000
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+
+  obsoletas=0  alheias=2  indecidiveis=0
+  >>> O PA nunca foi traducao daquela VA. NAO e entrada obsoleta --
+  >>> a entrada responde a uma VA que nao e a dela. Invalidar no unmap
+  >>> nao resolveria, e o alvo muda.
+
+==========================================================================
+boot=37a9838c pid=250392
+  fase 1: geracao 0 (churn), registrando VA -> PA
+      churn rodada 0: 19 VAs mapeadas, 0 caminhadas sem PA
+      churn rodada 1: 19 VAs mapeadas, 0 caminhadas sem PA
+      churn rodada 2: 19 VAs mapeadas, 0 caminhadas sem PA
+  fase 2: geracao 1 (final), registrando VA -> PA
+      geracao 1: 38 VAs mapeadas, 0 caminhadas sem PA
+  VAs reusadas entre as geracoes: 19 de 38
+  fase 3: classificando paginas (20 leituras cada)
+
+  fase 4: veredito, 3 pagina(s)
+    A5898240p0  VA=0x7fd55ae00000
+      deveria (tabela hoje) : 0x45a800000
+      usado   (dado veio de): 0x45a400000  = A10485760p2
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x458c00000, r1=0x45a800000, r2=0x45a800000
+      o PA usado ja foi de: VA=0x7fd561400000 r0, VA=0x7fd560800000 r1, VA=0x7fd55ba00000 r2
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A5898240p1  VA=0x7fd55b000000
+      deveria (tabela hoje) : 0x45aa00000
+      usado   (dado veio de): 0x45a600000  = A10485760p3
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x458e00000, r1=0x45aa00000, r2=0x45aa00000
+      o PA usado ja foi de: VA=0x7fd561600000 r0, VA=0x7fd560a00000 r1, VA=0x7fd55bc00000 r2
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A5898240p2  VA=0x7fd55b200000
+      deveria (tabela hoje) : 0x459600000
+      usado   (dado veio de): 0x45a800000  = A5898240p0
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x45a800000, r1=0x459e00000, r2=0x46e400000
+      o PA usado ja foi de: VA=0x7fd55ae00000 r1, VA=0x7fd55ae00000 r2, VA=0x7fd55b200000 r0
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA na rodada 0)
+
+  obsoletas=1  alheias=2  indecidiveis=0
+  >>> MISTO. Os dois mecanismos aparecem; nenhum sozinho explica.
+
+==========================================================================
+boot=37a9838c pid=290134
+  fase 1: geracao 0 (churn), registrando VA -> PA
+      churn rodada 0: 19 VAs mapeadas, 0 caminhadas sem PA
+      churn rodada 1: 19 VAs mapeadas, 0 caminhadas sem PA
+      churn rodada 2: 19 VAs mapeadas, 0 caminhadas sem PA
+  fase 2: geracao 1 (final), registrando VA -> PA
+      geracao 1: 38 VAs mapeadas, 0 caminhadas sem PA
+  VAs reusadas entre as geracoes: 19 de 38
+  fase 3: classificando paginas (20 leituras cada)
+
+  fase 4: veredito, 6 pagina(s)
+    A8028160p0  VA=0x7f4b67600000
+      deveria (tabela hoje) : 0x46e800000
+      usado   (dado veio de): 0x45ac00000  = A10485760p4
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x45a000000, r1=0x458000000, r2=0x459800000
+      o PA usado ja foi de: VA=0x7f4b67200000 r0, VA=0x7f4b65c00000 r1, VA=0x7f4b65c00000 r2
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A10485760p0  VA=0x7f4b66a00000
+      deveria (tabela hoje) : 0x469800000
+      usado   (dado veio de): 0x45a000000  = A6922240p0
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x459800000, r1=0x46e800000, r2=0x459000000
+      o PA usado ja foi de: VA=0x7f4b67600000 r0, VA=0x7f4b66000000 r1
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A10485760p1  VA=0x7f4b66c00000
+      deveria (tabela hoje) : 0x469a00000
+      usado   (dado veio de): 0x45a200000  = A6922240p1
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x459a00000, r1=0x46ea00000, r2=0x459200000
+      o PA usado ja foi de: VA=0x7f4b67800000 r0, VA=0x7f4b66200000 r1
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A10485760p2  VA=0x7f4b66e00000
+      deveria (tabela hoje) : 0x469c00000
+      usado   (dado veio de): 0x45a400000  = A6922240p2
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x459c00000, r1=0x46ec00000, r2=0x459400000
+      o PA usado ja foi de: VA=0x7f4b67a00000 r0, VA=0x7f4b66400000 r1
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A10485760p3  VA=0x7f4b67000000
+      deveria (tabela hoje) : 0x469e00000
+      usado   (dado veio de): 0x45a600000  = A6922240p3
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x459e00000, r1=0x46ee00000, r2=0x459600000
+      o PA usado ja foi de: VA=0x7f4b67c00000 r0, VA=0x7f4b66600000 r1
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+    A10485760p4  VA=0x7f4b67200000
+      deveria (tabela hoje) : 0x45ac00000
+      usado   (dado veio de): 0x45a800000  = A5898240p0
+      antes   (mesma VA, TODAS as rodadas de churn): r0=0x45ac00000, r1=0x458c00000, r2=0x458e00000
+      o PA usado ja foi de: VA=0x7f4b65800000 r0, VA=0x7f4b65800000 r1, VA=0x7f4b65800000 r2
+      -> NAO obsoleta: este PA nunca foi traducao desta VA
+
+  obsoletas=0  alheias=6  indecidiveis=0
+  >>> O PA nunca foi traducao daquela VA. NAO e entrada obsoleta --
+  >>> a entrada responde a uma VA que nao e a dela. Invalidar no unmap
+  >>> nao resolveria, e o alvo muda.
+
+==========================================================================
+boot=37a9838c pid=471162
+  fase 0: aquecimento, registrando as geracoes do alocador do torch
+    aquecimento: 23 VAs vistas, 28 geracoes
+  fase 1: churn, registrando VA -> PA
+      churn rodada 0: 19 VAs mapeadas, 0 sem PA
+      churn rodada 1: 19 VAs mapeadas, 0 sem PA
+      churn rodada 2: 19 VAs mapeadas, 0 sem PA
+  fase 2: geracao 1 (final), registrando VA -> PA
+      geracao 1: 38 VAs mapeadas, 0 sem PA
+  VAs reusadas entre as geracoes: 19 de 38
+  fase 3: classificando paginas (20 leituras cada)
+
+  fase 4: veredito, 4 pagina(s)
+    A8028160p0  VA=0x7fc058e00000
+      deveria (tabela hoje) : 0x46f000000
+      usado   (dado veio de): 0x45a000000  = A6922240p0
+      antes   (mesma VA, 3 geracoes): aq24=0x45a000000, r1=0x458000000, r2=0x459800000
+      o PA usado ja foi de: VA=0x7fc058e00000 aq24, VA=0x7fc058200000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A8028160p1  VA=0x7fc059000000
+      deveria (tabela hoje) : 0x46f200000
+      usado   (dado veio de): 0x45a200000  = A6922240p1
+      antes   (mesma VA, 3 geracoes): aq24=0x45a200000, r1=0x458200000, r2=0x459a00000
+      o PA usado ja foi de: VA=0x7fc059000000 aq24, VA=0x7fc058400000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A8028160p2  VA=0x7fc059200000
+      deveria (tabela hoje) : 0x46f400000
+      usado   (dado veio de): 0x45a400000  = A6922240p2
+      antes   (mesma VA, 3 geracoes): aq24=0x45a400000, r1=0x458400000, r2=0x459c00000
+      o PA usado ja foi de: VA=0x7fc059200000 aq24, VA=0x7fc058600000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A8028160p3  VA=0x7fc059400000
+      deveria (tabela hoje) : 0x46f600000
+      usado   (dado veio de): 0x45a600000  = A6922240p3
+      antes   (mesma VA, 3 geracoes): aq24=0x45a600000, r1=0x458600000, r2=0x459e00000
+      o PA usado ja foi de: VA=0x7fc059400000 aq24, VA=0x7fc058800000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+
+  obsoletas=4  alheias=0  indecidiveis=0
+  >>> A GPU traduz pelo mapeamento da geracao anterior daquela VA.
+  >>> Nascimento: o hipFree que nao invalidou. Invalidar no unmap resolve.
+
+==========================================================================
+boot=37a9838c pid=485263
+  fase 0: aquecimento, registrando as geracoes do alocador do torch
+    aquecimento: 28 VAs vistas, 28 geracoes
+  fase 1: churn, registrando VA -> PA
+      churn rodada 0: 19 VAs mapeadas, 0 sem PA
+      churn rodada 1: 19 VAs mapeadas, 0 sem PA
+      churn rodada 2: 19 VAs mapeadas, 0 sem PA
+  fase 2: geracao 1 (final), registrando VA -> PA
+      geracao 1: 38 VAs mapeadas, 0 sem PA
+  VAs reusadas entre as geracoes: 19 de 38
+  fase 3: classificando paginas (20 leituras cada)
+
+  fase 4: veredito, 6 pagina(s)
+    A10485760p0  VA=0x7fbeeb400000
+      deveria (tabela hoje) : 0x45a000000
+      usado   (dado veio de): 0x45aa00000  = A5898240p1
+      antes   (mesma VA, 3 geracoes): aq24=0x45aa00000, r0=0x459800000, r1=0x45a000000
+      o PA usado ja foi de: VA=0x7fbeeb400000 aq24, VA=0x7fbeea400000 r0
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A10485760p1  VA=0x7fbeeb600000
+      deveria (tabela hoje) : 0x45a200000
+      usado   (dado veio de): 0x45ac00000  = A10485760p4
+      antes   (mesma VA, 3 geracoes): aq24=0x45ac00000, r0=0x459a00000, r1=0x45a200000
+      o PA usado ja foi de: VA=0x7fbeeb600000 aq24, VA=0x7fbeebc00000 r0, VA=0x7fbeea600000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A6922240p0  VA=0x7fbeeaa00000
+      deveria (tabela hoje) : 0x459800000
+      usado   (dado veio de): 0x45a000000  = A10485760p0
+      antes   (mesma VA, 4 geracoes): aq24=0x45a000000, r0=0x459000000, r1=0x46e800000, r2=0x459800000
+      o PA usado ja foi de: VA=0x7fbeeaa00000 aq24, VA=0x7fbeeb400000 r1, VA=0x7fbef8400000 r0
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A6922240p1  VA=0x7fbeeac00000
+      deveria (tabela hoje) : 0x459a00000
+      usado   (dado veio de): 0x45a200000  = A10485760p1
+      antes   (mesma VA, 4 geracoes): aq24=0x45a200000, r0=0x459200000, r1=0x46ea00000, r2=0x459a00000
+      o PA usado ja foi de: VA=0x7fbeeac00000 aq24, VA=0x7fbeeb600000 r1, VA=0x7fbef8600000 r0
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A6922240p2  VA=0x7fbeeae00000
+      deveria (tabela hoje) : 0x459c00000
+      usado   (dado veio de): 0x45a400000  = A10485760p2
+      antes   (mesma VA, 4 geracoes): aq24=0x45a400000, r0=0x459400000, r1=0x46ec00000, r2=0x459c00000
+      o PA usado ja foi de: VA=0x7fbeeae00000 aq24, VA=0x7fbeeb800000 r1, VA=0x7fbef8800000 r0
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A6922240p3  VA=0x7fbeeb000000
+      deveria (tabela hoje) : 0x459e00000
+      usado   (dado veio de): 0x45a600000  = A10485760p3
+      antes   (mesma VA, 4 geracoes): aq24=0x45a600000, r0=0x459600000, r1=0x46ee00000, r2=0x459e00000
+      o PA usado ja foi de: VA=0x7fbeeb000000 aq24, VA=0x7fbeeba00000 r1, VA=0x7fbef8a00000 r0
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+
+  obsoletas=6  alheias=0  indecidiveis=0
+  >>> A GPU traduz pelo mapeamento da geracao anterior daquela VA.
+  >>> Nascimento: o hipFree que nao invalidou. Invalidar no unmap resolve.
+
+==========================================================================
+boot=37a9838c pid=490636
+  fase 0: aquecimento, registrando as geracoes do alocador do torch
+    aquecimento: 33 VAs vistas, 38 geracoes
+  fase 1: churn, registrando VA -> PA
+      churn rodada 0: 19 VAs mapeadas, 0 sem PA
+      churn rodada 1: 19 VAs mapeadas, 0 sem PA
+      churn rodada 2: 19 VAs mapeadas, 0 sem PA
+  fase 2: geracao 1 (final), registrando VA -> PA
+      geracao 1: 38 VAs mapeadas, 0 sem PA
+  VAs reusadas entre as geracoes: 19 de 38
+  fase 3: classificando paginas (20 leituras cada)
+
+  fase 4: veredito, 5 pagina(s)
+    A6922240p0  VA=0x7f771aa00000
+      deveria (tabela hoje) : 0x459000000
+      usado   (dado veio de): 0x45a600000  = A8028160p3
+      antes   (mesma VA, 4 geracoes): aq24=0x45a600000, r0=0x459000000, r1=0x458800000, r2=0x459000000
+      o PA usado ja foi de: VA=0x7f7721800000 r0, VA=0x7f7721800000 r2, VA=0x7f771aa00000 aq24, VA=0x7f771ba00000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A6922240p1  VA=0x7f771ac00000
+      deveria (tabela hoje) : 0x459200000
+      usado   (dado veio de): 0x45a800000  = A5898240p0
+      antes   (mesma VA, 4 geracoes): aq24=0x45a800000, r0=0x459200000, r1=0x458a00000, r2=0x459200000
+      o PA usado ja foi de: VA=0x7f771ac00000 aq24, VA=0x7f7718600000 r1, VA=0x7f7718a00000 r0
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A6922240p2  VA=0x7f771ae00000
+      deveria (tabela hoje) : 0x459400000
+      usado   (dado veio de): 0x45aa00000  = A5898240p1
+      antes   (mesma VA, 4 geracoes): aq24=0x45aa00000, r0=0x459400000, r1=0x458c00000, r2=0x459400000
+      o PA usado ja foi de: VA=0x7f771ae00000 aq24, VA=0x7f771bc00000 r0, VA=0x7f7718800000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A2621440p0  VA=0x7f771a400000
+      deveria (tabela hoje) : 0x458800000
+      usado   (dado veio de): 0x45a000000  = A8028160p0
+      antes   (mesma VA, 4 geracoes): aq24=0x45a000000, r0=0x458800000, r1=0x459800000, r2=0x458800000
+      o PA usado ja foi de: VA=0x7f7721200000 r0, VA=0x7f7721200000 r2, VA=0x7f771a400000 aq24, VA=0x7f771b400000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+    A2621440p1  VA=0x7f771a600000
+      deveria (tabela hoje) : 0x458a00000
+      usado   (dado veio de): 0x45a200000  = A8028160p1
+      antes   (mesma VA, 4 geracoes): aq24=0x45a200000, r0=0x458a00000, r1=0x459a00000, r2=0x458a00000
+      o PA usado ja foi de: VA=0x7f7721400000 r0, VA=0x7f7721400000 r2, VA=0x7f771a600000 aq24, VA=0x7f771b600000 r1
+      -> ENTRADA OBSOLETA (o PA usado e o desta VA em aq24)
+
+  obsoletas=5  alheias=0  indecidiveis=0
+  >>> A GPU traduz pelo mapeamento da geracao anterior daquela VA.
+  >>> Nascimento: o hipFree que nao invalidou. Invalidar no unmap resolve.
