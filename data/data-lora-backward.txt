@@ -1,0 +1,49 @@
+================= runlist=0 =================
+  patch runlist = 0   iters=60   tolerancia=0.1
+  estagio                    veredito     tempo  detalhe
+  matmul_grande              OK            5.4s  erro_rel_max 1024:3.84e-04 2048:2.51e-04 4096:3.59e-04
+  lora_bwd_h768_t512_r8      OK            4.6s  eA=1.93e-02 eB=3.90e-03 gB=0.115
+  lora_bwd_h768_t512_r32     OK            3.7s  eA=1.61e-02 eB=4.57e-03 gB=0.447
+  lora_bwd_h1024_t1024_r8    OK            3.5s  eA=3.31e-02 eB=1.02e-02 gB=0.117
+  lora_bwd_h1024_t1024_r32   OK            3.4s  eA=2.76e-02 eB=9.83e-03 gB=0.468
+  lora_bwd_h2048_t1024_r8    OK            4.0s  eA=3.54e-02 eB=1.75e-02 gB=0.196
+  lora_bwd_h2048_t1024_r32   OK            3.8s  eA=4.00e-02 eB=1.57e-02 gB=0.796
+  lora_bwd_h4096_t512_r8     OK            4.6s  eA=2.07e-02 eB=1.17e-02 gB=0.497
+  lora_bwd_h4096_t512_r32    OK            4.6s  eA=2.22e-02 eB=1.20e-02 gB=1.959
+  lora_bwd_fp32_h1024_r16    OK            3.5s  eA=1.85e-06 eB=1.18e-06 gB=0.228
+  lora_bwd_r64_h2048         OK            4.0s  eA=3.63e-02 eB=1.56e-02 gB=1.605
+  distilgpt2_lora_bwd        ERRO          3.8s  ModuleNotFoundError: Could not import module 'AutoModelForCausalLM'. Are this ob
+  multipass                  OK           34.4s  150 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03
+  multipass_longo            OK           39.2s  400 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03 p175:5.30e-03 p200:5.30e-03 p225:5.30e-03 p250:5.30e-03 p275:5.30e-03 p300:5.30e-03 p325:5.30e-03 p350:5.30e-03 p375:5.30e-03 p400:5.30e-03
+
+  travou/errou de verdade : distilgpt2_lora_bwd
+  numero errado (silencioso): nenhum
+eq_cpsch=75   erros_placa=0->0
+
+================= runlist=1 =================
+  patch runlist = 1   iters=60   tolerancia=0.1
+  estagio                    veredito     tempo  detalhe
+  matmul_grande              OK            5.2s  erro_rel_max 1024:3.84e-04 2048:2.51e-04 4096:3.59e-04
+  lora_bwd_h768_t512_r8      OK            3.3s  eA=1.93e-02 eB=3.90e-03 gB=0.115
+  lora_bwd_h768_t512_r32     OK            3.3s  eA=1.61e-02 eB=4.57e-03 gB=0.447
+  lora_bwd_h1024_t1024_r8    OK            3.5s  eA=3.31e-02 eB=1.02e-02 gB=0.117
+  lora_bwd_h1024_t1024_r32   OK            3.4s  eA=2.76e-02 eB=9.83e-03 gB=0.468
+  lora_bwd_h2048_t1024_r8    OK            4.0s  eA=3.54e-02 eB=1.75e-02 gB=0.196
+  lora_bwd_h2048_t1024_r32   OK            4.0s  eA=4.00e-02 eB=1.57e-02 gB=0.796
+  lora_bwd_h4096_t512_r8     OK            4.7s  eA=2.07e-02 eB=1.17e-02 gB=0.497
+  lora_bwd_h4096_t512_r32    OK            4.7s  eA=2.22e-02 eB=1.20e-02 gB=1.959
+  lora_bwd_fp32_h1024_r16    OK            3.5s  eA=1.85e-06 eB=1.18e-06 gB=0.228
+  lora_bwd_r64_h2048         OK            4.2s  eA=3.63e-02 eB=1.56e-02 gB=1.605
+  distilgpt2_lora_bwd        ERRO          3.4s  ModuleNotFoundError: Could not import module 'AutoModelForCausalLM'. Are this ob
+  multipass                  OK           36.5s  150 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03
+  multipass_longo            OK           36.4s  400 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03 p175:5.30e-03 p200:5.30e-03 p225:5.30e-03 p250:5.30e-03 p275:5.30e-03 p300:5.30e-03 p325:5.30e-03 p350:5.30e-03 p375:5.30e-03 p400:5.30e-03
+
+  travou/errou de verdade : distilgpt2_lora_bwd
+  numero errado (silencioso): nenhum
+eq_cpsch=751   erros_placa=0->0
+
+(desarmado)
+bloco_transformer_lora runlist=0  (6s)  eq_cpsch=5 erros=0->0
+  {"eA": 4.6847782186887343e-07, "eB": 7.375447239610367e-07, "ok": true, "finito": true, "chapado": false, "gA": 5.282218933105469, "gB": 6.761906623840332}
+bloco_transformer_lora runlist=1  (6s)  eq_cpsch=68 erros=0->0
+  {"eA": 9.275860975321848e-06, "eB": 1.1186094525328372e-05, "ok": true, "finito": true, "chapado": false, "gA": 5.282199859619141, "gB": 6.7619123458862305}
