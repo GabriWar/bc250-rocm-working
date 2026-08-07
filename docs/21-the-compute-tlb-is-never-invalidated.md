@@ -207,3 +207,84 @@ invalidate every VMID rather than none:
 
 Heavier than necessary, and correct. It is a few lines, and it is falsifiable
 in one A/B against the reproducer we already have.
+
+---
+
+# Addendum — where the VMID actually is, and why "invalidate everything" fails
+
+Two follow-up measurements, both zero-cost, that turn the bind into a plan.
+
+## Invalidating every VMID does not work
+
+The obvious response to "the sweep matches nothing" is to stop matching and
+invalidate all sixteen. Measured, and it fails:
+
+```
+amdgpu 0000:01:00.0: failed to write reg 28b4 wait reg 28c6      (x14)
+```
+
+An unmapped VMID never acknowledges the invalidation, so each attempt burns a
+long timeout. The reproducer, normally ~2 minutes, was still running at 3:07
+when it was killed. That is why the community's `flush_mapped_vmids` patch
+guards on the ATC query in the first place — the guard is not optional, even
+though on this board it happens to reject everything.
+
+## The VMID is discoverable, and it is not in any of the places the driver looks
+
+| source | has it? |
+|---|---|
+| `mmATC_VMID*_PASID_MAPPING` (what the flush queries) | no — never written on gfx10 |
+| `dqm->vmid_pasid[]` (KFD's software table) | no — only filled by `create_queue_nocpsch`; we run HWS |
+| `q->properties.vmid` | no — `kfd_priv.h:526` says "Not relevant for user mode queues in cp scheduling" |
+| **`CP_HQD_VMID`, in the hardware queue descriptor** | **yes** |
+
+`/sys/kernel/debug/kfd/hqds` already dumps every HQD, and `CP_HQD_VMID` is the
+fourth dword of each queue's block (`mmCP_MQD_BASE_ADDR + 3`, the dump starts at
+`mmCP_MQD_BASE_ADDR`). Sampled four times across one reproducer run that
+corrupted:
+
+```
+t=20s  VMIDs in use: {0: 23 queues, 8: 2 queues}
+t=45s  same          CP Pipe 0 Queue 2 = vmid 8
+t=70s  same          CP Pipe 1 Queue 2 = vmid 8
+t=95s  same
+```
+
+Two compute queues on **VMID 8**, stable for the whole run. The other 23 are the
+kernel's, idle, on VMID 0.
+
+So the information exists in hardware and is readable without patching
+anything. It is simply not where `gmc_v10_0_flush_gpu_tlb_pasid()` looks.
+
+## `bc250_flush_vmid` is a probe, not a fix
+
+The parameter added here invalidates one hardcoded VMID when the query finds
+nothing. It exists to answer one question — does invalidating the right VMID
+stop the corruption? — before any engineering is spent on discovering it
+properly.
+
+It is wrong as a fix, in three ways:
+
+- with two HIP processes, each gets its own VMID; it would invalidate only one
+- if the firmware picks a different VMID, it points at nothing
+- a flush requested for process A would invalidate whatever VMID is configured,
+  which may belong to process B
+
+**If the probe pays**, the real fix is to have KFD record the VMID once, after
+`map_queues_cpsch` succeeds, into `q->properties.vmid` — the field that already
+exists and sits unused under HWS. Then the flush walks the process's queues and
+uses a stored value, with no MMIO on the hot path and correct behaviour for any
+number of processes.
+
+**If the probe does not pay**, none of that engineering is worth doing, and the
+inference in this document joins the retraction list.
+
+## This is probably not a BC-250 bug
+
+The chain — PASID invalidation falls back to a register sweep, the sweep needs a
+table, and that table is only populated outside HWS — is generic to gfx10. What
+is specific to this board is that KIQ, the path AMD intended (the firmware
+resolves the PASID), wedges here, so we disabled it and landed on the fallback.
+
+Any gfx10 running HWS with KIQ unavailable would have the same silent hole.
+Worth reporting upstream if the probe confirms it.
