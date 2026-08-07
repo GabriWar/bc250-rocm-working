@@ -48,7 +48,7 @@ This repo documents getting Stable Diffusion working on one, with:
 - what we measured, including the parts that are still broken
 - the hypotheses we **refuted**, with the evidence that killed them
 
-Everything here was measured on real hardware in one session
+Everything here was measured on real hardware across several sessions
 (2026-08-04). Where something is assumed rather than measured, it says so.
 
 ---
@@ -348,7 +348,7 @@ proof/        generated images
 | file | topic |
 |---|---|
 | [00-setup.md](docs/00-setup.md) | how to reproduce, step by step |
-| [01-the-bug.md](docs/01-the-bug.md) | the core compute bug, still unsolved |
+| [01-the-bug.md](docs/01-the-bug.md) | the core compute bug — **root cause found, see 24** |
 | [02-kernel-patches.md](docs/02-kernel-patches.md) | both kernel patches, with the traces |
 | [03-warmup.md](docs/03-warmup.md) | the warmup workaround, and its limits |
 | [04-vae.md](docs/04-vae.md) | why VAE decode still needs the CPU |
@@ -360,6 +360,18 @@ proof/        generated images
 | [10-performance-and-limits.md](docs/10-performance-and-limits.md) | TFLOP/s, the broken GPU timer, telemetry, bf16, wave debugging |
 | [11-miopen-conv-corruption.md](docs/11-miopen-conv-corruption.md) | **MIOpen's conv2d silently returns wrong numbers — and the fix** |
 | [12-gpu-vae-and-empty-cache.md](docs/12-gpu-vae-and-empty-cache.md) | **GPU VAE decode working — `empty_cache()` was corrupting the next op** |
+| [13-naive-solver-and-measurement.md](docs/13-naive-solver-and-measurement.md) | the naive solver, and how it was measured |
+| [14-h2d-copy-corruption.md](docs/14-h2d-copy-corruption.md) | host-to-device copy corruption — attribution later superseded by 17 |
+| [15-bf16-e-o-que-o-warmup-nao-explica.md](docs/15-bf16-e-o-que-o-warmup-nao-explica.md) | bf16 kills the VAE on the first conv; what the warmup does not explain |
+| [16-wgp-registers-vem-do-vbios.md](docs/16-wgp-registers-vem-do-vbios.md) | the WGP registers already come unlocked from the VBIOS |
+| **[17-a-gpu-le-fora-da-propria-tabela-de-pagina.md](docs/17-a-gpu-le-fora-da-propria-tabela-de-pagina.md)** | **the GPU reads outside its own page table — the defect stated properly** |
+| [18-comfyui-working-and-z-image.md](docs/18-comfyui-working-and-z-image.md) | ComfyUI without warmup, VAE on the GPU, Z-Image Turbo |
+| [19-community-reports-untested.md](docs/19-community-reports-untested.md) | community reports, none verified here |
+| [20-why-the-compute-path-is-uncovered.md](docs/20-why-the-compute-path-is-uncovered.md) | why the compute path is uncovered — **superseded by 21, retracted in place** |
+| [21-the-compute-tlb-is-never-invalidated.md](docs/21-the-compute-tlb-is-never-invalidated.md) | the compute TLB is never invalidated |
+| [22-the-page-table-cache-is-innocent.md](docs/22-the-page-table-cache-is-innocent.md) | the L2 page-table cache is innocent; forcing invalidation stalls the board |
+| [23-it-is-the-translation.md](docs/23-it-is-the-translation.md) | it is the translation, measured — a second mapping reads the same memory correctly |
+| **[24-flushing-the-tlb-by-rebuilding-the-runlist.md](docs/24-flushing-the-tlb-by-rebuilding-the-runlist.md)** | **the fix: rebuild the runlist on unmap. 13/18 dirty → 0/18** |
 
 ---
 
@@ -389,7 +401,8 @@ works and the next one fails, and *that* a warmup avoids it. We do not know
 *why*. Six explanations were proposed and refuted during this session; they are
 all in [07-refuted.md](docs/07-refuted.md) so nobody has to rediscover them.
 
-The most promising open lead is in [01-the-bug.md](docs/01-the-bug.md): the AQL
+~~The most promising open lead~~ — **superseded by the measured mechanism
+above.** It is in [01-the-bug.md](docs/01-the-bug.md): the AQL
 packet of a failing dispatch has `completion_signal=0x0`.
 
 ---
