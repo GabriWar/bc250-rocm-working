@@ -161,18 +161,16 @@ stack is built for gfx1013.
 export GPU_PINNED_MIN_XFER_SIZE=16384
 export HSA_ENABLE_SDMA=0
 export TORCH_BLAS_PREFER_HIPBLASLT=0
-export GPU_MAX_HW_QUEUES=1
-export HIP_LAUNCH_BLOCKING=1
-export AMD_SERIALIZE_KERNEL=3
-export AMD_SERIALIZE_COPY=3
-export AMD_DIRECT_DISPATCH=0
 ```
 
-An honest note on the last four: they were added as workarounds while the defect
-was unexplained, and they **do not fix it** — the corruption reproduces with all
-of them set, which is one of the measurements that proved it is not a race. They
-cost throughput. With the runlist fix in place they are candidates for removal,
-and that has not been measured yet.
+**Updated 2026-08-08.** Five more variables used to be here —
+`GPU_MAX_HW_QUEUES=1`, `HIP_LAUNCH_BLOCKING=1`, `AMD_SERIALIZE_KERNEL=3`,
+`AMD_SERIALIZE_COPY=3`, `AMD_DIRECT_DISPATCH=0` — carried as workarounds from
+before the defect had an explanation. They are gone. Measured with the defect
+exposed (`bc250_flush_by_runlist=0`), both arms corrupt in the same order of
+magnitude: 35 tensors clobbered with them, 25 without. They provide no
+protection, and they change nothing measurable on a real workload. See
+[27](27-the-serialization-flags-do-nothing.md).
 
 ---
 

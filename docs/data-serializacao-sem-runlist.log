@@ -1,0 +1,24 @@
+===== rodada 1/8 cond=A 19:20:25 runlist=0 =====
+  resumo: 0 sobreposicoes de endereco, 16 tensores pisados na pratica
+  saida=0
+===== rodada 2/8 cond=B 19:20:45 runlist=0 =====
+/home/gabriwar/bc250-grimoire/roda-sem-runlist.sh: line 13: 48875 Segmentation fault         env -u HIP_LAUNCH_BLOCKING -u AMD_SERIALIZE_KERNEL -u AMD_SERIALIZE_COPY -u AMD_DIRECT_DISPATCH -u GPU_MAX_HW_QUEUES "$@"
+  saida=0
+===== rodada 3/8 cond=B 19:21:00 runlist=0 =====
+  resumo: 0 sobreposicoes de endereco, 13 tensores pisados na pratica
+  saida=0
+===== rodada 4/8 cond=A 19:21:15 runlist=0 =====
+  saida=1
+===== rodada 5/8 cond=B 19:21:25 runlist=0 =====
+  resumo: 0 sobreposicoes de endereco, 11 tensores pisados na pratica
+  saida=0
+===== rodada 6/8 cond=A 19:21:38 runlist=0 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 7/8 cond=A 19:21:50 runlist=0 =====
+  resumo: 0 sobreposicoes de endereco, 19 tensores pisados na pratica
+  saida=0
+===== rodada 8/8 cond=B 19:22:02 runlist=0 =====
+  resumo: 0 sobreposicoes de endereco, 1 tensores pisados na pratica
+  saida=0
+FIM 19:22:14

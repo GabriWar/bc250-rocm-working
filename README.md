@@ -374,6 +374,8 @@ proof/        generated images
 | **[24-flushing-the-tlb-by-rebuilding-the-runlist.md](docs/24-flushing-the-tlb-by-rebuilding-the-runlist.md)** | **the fix: rebuild the runlist on unmap. 13/18 dirty → 0/18** |
 | [25-exact-stack-as-measured.md](docs/25-exact-stack-as-measured.md) | the exact stack this was measured on — kernel, ROCm, PyTorch, every patch |
 | [26-the-other-bc250-patch-set.md](docs/26-the-other-bc250-patch-set.md) | DryhoppedIPA's Vulkan patch set: what it confirms, where we disagree, what we want to borrow |
+| **[27-the-serialization-flags-do-nothing.md](docs/27-the-serialization-flags-do-nothing.md)** | **the five serialization env vars provide no protection; the runlist patch is what holds. 0/16 vs 5/6** |
+| [28-the-sdma0-boot-message-is-not-a-lost-interrupt.md](docs/28-the-sdma0-boot-message-is-not-a-lost-interrupt.md) | the SDMA0 boot warning is an init-order artifact, not lost silicon — and three claims this repo got wrong |
 
 ## Other people's work, vendored
 

@@ -1,0 +1,78 @@
+===== rodada 1/16  cond=A  18:51:37 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 2/16  cond=B  18:51:50 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 3/16  cond=B  18:52:02 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 4/16  cond=A  18:52:13 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 5/16  cond=B  18:52:26 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 6/16  cond=A  18:52:37 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 7/16  cond=A  18:52:49 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 8/16  cond=B  18:53:01 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 9/16  cond=A  18:53:13 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 10/16  cond=B  18:53:26 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 11/16  cond=B  18:53:38 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 12/16  cond=A  18:53:49 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 13/16  cond=A  18:54:01 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 14/16  cond=B  18:54:13 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 15/16  cond=B  18:54:25 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== rodada 16/16  cond=A  18:54:36 =====
+  resumo: 0 sobreposicoes de endereco, 0 tensores pisados na pratica
+  saida=0
+===== carga sustentada: LoRA backward =====
+--- lora cond=A 18:54:49 ---
+  distilgpt2_lora_bwd        ERRO          8.0s  ModuleNotFoundError: Could not import module 'GPT2LMHeadModel'. Are this object'
+  multipass                  OK           32.4s  150 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03
+  multipass_longo            OK           33.4s  400 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03 p175:5.30e-03 p200:5.30e-03 p225:5.30e-03 p250:5.30e-03 p275:5.30e-03 p300:5.30e-03 p325:5.30e-03 p350:5.30e-03 p375:5.30e-03 p400:5.30e-03
+
+  travou/errou de verdade : distilgpt2_lora_bwd
+  numero errado (silencioso): nenhum
+--- lora cond=B 18:56:52 ---
+  distilgpt2_lora_bwd        ERRO          7.1s  ModuleNotFoundError: Could not import module 'GPT2LMHeadModel'. Are this object'
+  multipass                  OK           33.8s  150 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03
+  multipass_longo            OK           45.8s  400 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03 p175:5.30e-03 p200:5.30e-03 p225:5.30e-03 p250:5.30e-03 p275:5.30e-03 p300:5.30e-03 p325:5.30e-03 p350:5.30e-03 p375:5.30e-03 p400:5.30e-03
+
+  travou/errou de verdade : distilgpt2_lora_bwd
+  numero errado (silencioso): nenhum
+--- lora cond=A 18:59:19 ---
+  distilgpt2_lora_bwd        ERRO          7.6s  ModuleNotFoundError: Could not import module 'GPT2LMHeadModel'. Are this object'
+  multipass                  OK           33.6s  150 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03
+  multipass_longo            OK           32.7s  400 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03 p175:5.30e-03 p200:5.30e-03 p225:5.30e-03 p250:5.30e-03 p275:5.30e-03 p300:5.30e-03 p325:5.30e-03 p350:5.30e-03 p375:5.30e-03 p400:5.30e-03
+
+  travou/errou de verdade : distilgpt2_lora_bwd
+  numero errado (silencioso): nenhum
+--- lora cond=B 19:01:27 ---
+  distilgpt2_lora_bwd        ERRO          7.0s  ModuleNotFoundError: Could not import module 'GPT2LMHeadModel'. Are this object'
+  multipass                  OK           31.8s  150 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03
+  multipass_longo            OK           32.0s  400 passes  pior=5.30e-03  p25:5.30e-03 p50:5.30e-03 p75:5.30e-03 p100:5.30e-03 p125:5.30e-03 p150:5.30e-03 p175:5.30e-03 p200:5.30e-03 p225:5.30e-03 p250:5.30e-03 p275:5.30e-03 p300:5.30e-03 p325:5.30e-03 p350:5.30e-03 p375:5.30e-03 p400:5.30e-03
+
+  travou/errou de verdade : distilgpt2_lora_bwd
+  numero errado (silencioso): nenhum
+FIM 19:03:27
