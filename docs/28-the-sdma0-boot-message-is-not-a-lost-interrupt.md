@@ -1,5 +1,15 @@
 # 28 — The SDMA0 boot message is not a lost interrupt
 
+> **Measured and closed, 2026-08-08.** Both halves of this document are now
+> confirmed on hardware, and the boot message is fixed. Instrumenting the trap
+> handler directly shows the SDMA0 interrupt vector arriving — 13 of them in the
+> first seconds, `cid=8 src=224` — so it was never lost. And the readback proves
+> the window: `SDMA0_CNTL antes=0x000400e2 depois=0x000400e3`, bit 0 clear
+> before the write. Writing `TRAP_ENABLE` early in `gfx_resume` takes the
+> fallback message from 2-3 per boot, in 4 consecutive boots, to **zero**.
+> The IH routing hypotheses are dead too: rings 1 and 2 read `base=0 cntl=0`.
+> See the tail of this document and `patches/bc250-sdma-trap-instrumentation.patch`.
+
 Every cold boot on this board logs, before any workload runs:
 
 ```
@@ -127,3 +137,53 @@ rmmod amdgpu && modprobe amdgpu
 test passes. Warm, it times out and the whole probe fails. Any experiment that
 touches GPU init therefore costs a reboot, which is worth knowing before
 planning one.
+
+
+---
+
+## Measured: the interrupt arrives, and the message is fixed
+
+The diagnostic that settles it logs inside `sdma_v5_0_process_trap_irq()`
+itself — after dispatch, so a line appearing means the vector was delivered —
+with a **separate budget per instance**, because a shared counter lets SDMA1
+traffic exhaust it and turns SDMA0's silence into something indistinguishable
+from absence. That is the same reading error this document already retracts
+once.
+
+```
+BC-250 ih ring0: base=0x00006090 cntl=0x403301a1 rptr=0x00000000 wptr=0x00000000
+BC-250 ih ring1: base=0x00000000 cntl=0x00000000 rptr=0x00000000 wptr=0x00000000
+BC-250 ih ring2: base=0x00000000 cntl=0x00000000
+BC-250 ih drop:  cntl=0xffffffff dest=0xffffffff storm=0x00000000
+BC-250 sdma0: SDMA0_CNTL antes=0x000400e2 depois=0x000400e3 TRAP_ENABLE=1
+BC-250 sdma1: SDMA0_CNTL antes=0x000400e2 depois=0x000400e3 TRAP_ENABLE=1
+BC-250 sdma iv: cid=8 src=224 ring=0 vmid=0 pasid=0 data0=0x0 (#1 na inst 0)
+... 13 lines with cid=8, 1 with cid=9
+```
+
+| question | answer |
+|---|---|
+| Does the SDMA0 trap IV reach the driver? | **Yes.** 13 vectors, `cid=8 src=224` |
+| Was `TRAP_ENABLE` really off during init? | **Yes.** `antes` ends in `e2` — bit 0 clear |
+| Does closing that window fix the boot message? | **Yes.** 2–3 per boot → **0** |
+| Is an IV hiding in IH ring 1 or 2? | No. Both read `base=0 cntl=0` |
+| Is the console's boot ROM dropping interrupts? | No — the vectors arrive |
+
+On `ih drop` reading `0xffffffff`: that is **not** read here as "drop enabled on
+every bit". A register returning all-ones is usually one the ASIC does not
+implement, and `storm` beside it reads a plausible `0`. More decisively, the
+vectors are arriving, so nothing is being dropped whatever that value means.
+
+The 13-to-1 split between the instances is the traffic asymmetry this document
+predicted: SDMA0 is `buffer_funcs_ring`, SDMA1 gets almost nothing.
+
+### What this leaves
+
+`bc250_skip_sdma0` exists for the **user queue** hang, and this measurement was
+taken with `bc250_skip_sdma0=1` — so it observed the *kernel* ring, not the path
+that hangs. The interrupt being healthy there does narrow it: whatever hangs the
+user queue, it is not a missing trap on this engine.
+
+That points where the 199%-CPU busy-poll in state **R** already pointed — at the
+completion write not landing in memory. The next measurement is the same trace
+with `amdgpu.bc250_skip_sdma0=0`, which costs a boot and no rebuild.

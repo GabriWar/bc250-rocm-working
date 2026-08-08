@@ -1,0 +1,19 @@
+--- fase 1: diretorio amdgpu (produz amdgpu.o) ---
+  DESCEND objtool
+  DESCEND bpf/resolve_btfids
+  INSTALL libsubcmd_headers
+  CALL    scripts/checksyscalls.sh
+  INSTALL libsubcmd_headers
+  LD [M]  drivers/gpu/drm/amd/amdgpu/amdgpu.o
+EXIT_FASE1=0
+--- fase 2: link do .ko ---
+  DESCEND objtool
+  DESCEND bpf/resolve_btfids
+  INSTALL libsubcmd_headers
+  CALL    scripts/checksyscalls.sh
+  INSTALL libsubcmd_headers
+  MODPOST Module.symvers
+  CC [M]  drivers/gpu/drm/amd/amdgpu/amdgpu.mod.o
+  LD [M]  drivers/gpu/drm/amd/amdgpu/amdgpu.ko
+  BTF [M] drivers/gpu/drm/amd/amdgpu/amdgpu.ko
+EXIT_FASE2=0
