@@ -372,6 +372,18 @@ proof/        generated images
 | [22-the-page-table-cache-is-innocent.md](docs/22-the-page-table-cache-is-innocent.md) | the L2 page-table cache is innocent; forcing invalidation stalls the board |
 | [23-it-is-the-translation.md](docs/23-it-is-the-translation.md) | it is the translation, measured — a second mapping reads the same memory correctly |
 | **[24-flushing-the-tlb-by-rebuilding-the-runlist.md](docs/24-flushing-the-tlb-by-rebuilding-the-runlist.md)** | **the fix: rebuild the runlist on unmap. 13/18 dirty → 0/18** |
+| [25-exact-stack-as-measured.md](docs/25-exact-stack-as-measured.md) | the exact stack this was measured on — kernel, ROCm, PyTorch, every patch |
+| [26-the-other-bc250-patch-set.md](docs/26-the-other-bc250-patch-set.md) | DryhoppedIPA's Vulkan patch set: what it confirms, where we disagree, what we want to borrow |
+
+## Other people's work, vendored
+
+[`third_party/bc250-gfx1013-fix/`](third_party/bc250-gfx1013-fix/) is a verbatim
+snapshot of [DryhoppedIPA/bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix)
+at commit `65ef06ddc4d1`, kept so those patches survive if the upstream repository
+goes away. It is **not our work**: kernel patches GPL-2.0, everything else MIT,
+licence text and attribution intact. See its `PROVENANCE.md`, and read
+[docs/26](docs/26-the-other-bc250-patch-set.md) before applying any of it on top of
+ours — one of its patches edits the same function we do.
 
 ---
 

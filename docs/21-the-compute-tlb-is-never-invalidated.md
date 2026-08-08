@@ -97,13 +97,33 @@ discarded.
 
 Not a fault. It is empty by construction on this path.
 
-`mmATC_VMID0_PASID_MAPPING` is **written** only in `amdgpu_amdkfd_gfx_v7.c` and
-`amdgpu_amdkfd_gfx_v8.c` — pre-gfx9 hardware. In the gfx10 files
-(`amdgpu_amdkfd_gfx_v10.c`, `_v10_3.c`) the register is only ever **read**.
+A writer for `mmATC_VMID0_PASID_MAPPING` **does** exist on gfx10:
+`kgd_set_pasid_vmid_mapping()` in `amdgpu_amdkfd_gfx_v10.c`. The register is not
+missing support. It is on a code path this board never takes.
 
-This board runs `sched_policy = 0`, hardware scheduling. Under HWS the firmware
-assigns VMIDs to compute queues and the driver never programs those registers.
-So the table the PASID-based invalidation depends on is never populated.
+Follow the only chain that reaches it:
+
+```
+kgd_set_pasid_vmid_mapping()          amdgpu_amdkfd_gfx_v10.c
+  <- set_pasid_vmid_mapping()         kfd_device_queue_manager.c:49
+  <- allocate_vmid()                  kfd_device_queue_manager.c:673, called at :698
+  <- create_queue_nocpsch()           kfd_device_queue_manager.c:763, calls at :782
+```
+
+`create_queue_cpsch()` — the CP-scheduling twin, `kfd_device_queue_manager.c:2126`
+— never calls `allocate_vmid()`, so it never reaches the write.
+
+This board runs `sched_policy = 0`, hardware scheduling: every user queue is
+created through `create_queue_cpsch`. Under HWS the firmware assigns VMIDs and
+the driver never programs the mapping registers. So the table the PASID-based
+invalidation depends on is never populated.
+
+> **Correction.** An earlier revision of this document claimed the register was
+> written only in `amdgpu_amdkfd_gfx_v7.c` / `_v8.c` and merely read on gfx10.
+> That is wrong — the gfx10 writer above exists. The measured result (zero VMIDs
+> matched, 20/20) and the conclusion are unchanged; only the mechanism is stated
+> correctly now. It matters because "the code is missing" and "the code is on the
+> non-HWS path" imply different fixes.
 
 ### Our own workaround was blocked by the same hole
 
@@ -284,7 +304,7 @@ before either result means anything.
 
 | source | has it? |
 |---|---|
-| `mmATC_VMID*_PASID_MAPPING` (what the flush queries) | no — never written on gfx10 |
+| `mmATC_VMID*_PASID_MAPPING` (what the flush queries) | no — its gfx10 writer sits on the non-HWS path only; we run HWS |
 | `dqm->vmid_pasid[]` (KFD's software table) | no — only filled by `create_queue_nocpsch`; we run HWS |
 | `q->properties.vmid` | no — `kfd_priv.h:526` says "Not relevant for user mode queues in cp scheduling" |
 | **`CP_HQD_VMID`, in the hardware queue descriptor** | **yes** |
