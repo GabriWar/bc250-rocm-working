@@ -144,6 +144,60 @@ def roda(nome, iters):
                            "gB": float(BB.grad.float().abs().sum()),
                            "trilha": " ".join(piores), "passes": passes})
 
+    if nome == "distilgpt2_lora_bwd":
+        """LoRA backward num modelo causal REAL -- o mais proximo do relato.
+
+        Precisa do guard de FSDP em transformers/generation/utils.py: este
+        PyTorch foi compilado com USE_DISTRIBUTED=0 e o transformers 5.x importa
+        FSDP incondicionalmente. O unico simbolo usado dali fica atras de
+        `world_size > 1`, impossivel sem distributed, entao o fallback e exato.
+        """
+        from transformers import AutoModelForCausalLM
+        m = AutoModelForCausalLM.from_pretrained("distilgpt2",
+                                                 dtype=torch.float32).to(DEV)
+        for p_ in m.parameters():
+            p_.requires_grad_(False)
+        alvos = [b.attn.c_attn for b in m.transformer.h]
+        As, Bs, hooks = [], [], []
+        for mod in alvos:
+            fi, fo = mod.weight.shape[0], mod.weight.shape[1]
+            A = (torch.randn(8, fi, device=DEV) * 0.01).requires_grad_(True)
+            B = (torch.randn(fo, 8, device=DEV) * 0.01).requires_grad_(True)
+            As.append(A); Bs.append(B)
+
+            def faz(A=A, B=B):
+                def h_(mod_, ent, sai):
+                    return sai + (ent[0] @ A.t()) @ B.t()
+                return h_
+            hooks.append(mod.register_forward_hook(faz()))
+
+        opt = torch.optim.SGD(As + Bs, lr=1e-4)
+        ids = torch.randint(0, 50257, (2, 256), device=DEV)
+        perdas = []
+        for _ in range(iters):
+            opt.zero_grad()
+            out = m(ids, labels=ids)
+            out.loss.backward()
+            opt.step()
+            perdas.append(float(out.loss))
+        torch.cuda.synchronize()
+        for h_ in hooks:
+            h_.remove()
+        gA = sum(float(a.grad.abs().sum()) for a in As)
+        gB = sum(float(b.grad.abs().sum()) for b in Bs)
+        finito = all(bool(torch.isfinite(a.grad).all()) for a in As) and \
+                 all(bool(torch.isfinite(b.grad).all()) for b in Bs)
+        chapado = gB == 0.0
+        # sem referencia de CPU: o modelo inteiro na CPU levaria minutos. O que
+        # se checa aqui e trava, NaN, gradiente morto e a perda andando.
+        anda = abs(perdas[-1] - perdas[0]) > 1e-6
+        return json.dumps({"eA": 0.0, "eB": 0.0,
+                           "ok": finito and not chapado and anda,
+                           "finito": finito, "chapado": chapado,
+                           "gA": gA, "gB": gB,
+                           "trilha": f"loss {perdas[0]:.4f}->{perdas[-1]:.4f} anda={anda}",
+                           "passes": iters})
+
     if nome == "bloco_transformer_lora":
         """Bloco estilo GPT-2 na mao: atencao + MLP + layernorm, com LoRA no qkv.
 
@@ -277,7 +331,8 @@ if "--um" in sys.argv:
 ITERS = int(sys.argv[1]) if len(sys.argv) > 1 else 20
 LIM = 900
 nomes = (["matmul_grande"] + [c[0] for c in cfgs(ITERS)]
-         + ["bloco_transformer_lora", "multipass", "multipass_longo"])
+         + ["bloco_transformer_lora", "distilgpt2_lora_bwd",
+            "multipass", "multipass_longo"])
 
 knob = open('/sys/module/amdgpu/parameters/bc250_flush_by_runlist').read().strip()
 print(f"  patch runlist = {knob}   iters={ITERS}   tolerancia={TOL}")
