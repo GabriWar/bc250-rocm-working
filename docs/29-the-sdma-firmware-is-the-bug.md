@@ -144,6 +144,27 @@ they would have produced a broken patch:
 - The sequence was called an init routine. It sits under a `PKT_` label, and
   those are internal firmware labels, not the boot path.
 
+## There is no other firmware. This was searched, not assumed.
+
+Worth recording so nobody repeats the search:
+
+| source | result |
+|---|---|
+| `linux-firmware` at kernel.org | `md5 39e9a6d49f99` — **byte-identical to the one shipped here** |
+| history of the file | **one commit**, 2021-11-12, never touched since |
+| `cyan_skillfish` v1 (no `2`) | **never released.** AMD deleted the references in *"drm/amdgpu/gfx10: drop unused cyan skillfish firmware"*: *"Leftover from bring up. Not used anymore."* |
+| GitHub code search | 760 hits across 14 repositories, all kernel forks — that is the `MODULE_FIRMWARE` string in source, not a binary |
+| `freebsd/drm-kmod-firmware` | does not carry the file |
+| Radeon Software / amdgpu-pro | nothing specific; cyan skillfish is an OEM part and does not appear in consumer driver packages |
+
+So exactly one SDMA blob exists for this chip anywhere, it was published once in
+2021, and it is the broken one. There is no earlier version to fall back to and
+no later version to update to.
+
+That is also what makes the report worth filing. It is not "the firmware is out
+of date" — it is *the only firmware ever published for this chip does not drive
+its user queues, and another chip's does, on the same silicon.*
+
 ## What to report upstream
 
 The useful sentence for AMD, who have the source: *the SDMA firmware published
