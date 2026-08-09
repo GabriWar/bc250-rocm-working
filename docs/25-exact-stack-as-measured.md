@@ -52,7 +52,7 @@ amdgpu.vm_update_mode=3
 amdgpu.noretry=1
 amdgpu.gttsize=1024
 ttm.pages_limit=262144
-amdgpu.bc250_skip_sdma0=1
+amdgpu.bc250_skip_sdma0 (REMOVIDO 2026-08-08, ver docs/29 — a premissa estava errada, as duas engines falhavam pelo firmware)=1
 amdgpu.bc250_dead_gpu_guard=1
 mitigations=off clearcpuid=514 nmi_watchdog=0 audit=0
 workqueue.power_efficient=0

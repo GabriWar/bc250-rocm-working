@@ -376,6 +376,7 @@ proof/        generated images
 | [26-the-other-bc250-patch-set.md](docs/26-the-other-bc250-patch-set.md) | DryhoppedIPA's Vulkan patch set: what it confirms, where we disagree, what we want to borrow |
 | **[27-the-serialization-flags-do-nothing.md](docs/27-the-serialization-flags-do-nothing.md)** | **the five serialization env vars provide no protection; the runlist patch is what holds. 0/16 vs 5/6** |
 | [28-the-sdma0-boot-message-is-not-a-lost-interrupt.md](docs/28-the-sdma0-boot-message-is-not-a-lost-interrupt.md) | the SDMA0 boot warning is an init-order artifact, not lost silicon — and three claims this repo got wrong |
+| **[29-the-sdma-firmware-is-the-bug.md](docs/29-the-sdma-firmware-is-the-bug.md)** | **AMD's cyan_skillfish2 SDMA firmware never drives the user queues. navi12's does. 0 bytes → 4 MiB, +20% H2D** |
 
 ## Other people's work, vendored
 
