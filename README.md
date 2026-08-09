@@ -35,8 +35,17 @@ See [24 — Flushing the compute TLB by rebuilding the runlist](docs/24-flushing
 and [`patches/bc250-flush-tlb-by-runlist.patch`](patches/bc250-flush-tlb-by-runlist.patch).
 
 It is **not finished**: heavier workloads and preemption under sustained load
-are untested, and the patch currently rebuilds the runlist on every unmap when
-only the reused-VA case needs it — there is real performance still to recover.
+are untested. The patch rebuilds the runlist on every unmap when only the
+reused-VA case needs it, which reads as obvious waste — but that was measured on
+2026-08-08 and it is not. ftrace puts `execute_queues_cpsch` and
+`kfd_bc250_flush_by_runlist` together at **single-digit milliseconds across a
+full image generation**, against run times of minutes. Earlier revisions of this
+file claimed there was "real performance still to recover" there. There is not:
+the cost sits four orders of magnitude below anything worth optimising.
+
+Where the performance actually is: rocBLAS ships **54 fallback Tensile kernels
+against 26 tuned ones** for gfx1013, and the GPU clock is left to a governor
+ramping on a 500 ms sample from 1000 MHz toward a 2000 MHz ceiling.
 Everything else in this repo is either a workaround for the defect, or a
 measurement that narrowed it down. See
 [the open problem](#the-open-problem-the-gpu-resolves-va-to-the-wrong-pa).
