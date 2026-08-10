@@ -1,5 +1,5 @@
-# Forward do UNet direto, com hook em cada submodulo.
-# O ultimo breadcrumb diz exatamente qual modulo estava executando no fault.
+# UNet forward directly, with a hook on every submodule.
+# The last breadcrumb says exactly which module was running at the fault.
 import sys, os, torch
 sys.path.insert(0, "/home/gabriwar/ComfyUI")
 CRUMB = "/home/gabriwar/bc250-grimoire/rocm-test/u_crumb.txt"
@@ -24,7 +24,7 @@ dev  = model.load_device
 dt   = model.model.get_dtype()
 say(f"C_dtype_{dt}_dev_{dev}")
 
-# hook em cada submodulo folha e em cada bloco de topo
+# hook on every leaf submodule and on every top-level block
 n = 0
 for name, mod in unet.named_modules():
     if name == "": continue

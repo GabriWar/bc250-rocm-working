@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
-"""O dado se estraga na SUBIDA ou na VOLTA?
+"""Does the data get corrupted on the way UP or on the way BACK?
 
-Por que a pergunta existe
--------------------------
-Todo o diagnostico ate aqui media `x.to(cuda)` seguido de `.cpu()` e comparava
-no host. Isso nao separa as duas metades. O trace do ROCclr mostrou por que
-importa: H2D e D2H usam o MESMO pool de 4 slots de staging de 1 MiB.
+Why the question exists
+-----------------------
+Every diagnosis so far measured `x.to(cuda)` followed by `.cpu()` and compared on
+the host. That does not separate the two halves. The ROCclr trace showed why it
+matters: H2D and D2H use the SAME pool of 4 staging slots of 1 MiB.
 
-    COPY dst=0x7fd591d9a000 <- stg=0x7fd6b6300000   upload, LE do slot
-    COPY dst=0x7fd6b6300000 <- stg=0x7fd5a7600000   leitura, ESCREVE no slot
+    COPY dst=0x7fd591d9a000 <- stg=0x7fd6b6300000   upload, READS from the slot
+    COPY dst=0x7fd6b6300000 <- stg=0x7fd5a7600000   readback, WRITES to the slot
 
-Entao "o conteudo do tensor Y apareceu no tensor X" e compativel com as duas
-historias, e o teste da marca NaN tambem nao decide: se a leitura entregar o
-staging de outra operacao, tambem nao volta NaN nenhum.
+So "tensor Y's content showed up in tensor X" is compatible with both stories,
+and the NaN mark test does not decide either: if the readback delivers another
+operation's staging, no NaN comes back either.
 
-Como este teste decide
-----------------------
-1. Sobe cada tensor com sync a cada upload. Esse caminho nunca corrompeu em
-   nenhuma configuracao ja testada, entao serve de referencia.
-2. Sobe os MESMOS dados de novo, em rajada, sem sync.
-3. Compara os dois DENTRO da GPU. So um escalar atravessa o barramento.
-4. Compara tambem trazendo de volta, do jeito antigo.
+How this test decides
+---------------------
+1. Uploads each tensor with a sync per upload. That path never corrupted in any
+   configuration tested so far, so it serves as the reference.
+2. Uploads the SAME data again, in a burst, without sync.
+3. Compares the two INSIDE the GPU. Only a scalar crosses the bus.
+4. Also compares by bringing them back, the old way.
 
-    diferenca na GPU > 0   -> a memoria do dispositivo esta errada: e a SUBIDA
-    diferenca na GPU = 0   -> o dispositivo esta certo e so a VOLTA mente
+    difference on the GPU > 0   -> device memory is wrong: it is the way UP
+    difference on the GPU = 0   -> the device is right and only the way BACK lies
 
-Um cuidado: o escalar da contagem tambem viaja por D2H. Mas sao 8 bytes numa
-copia isolada, e um valor extraviado dificilmente seria uma contagem plausivel.
-Para reduzir ainda mais, a contagem e lida depois de um sync.
+One caveat: the count scalar also travels via D2H. But it is 8 bytes in an
+isolated copy, and a stray value would hardly be a plausible count. To reduce it
+further, the count is read after a sync.
 """
 import os
 
@@ -66,7 +66,7 @@ aquecer()
 torch.manual_seed(0)
 
 for ciclo in (1, 2, 3, 4, 5):
-    # referencia: um upload por vez, com sync -- caminho que nunca corrompeu
+    # reference: one upload at a time, with sync -- the path that never corrupted
     ref = []
     for h, c in ALVOS:
         x = torch.randn(1, c, h, h, dtype=torch.float16)
@@ -74,25 +74,25 @@ for ciclo in (1, 2, 3, 4, 5):
         torch.cuda.synchronize()
         ref.append((h, c, x, g))
 
-    # rajada: mesmo dado, sem sync entre uploads
+    # burst: same data, no sync between uploads
     raj = [x.to(DEV) for (h, c, x, g) in ref]
     torch.cuda.synchronize()
 
     for (h, c, x, g), b in zip(ref, raj):
-        # TRES pernas, nao duas. Com so `b vs g` na GPU e `b vs x` no host nao
-        # da para saber QUAL dos dois uploads errou -- a primeira versao deste
-        # teste tinha esse furo e produziu "na_gpu>0 com no_host=0", que sozinho
-        # nao distingue "referencia errada" de "comparacao na GPU errada".
+        # THREE legs, not two. With only `b vs g` on the GPU and `b vs x` on the host
+        # there is no way to know WHICH of the two uploads failed -- the first version of
+        # this test had that hole and produced "na_gpu>0 with no_host=0", which alone
+        # does not distinguish "wrong reference" from "wrong comparison on the GPU".
         n1 = (b != g).sum(); torch.cuda.synchronize(); n1 = int(n1)
-        n2 = (b != g).sum(); torch.cuda.synchronize(); n2 = int(n2)  # repete
-        hb = int((b.cpu() != x).sum())    # rajada, vista do host
-        hg = int((g.cpu() != x).sum())    # referencia, vista do host
+        n2 = (b != g).sum(); torch.cuda.synchronize(); n2 = int(n2)  # repeat
+        hb = int((b.cpu() != x).sum())    # burst, as seen from the host
+        hg = int((g.cpu() != x).sum())    # reference, as seen from the host
         if not (n1 or n2 or hb or hg):
             continue
-        # ATENCAO ao rotulo: `g` foi subido com sync mas depois ficou parado na
-        # memoria durante a rajada inteira. hg>0 e compativel com "subiu errado"
-        # E com "foi atropelado depois". Nao da para rotular sem achar a origem
-        # do dado errado, entao e isso que se faz aqui.
+        # MIND the label: `g` was uploaded with sync but then sat still in
+        # memory for the entire burst. hg>0 is compatible with "uploaded wrong"
+        # AND with "run over afterwards". There is no way to label it without finding
+        # the origin of the wrong data, so that is what is done here.
         say(f"  ciclo{ciclo} c={c} h={h}: gpu(b!=g)={n1}/{n2} "
             f"host(b!=x)={hb} host(g!=x)={hg}")
         for rot, vt in (("rajada", b), ("referencia", g)):

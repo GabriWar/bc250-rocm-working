@@ -29,13 +29,13 @@ print(json.dumps(w))" > /tmp/wfb_$s.json
   echo "INICIO seed=$s $T0" >>"$RES"
   curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/wfb_$s.json \
        http://127.0.0.1:8188/prompt >/dev/null 2>&1
-  # Espera a imagem aparecer OU o erro de GPU no log.
+  # Wait for the image to show up OR for the GPU error in the log.
   #
-  # Antes isto so olhava o arquivo de saida e esperava os 400 segundos inteiros.
-  # Numa configuracao que falha por erro de GPU o erro aparece no log em menos de
-  # um minuto, entao cada falha custava ~7 minutos de relogio a toa. Numa bateria
-  # A/B de varias rodadas isso vira meia hora parada. Agora sai assim que houver
-  # veredito, nos dois sentidos.
+  # Before, this only watched the output file and waited the full 400 seconds.
+  # In a configuration that fails with a GPU error, the error shows up in the log
+  # in under a minute, so each failure cost ~7 minutes of wall clock for nothing.
+  # In an A/B batch of several runs that becomes half an hour of idling. Now it
+  # exits as soon as there is a verdict, either way.
   ERRO=""
   for i in $(seq 1 400); do
     ls /home/gabriwar/ComfyUI/output/bc250_bench_${s}_*.png >/dev/null 2>&1 && break

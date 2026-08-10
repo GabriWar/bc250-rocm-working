@@ -1,5 +1,5 @@
-# Aquece a matriz tipo x transposicao ANTES de tudo, depois repete o teste
-# que falhou: VAE decode -> CLIP encode.
+# Warms up the type x transposition matrix BEFORE anything else, then repeats the
+# test that failed: VAE decode -> CLIP encode.
 import sys, os, torch
 sys.path.insert(0,"/home/gabriwar/ComfyUI")
 C="/home/gabriwar/bc250-grimoire/rocm-test/bf_crumb.txt"
@@ -8,7 +8,7 @@ def say(s):
     _f.write(s+"\n"); _f.flush(); os.fsync(_f.fileno()); print(s, flush=True)
 
 say("A_start")
-# --- warmup BLAS: 12 combinacoes ---
+# --- BLAS warmup: 12 combinations ---
 n=0
 for dt in (torch.float16, torch.bfloat16, torch.float32):
     for nome, fn in (("NN", lambda a,b: a@b), ("NT", lambda a,b: a@b.T),

@@ -1,43 +1,43 @@
 #!/bin/bash
-# A/B do probe: invalidar o VMID CERTO faz a corrupcao sumir?
+# Probe A/B: does invalidating the RIGHT VMID make the corruption go away?
 #
-# O que se mede
-# -------------
-# Nesta placa a varredura por PASID de gmc_v10_0_flush_gpu_tlb_pasid() nunca
-# acha VMID nenhum -- 80 de 80 entradas do ATC invalidas em repouso, 20 de 20
-# flushes atingindo zero VMIDs sob carga. O TLB de compute nunca e invalidado.
+# What is measured
+# ----------------
+# On this board the PASID scan in gmc_v10_0_flush_gpu_tlb_pasid() never finds
+# any VMID -- 80 of 80 ATC entries invalid at rest, 20 of 20 flushes hitting
+# zero VMIDs under load. The compute TLB is never invalidated.
 #
-# O VMID real existe e e legivel: CP_HQD_VMID, o 4o dword de cada bloco de fila
-# em /sys/kernel/debug/kfd/hqds. Medido VMID 8, estavel, e determinístico por
-# gmc_v10_0.c:1229 (first_kfd_vmid = 8).
+# The real VMID exists and is readable: CP_HQD_VMID, the 4th dword of each queue
+# block in /sys/kernel/debug/kfd/hqds. Measured VMID 8, stable, and deterministic
+# by gmc_v10_0.c:1229 (first_kfd_vmid = 8).
 #
-#   braco A (padrao)   bc250_flush_vmid=0   nada e invalidado
-#   braco B (probe)    bc250_flush_vmid=8   o VMID de compute e invalidado
+#   arm A (default)   bc250_flush_vmid=0   nothing is invalidated
+#   arm B (probe)     bc250_flush_vmid=8   the compute VMID is invalidated
 #
-# Leitura pre-registrada
+# Pre-registered reading
 # ----------------------
-#   B=0/10 sujas contra A~7/10   causa raiz confirmada e o conserto e este
-#   B=1-2/10 contra A~7/10       mecanismo dominante confirmado, residuo de ordem
-#   B=A                          invalidacao sai de cena; o alvo desce abaixo
-#                                da traducao
+#   B=0/10 dirty against A~7/10  root cause confirmed and this is the fix
+#   B=1-2/10 against A~7/10      dominant mechanism confirmed, ordering residue
+#   B=A                          invalidation is out; the target moves below
+#                                translation
 #
-# Por que este script tem guarda de KIQ
-# -------------------------------------
-# A primeira tentativa deste probe derrubou a GPU: sem desviar do KIQ, o flush
-# forcado entra por amdgpu_gmc_fw_reg_write_reg_wait(), o KIQ desta placa trava
-# com INVALIDATE_TLBS, sao 13 s de timeout, "failed to write reg 28b4 wait reg
-# 28c6", e o sdma0 morre atras. O desvio agora e automatico no driver
-# (bc250_flush_vmid entra na condicao que ja existia para
-# bc250_flush_mapped_vmids), mas se ele falhar este script PARA na hora em vez
-# de insistir e resetar a placa dez vezes.
+# Why this script has a KIQ guard
+# -------------------------------
+# The first attempt at this probe took the GPU down: without bypassing the KIQ,
+# a forced flush goes through amdgpu_gmc_fw_reg_write_reg_wait(), this board's KIQ
+# hangs on INVALIDATE_TLBS, that is 13 s of timeout, "failed to write reg 28b4
+# wait reg 28c6", and sdma0 dies behind it. The bypass is now automatic in the
+# driver (bc250_flush_vmid joins the condition that already existed for
+# bc250_flush_mapped_vmids), but if it fails this script STOPS immediately instead
+# of insisting and resetting the board ten times.
 #
-# Desenho: ordem contrabalanceada em blocos de 4 (A B B A), nunca alternada.
-# Metrica: blocos pisados por execucao (0..12), nao so sujo/limpo.
+# Design: counterbalanced order in blocks of 4 (A B B A), never alternating.
+# Metric: blocks clobbered per run (0..12), not just dirty/clean.
 
 set -u
 P=/sys/module/amdgpu/parameters
-REPS=${1:-10}                       # execucoes POR BRACO
-ALVO=${2:-8}                        # VMID do braco B
+REPS=${1:-10}                       # runs PER ARM
+ALVO=${2:-8}                        # VMID of arm B
 LOG=/home/gabriwar/bc250-grimoire/ab_flush_vmid.historico
 REPRO=/home/gabriwar/bc250-rocm-working/tools/hipmalloc_cru.py
 
@@ -47,14 +47,14 @@ for k in bc250_flush_vmid bc250_tlb_trace; do
     [ -e "$P/$k" ] || { echo "ABORTADO: $P/$k nao existe -- modulo sem instrumentacao"; exit 1; }
 done
 
-set_arm() {   # $1 = valor de bc250_flush_vmid
+set_arm() {   # $1 = value of bc250_flush_vmid
     S sh -c "echo $1 > $P/bc250_flush_vmid"
     LIDO=$(cat "$P/bc250_flush_vmid")
     [ "$LIDO" = "$1" ] || { echo "ABORTADO: pedi $1, modulo ficou $LIDO"; exit 1; }
 }
 
-# a saude da placa: qualquer uma destas assinaturas significa que o desvio do
-# KIQ nao pegou, e continuar so vai resetar a GPU repetidamente
+# board health: any of these signatures means the KIQ bypass did not take
+# effect, and continuing will only reset the GPU over and over
 saude() { S dmesg | grep -ciE 'failed to write reg|ring .* timeout|ring reset|coredump'; }
 
 S sh -c "echo 1 > $P/bc250_tlb_trace"

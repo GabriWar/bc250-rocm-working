@@ -1,27 +1,27 @@
-# BC-250 (gfx1013): neutraliza soft_empty_cache() do ComfyUI.
+# BC-250 (gfx1013): neutralizes ComfyUI's soft_empty_cache().
 #
-# MEDIDO 2026-08-05, decode do VAE validado contra a CPU (err_rel, nao
-# "e finito"):
+# MEASURED 2026-08-05, VAE decode validated against the CPU (err_rel, not
+# "is finite"):
 #
-#   antes de tudo                     err=1.257e-02  OK
-#   com o UNet residente na GPU       err=1.257e-02  OK
-#   descarregar UNet + empty_cache    err=6.075e-01  CORROMPIDO
-#   decode seguinte                   err=1.257e-02  OK
+#   before everything                 err=1.257e-02  OK
+#   with the UNet resident on the GPU err=1.257e-02  OK
+#   unload UNet + empty_cache         err=6.075e-01  CORRUPTED
+#   next decode                       err=1.257e-02  OK
 #
-# Exatamente UMA operacao sai envenenada depois de empty_cache(), e volta ao
-# normal na proxima. O ComfyUI chama soft_empty_cache() em 5 pontos do
-# model_management.py, todos ao descarregar modelo -- inclusive entre o
-# sampler e o VAE. Dai a imagem de 30 KB com desvio 10 em vez de 480 KB.
+# Exactly ONE operation comes out poisoned after empty_cache(), and it goes back
+# to normal on the next one. ComfyUI calls soft_empty_cache() at 5 points in
+# model_management.py, all of them on model unload -- including between the
+# sampler and the VAE. Hence the 30 KB image with stddev 10 instead of 480 KB.
 #
-# Bate com outro achado do mesmo dia: torch.cuda.empty_cache() entre conv2d
-# escalava para HSA_STATUS_ERROR_ILLEGAL_INSTRUCTION (code 0x2a).
+# Matches another finding from the same day: torch.cuda.empty_cache() between
+# conv2d escalated to HSA_STATUS_ERROR_ILLEGAL_INSTRUCTION (code 0x2a).
 #
-# O decode em si e correto e estavel: 5/5 rodadas com err=1.257e-02 e 0.60s
-# quente, contra ~15s na CPU.
+# The decode itself is correct and stable: 5/5 runs with err=1.257e-02 and 0.60s
+# warm, against ~15s on the CPU.
 #
-# CUSTO: a memoria nao volta para o driver entre trocas de modelo. Numa placa
-# com 4 GB de UMA isso pode levar a OOM em workflows que trocam muito de
-# modelo. Se isso acontecer, desligue com BC250_NO_EMPTY_CACHE=0.
+# COST: memory is not returned to the driver between model swaps. On a board
+# with 4 GB of UMA this can lead to OOM in workflows that swap models a lot.
+# If that happens, disable with BC250_NO_EMPTY_CACHE=0.
 
 import os
 
@@ -35,9 +35,9 @@ if os.environ.get("BC250_NO_EMPTY_CACHE", "1") != "0":
         _orig = mm.soft_empty_cache
 
         def _noop(force=False):
-            # Mantem o synchronize (barato e as vezes necessario), mas nao
-            # devolve memoria ao driver, que e o que corrompe a operacao
-            # seguinte nesta placa.
+            # Keeps the synchronize (cheap and sometimes necessary), but does not
+            # return memory to the driver, which is what corrupts the next
+            # operation on this board.
             try:
                 import torch
                 if torch.cuda.is_available():

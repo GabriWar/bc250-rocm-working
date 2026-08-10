@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""O tensor que subiu para a GPU e o mesmo que eu mandei?
+"""Is the tensor that went up to the GPU the same one I sent?
 
-Achado em 2026-08-05: no modo "computa tudo depois copia", conv e im2col
-devolvem o MESMO erro relativo, ate a terceira casa. Dois algoritmos
-diferentes so coincidem assim se lerem a mesma entrada errada -- o que aponta
-para o upload host->device, nao para o calculo.
+Found on 2026-08-05: in "compute everything then copy" mode, conv and im2col
+return the SAME relative error, down to the third decimal. Two different
+algorithms only coincide like that if they read the same wrong input -- which
+points at the host->device upload, not at the compute.
 
-Este env tem HSA_ENABLE_SDMA=0, entao copia H2D nao usa engine de DMA: e um
-kernel de blit na fila de compute.
+This env has HSA_ENABLE_SDMA=0, so an H2D copy does not use a DMA engine: it is
+a blit kernel on the compute queue.
 
-Aqui: sobe, traz de volta, compara byte a byte. Sem kernel de conv no meio.
+Here: upload, bring it back, compare byte by byte. No conv kernel in between.
 """
 import os, torch, torch.nn.functional as F
 d="cuda"; torch.manual_seed(0)
@@ -38,7 +38,7 @@ torch.cuda.synchronize(); say("")
 for ciclo in (1,2,3):
     say(f"--- ciclo {ciclo} ---")
 
-    # modo A: todos os uploads em rajada, sem sync entre eles
+    # mode A: all uploads in a burst, no sync between them
     say("  A: uploads em rajada, sync so no fim")
     cpu=[]; gpu=[]
     for h,c in alvos:
@@ -55,7 +55,7 @@ for ciclo in (1,2,3):
         else:
             say(f"     c={c:3d} h={h:3d}  identico")
 
-    # modo B: um upload por vez, com sync
+    # mode B: one upload at a time, with sync
     say("  B: um upload por vez, sync a cada um")
     for h,c in alvos:
         x=torch.randn(1,c,h,h,dtype=torch.float16)

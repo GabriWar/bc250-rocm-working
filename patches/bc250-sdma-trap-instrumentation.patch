@@ -13,21 +13,21 @@
  MODULE_FIRMWARE("amdgpu/cyan_skillfish2_sdma.bin");
  MODULE_FIRMWARE("amdgpu/cyan_skillfish2_sdma1.bin");
  
-+/* ---------------- BC-250: instrumentacao do trap do SDMA (E2) ----------------
++/* ---------------- BC-250: SDMA trap instrumentation (E2) ----------------
 + *
-+ * A pergunta que isto responde, e que NENHUMA medicao anterior respondeu: o
-+ * vetor de interrupcao do trap do SDMA0 chega ao driver?
++ * The question this answers, and that NO previous measurement answered: does
++ * the SDMA0 trap interrupt vector reach the driver?
 + *
-+ * Por que o teste anterior nao valia: ligar dyndbg em amdgpu_irq.c so acende os
-+ * dev_dbg de id DESCONHECIDO. amdgpu_irq_dispatch nao imprime nada no caminho de
-+ * sucesso, entao "zero linhas" eliminou uma unica hipotese -- descarte por id
-+ * nao registrado -- e foi lido como "a interrupcao nao chega". Aqui o log fica
-+ * no proprio handler, onde o IV ja foi despachado: se a linha sair, chegou.
-+ *
-+ * Orcamento SEPARADO por instancia, de proposito. Com um contador unico o
-+ * trafego do sdma1 esgota o orcamento e a ausencia de linhas do sdma0 vira
-+ * indistinguivel de "nao chegou" -- exatamente o erro de leitura que estamos
-+ * corrigindo.
++ * Why the previous test was worthless: enabling dyndbg in amdgpu_irq.c only
++ * lights up the dev_dbg for UNKNOWN ids. amdgpu_irq_dispatch prints nothing on
++ * the success path, so "zero lines" ruled out a single hypothesis -- being
++ * dropped for an unregistered id -- and it was read as "the interrupt does not
++ * arrive". Here the log sits in the handler itself, where the IV has already
++ * been dispatched: if the line comes out, it arrived.
++ * A SEPARATE budget per instance, on purpose. With a single counter, sdma1
++ * traffic exhausts the budget and the absence of sdma0 lines becomes
++ * indistinguishable from "it did not arrive" -- exactly the reading error we
++ * are correcting.
 + */
 +#define BC250_PCI_DEVICE_ID 0x13FE
 +
@@ -39,27 +39,27 @@
 +
 +static atomic_t bc250_sdma_iv_visto[2] = { ATOMIC_INIT(0), ATOMIC_INIT(0) };
 +
-+/* amdgpu_fence_driver_hw_init() so escreve TRAP_ENABLE depois de
-+ * amdgpu_device_ip_init() retornar inteiro -- mas amdgpu_amdkfd_device_init(),
-+ * la dentro, ja esperou fences neste ring. Nessa janela o trap esta desligado
-+ * por valor de reset (SDMA0_CNTL = 0x000000c2, bit 0 = 0), e as fences caem no
-+ * fallback timer de 500 ms. E a explicacao mais provavel das duas linhas de
-+ * "Fence fallback timer expired on ring sdma0" que aparecem em todo boot.
++/* amdgpu_fence_driver_hw_init() only writes TRAP_ENABLE after
++ * amdgpu_device_ip_init() returns in full -- but amdgpu_amdkfd_device_init(),
++ * inside it, has already waited on fences on this ring. In that window the trap
++ * is off by reset value (SDMA0_CNTL = 0x000000c2, bit 0 = 0), and the fences
++ * fall back to the 500 ms timer. That is the most likely explanation for the two
++ * "Fence fallback timer expired on ring sdma0" lines that appear on every boot.
 + *
-+ * Ligar aqui e seguro: amdgpu_irq_dispatch despacha por client_id/src_id sem
-+ * consultar src->enabled_types. Vale para AS DUAS instancias, para nao criar
-+ * uma assimetria nova enquanto investigamos uma.
++ * Enabling it here is safe: amdgpu_irq_dispatch dispatches by client_id/src_id
++ * without consulting src->enabled_types. It applies to BOTH instances, so as not
++ * to create a new asymmetry while investigating one.
 + */
 +static int bc250_early_sdma_trap = 1;
 +module_param(bc250_early_sdma_trap, int, 0444);
 +MODULE_PARM_DESC(bc250_early_sdma_trap,
 +	"BC-250: 1=escrever SDMAx_CNTL.TRAP_ENABLE ja no gfx_resume (padrao 1)");
 +
-+/* Dump SOMENTE LEITURA do estado do IH. Duas perguntas em aberto: os aneis 1 e
-+ * 2 estao vivos no hardware (o Linux nunca os habilita NEM os desabilita), e
-+ * ha filtro/descarte configurado pelo firmware do console que sobreviveu ao
-+ * boot do Linux. Nada aqui escreve -- escrever mascara de descarte errado
-+ * derruba o console.
++/* READ-ONLY dump of the IH state. Two open questions: are rings 1 and
++ * 2 alive in hardware (Linux never enables NOR disables them), and is
++ * there a filter/drop configured by the console firmware that survived the
++ * Linux boot. Nothing here writes -- writing a wrong drop mask
++ * takes the console down.
 + */
 +static int bc250_ih_debug = 1;
 +module_param(bc250_ih_debug, int, 0444);
@@ -71,7 +71,7 @@
 +	if (!bc250_ih_debug || adev->pdev->device != BC250_PCI_DEVICE_ID)
 +		return;
 +
-+	/* Anel 0: o unico que o Linux serve. Base e cntl para referencia. */
++	/* Ring 0: the only one Linux serves. Base and cntl for reference. */
 +	dev_info(adev->dev,
 +		 "BC-250 ih ring0: base=0x%08x cntl=0x%08x rptr=0x%08x wptr=0x%08x\n",
 +		 RREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE),
@@ -79,10 +79,10 @@
 +		 RREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR),
 +		 RREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR));
 +
-+	/* Aneis 1 e 2: navi10_ih.c zera ring_size, o que faz o Linux IGNORA-LOS
-+	 * -- nao os desliga. Base != 0 com RB_ENABLE aceso significa que o
-+	 * firmware do console deixou o anel vivo, e um IV roteado para la some
-+	 * sem deixar rastro. E a hipotese que sobreviveu.
++	/* Rings 1 and 2: navi10_ih.c zeroes ring_size, which makes Linux IGNORE
++	 * THEM -- it does not disable them. Base != 0 with RB_ENABLE set means the
++	 * console firmware left the ring alive, and an IV routed there disappears
++	 * without a trace. That is the hypothesis that survived.
 +	 */
 +	dev_info(adev->dev,
 +		 "BC-250 ih ring1: base=0x%08x cntl=0x%08x rptr=0x%08x wptr=0x%08x\n",
@@ -95,8 +95,8 @@
 +		 RREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_RING2),
 +		 RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2));
 +
-+	/* Descarte e storm control: o Linux nunca escreve nenhum destes, entao o
-+	 * que estiver aqui foi o boot ROM do PS5 que deixou.
++	/* Drop and storm control: Linux never writes any of these, so whatever
++	 * is here was left by the PS5 boot ROM.
 +	 */
 +	dev_info(adev->dev,
 +		 "BC-250 ih drop: cntl=0x%08x dest=0x%08x storm=0x%08x\n",
@@ -112,10 +112,10 @@
  		sdma_v5_0_enable(adev, true);
  	}
  
-+	/* BC-250: fechar a janela em que o trap esta desligado.
-+	 * Com readback obrigatorio: imprimir o valor LIDO, nunca o pretendido --
-+	 * senao "o trap nao era a causa" e "a escrita foi ignorada" ficam
-+	 * indistinguiveis, que e o erro que ja cometemos uma vez hoje.
++	/* BC-250: close the window where the trap is off.
++	 * With a mandatory readback: print the value READ, never the intended one
++	 * -- otherwise "the trap was not the cause" and "the write was ignored"
++	 * become indistinguishable, which is the mistake we already made once today.
 +	 */
 +	if (bc250_early_sdma_trap && !amdgpu_sriov_vf(adev) &&
 +	    adev->pdev->device == BC250_PCI_DEVICE_ID) {
@@ -139,8 +139,8 @@
  {
  	int i, r;
  
-+	/* BC-250: dump do IH aqui, nao no sw_init: neste ponto o IP block do
-+	 * IH ja subiu, entao o que se le e o estado efetivo e nao o de reset.
++	/* BC-250: dump the IH here, not in sw_init: at this point the IH IP block
++	 * is already up, so what is read is the effective state and not the reset one.
 +	 */
 +	bc250_dump_ih(adev);
 +
@@ -151,10 +151,10 @@
  {
  	DRM_DEBUG("IH: SDMA trap\n");
  
-+	/* BC-250: se esta linha sair para cid=8, o IV do trap do SDMA0 CHEGOU.
-+	 * Impresso antes de qualquer switch, para que um ring_id fora dos casos
-+	 * tratados (1/2/3 sao vazios aqui) nao seja confundido com ausencia de
-+	 * interrupcao -- que e um jeito silencioso de o IV "sumir".
++	/* BC-250: if this line comes out for cid=8, the SDMA0 trap IV ARRIVED.
++	 * Printed before any switch, so that a ring_id outside the handled cases
++	 * (1/2/3 are empty here) is not mistaken for an absent
++	 * interrupt -- which is a silent way for the IV to "disappear".
 +	 */
 +	if (bc250_ih_debug || bc250_sdma_iv_trace[0] || bc250_sdma_iv_trace[1]) {
 +		int inst = (entry->client_id == SOC15_IH_CLIENTID_SDMA1) ? 1 : 0;

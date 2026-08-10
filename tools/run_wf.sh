@@ -1,9 +1,9 @@
 #!/bin/bash
-# Roda um workflow arbitrario no ComfyUI e reporta tempo, erro e estatistica de
-# pixel. Generalizacao do run_alvo.sh, que tinha o workflow fixo.
+# Runs an arbitrary ComfyUI workflow and reports time, error and pixel
+# statistics. Generalization of run_alvo.sh, which had a fixed workflow.
 #
-# Imagem valida e validada por estatistica, nao por existir: corrompida da
-# std ~10 e ~2000 cores, boa da std ~75 e ~100k.
+# A valid image is validated by statistics, not by existing: corrupted gives
+# std ~10 and ~2000 colors, good gives std ~75 and ~100k.
 set -u
 WF=${1:?workflow json}; VAE=${2:-auto}; WARM=${3:-0}; ALLOC=${4:-exp}; UNET=${5:-auto}
 R=/home/gabriwar/bc250-grimoire/rocm-test; L=$R/wf.log
@@ -12,9 +12,9 @@ source /etc/profile.d/bc250-rocm.sh
 export BC250_CONV_FIX=${BC250_CONV_FIX:-1} BC250_WARMUP=$WARM
 [ "$ALLOC" = "exp" ] && export PYTORCH_HIP_ALLOC_CONF=expandable_segments:True || unset PYTORCH_HIP_ALLOC_CONF
 case "$VAE" in auto) F="" ;; cpu) F=--cpu-vae ;; *) F=--${VAE}-vae ;; esac
-# --fp16-unet tem prioridade absoluta em unet_dtype(): retorna torch.float16
-# antes de qualquer heuristica, ignorando o supported_inference_dtypes do
-# modelo. O Z-Image declara [bfloat16, float32] e esta placa nao tem bf16.
+# --fp16-unet has absolute priority in unet_dtype(): it returns torch.float16
+# before any heuristic, ignoring the model's supported_inference_dtypes.
+# Z-Image declares [bfloat16, float32] and this board has no bf16.
 case "$UNET" in auto) ;; *) F="$F --${UNET}-unet" ;; esac
 echo "  wf=$(basename $WF) vae=$VAE unet=$UNET warmup=$WARM alloc=$ALLOC"
 
@@ -33,9 +33,9 @@ python3 -c "
 import json,sys
 w=json.load(open('$WF'))
 print(json.dumps({'prompt': w.get('prompt', w)}))" > "$R/_wf_run.json"
-# So olhar o log a partir daqui: o boot do ComfyUI ja imprime
-# "Failed to import comfy_kitchen" e "No module named torchaudio", que sao
-# ruido conhecido e faziam o detector abortar em 0.0s sem esperar a imagem.
+# Only look at the log from here on: ComfyUI's boot already prints
+# "Failed to import comfy_kitchen" and "No module named torchaudio", which are
+# known noise and made the detector abort at 0.0s without waiting for the image.
 BASE=$(wc -l < "$L")
 T0=$(date +%s.%N)
 curl -s -X POST -H 'Content-Type: application/json' -d @"$R/_wf_run.json" \

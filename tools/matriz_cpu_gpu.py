@@ -1,35 +1,35 @@
 #!/usr/bin/env python3
-"""Matriz completa: quem escreve x quem le, bloco a bloco.
+"""Full matrix: who writes x who reads, block by block.
 
-Por que precisa da matriz
--------------------------
-Cada teste anterior mediu um par so, e cada par sozinho e ambiguo:
+Why the matrix is needed
+------------------------
+Every previous test measured a single pair, and each pair alone is ambiguous:
 
-    CPU escreve -> CPU le    correto      (mapeamentos de host consistentes entre si)
-    GPU escreve -> GPU le    errado       (o aliasing)
-    GPU escreve -> CPU le    divergente   (um bloco: GPU le certo, CPU le ZERO)
+    CPU writes -> CPU reads    correct     (host mappings consistent with each other)
+    GPU writes -> GPU reads    wrong       (the aliasing)
+    GPU writes -> CPU reads    divergent   (one block: GPU reads right, CPU reads ZERO)
 
-Aquele "CPU le ZERO" e o que muda tudo: nao e dado velho de outro buffer, e
-conteudo de BO recem-limpo. Para aquele ponteiro, o mapeamento da CPU e o da GPU
-resolvem para memoria fisica DIFERENTE. E eu nunca verifiquei que os dois lados
-apontam para o mesmo lugar -- so que os mapeamentos de CPU eram consistentes
-entre si.
+That "CPU reads ZERO" is what changes everything: it is not stale data from
+another buffer, it is the content of a freshly cleared BO. For that pointer, the
+CPU mapping and the GPU mapping resolve to DIFFERENT physical memory. And I never
+verified that both sides point at the same place -- only that the CPU mappings
+were consistent with each other.
 
-Ja descartado como causa: evicção/movimento de BO por TTM. Sao 12288 MiB de VRAM
-com 19 MiB em uso, e evict_vram e evict_gtt estao os dois em zero.
+Already ruled out as a cause: BO eviction/movement by TTM. There are 12288 MiB of
+VRAM with 19 MiB in use, and evict_vram and evict_gtt are both zero.
 
-As quatro fases
+The four phases
 ---------------
-    1. CPU escreve V1, CPU le      controle: os mapeamentos de host batem?
-    2. GPU le (hipMemcpy D2H)      a GPU enxerga o que a CPU escreveu?
-    3. GPU escreve V2 (hipMemset)
-    4. CPU le                      a CPU enxerga o que a GPU escreveu?
+    1. CPU writes V1, CPU reads    control: do the host mappings match?
+    2. GPU reads (hipMemcpy D2H)   does the GPU see what the CPU wrote?
+    3. GPU writes V2 (hipMemset)
+    4. CPU reads                   does the CPU see what the GPU wrote?
 
-    divergencia na fase 2  -> CPU e GPU leem memoria fisica diferente
-    fase 2 ok e 4 diverge  -> a escrita da GPU nao chega a memoria (cache)
+    divergence in phase 2   -> CPU and GPU read different physical memory
+    phase 2 ok, 4 diverges  -> the GPU write does not reach memory (cache)
 
-hipMemcpy D2H tambem le pela GPU (usa SDMA/blit), entao serve como "leitura da
-GPU". A leitura da CPU e direta no ponteiro mapeado.
+hipMemcpy D2H also reads through the GPU (it uses SDMA/blit), so it serves as
+"read by the GPU". The CPU read is direct on the mapped pointer.
 """
 import ctypes
 import os
@@ -48,10 +48,10 @@ def say(s):
     print(s, flush=True)
 
 
-# Escreve no trace do kernel para que os enderecos deste processo apareçam
-# INTERCALADOS com os eventos do amdgpu. Correlacionar por arquivos separados
-# ja me levou a comparar um trace com o repro de outra execucao; assim trace e
-# reprodutor viram um artefato so, com a ordem temporal garantida.
+# Writes into the kernel trace so that this process's addresses show up
+# INTERLEAVED with the amdgpu events. Correlating through separate files
+# already led me to compare one trace against another run's repro; this way trace
+# and reproducer become a single artifact, with guaranteed temporal ordering.
 try:
     _mk = open("/sys/kernel/tracing/trace_marker", "w")
 except OSError:
@@ -128,7 +128,7 @@ def ver_gpu(p, t):
 
 
 def quem(v):
-    """De qual bloco esse byte veio, se de algum."""
+    """Which block did this byte come from, if any."""
     for base, rot in ((10, "V1"), (100, "V2")):
         k = int(v) - base
         if 0 <= k < len(blocos):

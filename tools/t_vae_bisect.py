@@ -1,5 +1,5 @@
-# Bisseccao do VAE decode em 512px na GPU, com hook por submodulo.
-# SEM ROCBLAS_LAYER — o logging pesado foi o que travou a maquina, nao o decode.
+# Bisection of the 512px VAE decode on the GPU, with a per-submodule hook.
+# NO ROCBLAS_LAYER -- the heavy logging is what hung the machine, not the decode.
 import sys, os, torch
 sys.argv = [sys.argv[0]]
 sys.path.insert(0,"/home/gabriwar/ComfyUI")
@@ -16,7 +16,7 @@ vae = comfy.sd.load_checkpoint_guess_config(ck, output_vae=True, output_clip=Fal
 say("B_vae_carregado")
 
 m = vae.first_stage_model
-m.half().to('cuda')                      # fp16 na GPU, como o --fp16-vae faz
+m.half().to('cuda')                      # fp16 on the GPU, the way --fp16-vae does it
 say("C_vae_na_gpu_fp16")
 
 n = 0

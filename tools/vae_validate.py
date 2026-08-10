@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Valida o decode do VAE na GPU CONTRA A CPU, nao so contra 'e finito'.
+"""Validates the VAE decode on the GPU AGAINST THE CPU, not just against 'is finite'.
 
-Erro cometido em 2026-08-05: usei `torch.isfinite(img).all()` como criterio de
-sucesso. Lixo quase uniforme tambem e finito. O decode "passou" no isolado e no
-ComfyUI e produziu imagem com desvio padrao 10 (esperado 25+) e 1.989 cores
-unicas, num PNG de 30 KB contra os 480 KB normais.
+Mistake made on 2026-08-05: I used `torch.isfinite(img).all()` as the success
+criterion. Nearly uniform garbage is finite too. The decode "passed" both in
+isolation and in ComfyUI and produced an image with standard deviation 10
+(expected 25+) and 1,989 unique colors, in a 30 KB PNG against the normal 480 KB.
 
-Aqui: mesmo latente na GPU e na CPU, comparacao numerica direta.
+Here: same latent on the GPU and on the CPU, direct numeric comparison.
 
-Saida: ~/bc250-grimoire/vae_validate.result
+Output: ~/bc250-grimoire/vae_validate.result
 """
 import os
 import sys

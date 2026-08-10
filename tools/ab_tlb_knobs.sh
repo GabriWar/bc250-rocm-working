@@ -1,33 +1,33 @@
 #!/bin/bash
-# A/B das chaves de diagnostico de invalidacao de TLB contra o reprodutor de
-# aliasing de tabelas de pagina (tools/hipmalloc_cru.py).
+# A/B of the TLB invalidation diagnostic knobs against the page table aliasing
+# reproducer (tools/hipmalloc_cru.py).
 #
-# O que se mede
-# -------------
-# Duas alocacoes de hipMalloc vivas, BOs distintos em /proc/pid/maps, que a GPU
-# ve como a mesma memoria. A CPU escreve e le as duas faixas sem divergencia.
-# Reproduz em 6 de 6 execucoes; exige alocacao e execucao de kernel
-# intercaladas, cada metade sozinha da 0 de 3.
+# What is measured
+# ----------------
+# Two live hipMalloc allocations, distinct BOs in /proc/pid/maps, that the GPU
+# sees as the same memory. The CPU writes and reads both ranges with no
+# divergence. Reproduces in 6 of 6 runs; requires allocation and kernel execution
+# interleaved, each half alone gives 0 of 3.
 #
-# As chaves
+# The knobs
 # ---------
-#   all_hub      invalida tambem o MMHUB. Cyan Skillfish e APU mas recebe
-#                AMDGPU_FAMILY_NV, e a lista que liga all_hub tem so AI e RV.
-#   no_seq_skip  nao pula o flush pelo contador de sequencia.
-#   extra_types  emite tambem os flushes tipo 2 e 0.
-#   (as tres)    tudo junto, para o caso de nenhuma isolada bastar.
+#   all_hub      also invalidates the MMHUB. Cyan Skillfish is an APU but gets
+#                AMDGPU_FAMILY_NV, and the list that enables all_hub has only AI and RV.
+#   no_seq_skip  does not skip the flush based on the sequence counter.
+#   extra_types  also issues type 2 and type 0 flushes.
+#   (all three)  everything together, in case no single one is enough.
 #
-# Leitura do resultado
-# --------------------
-#   alguma chave zera o aliasing  -> o defeito e de INVALIDACAO, e o patch mora
-#                                    no caminho de flush
-#   nenhuma muda nada             -> a PTE gravada ja esta errada, e o problema
-#                                    e de ESCRITA de tabela de pagina
+# Reading the result
+# ------------------
+#   some knob zeroes the aliasing  -> the defect is INVALIDATION, and the patch
+#                                     belongs in the flush path
+#   nothing changes                -> the written PTE is already wrong, and the
+#                                     problem is page table WRITING
 #
-# Desenho: ordem contrabalanceada, nunca alternada -- nesta placa a primeira
-# carga de GPU de um boot difere das seguintes, e alternar daria a um braco
-# todas as posicoes impares. Baseline (tudo desligado) entra como um braco
-# proprio, medido junto e nao de memoria.
+# Design: counterbalanced order, never alternating -- on this board a boot's first
+# GPU load differs from the following ones, and alternating would give one arm all
+# the odd positions. Baseline (everything off) enters as an arm of its own,
+# measured alongside and not from memory.
 
 P=/sys/module/amdgpu/parameters
 H=/home/gabriwar/bc250-grimoire/ab_tlb_knobs.historico
@@ -53,7 +53,7 @@ echo "boot=$BOOT reps=$REPS  $(uptime -p)" | tee -a "$H"
 cd /home/gabriwar/ComfyUI || exit 1
 source /etc/profile.d/bc250-rocm.sh
 
-# ordem contrabalanceada dos quatro bracos
+# counterbalanced order of the four arms
 ORDEM="base allhub noseq extra extra noseq allhub base base allhub noseq extra"
 i=0
 for BRACO in $ORDEM; do

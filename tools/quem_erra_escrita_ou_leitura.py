@@ -1,31 +1,32 @@
 #!/usr/bin/env python3
-"""A GPU erra ao ESCREVER ou ao LER?
+"""Does the GPU fail on WRITE or on READ?
 
-O que ja esta medido
---------------------
-Dois blocos de hipMalloc vivos, BOs distintos em /proc/pid/maps, que a GPU trata
-como a mesma memoria. Reproduz em ~83% das execucoes. Sobrevive a invalidacao
-forcada de TLB e a reescrita. Nao muda com vm_update_mode 3 (tabelas escritas
-pela CPU) nem 0 (escritas por SDMA): 10/12 contra 5/6.
-
-O buraco no que eu media
+What is already measured
 ------------------------
-Ate agora foram sempre pares homogeneos:
+Two live hipMalloc blocks, distinct BOs in /proc/pid/maps, that the GPU treats as
+the same memory. Reproduces in ~83% of runs. Survives forced TLB invalidation and
+rewriting. Does not change with vm_update_mode 3 (tables written by the CPU) or 0
+(written by SDMA): 10/12 against 5/6.
 
-    CPU escreve  -> CPU le    correto
-    GPU escreve  -> GPU le    errado
+The hole in what I was measuring
+--------------------------------
+So far the pairs were always homogeneous:
 
-Isso nao separa escrita de leitura. Falta o cruzado, e ele decide:
+    CPU writes  -> CPU reads    correct
+    GPU writes  -> GPU reads    wrong
 
-    GPU escreve  -> CPU le    se a CPU ver o valor CERTO no bloco, a escrita
-                              da GPU foi para o lugar fisico certo e quem erra
-                              e o caminho de LEITURA da GPU
-                              se a CPU ver o valor ERRADO, a escrita da GPU foi
-                              para o lugar errado
+That does not separate write from read. The crossed case is missing, and it
+decides:
 
-A leitura pela CPU e feita direto no ponteiro mapeado (o mesmo VA), sem passar
-por hipMemcpy -- hipMemcpy usa SDMA/blit e portanto le pela GPU, que e
-justamente o caminho sob suspeita.
+    GPU writes  -> CPU reads    if the CPU sees the RIGHT value in the block, the
+                                GPU's write went to the right physical place and
+                                what fails is the GPU's READ path
+                                if the CPU sees the WRONG value, the GPU's write
+                                went to the wrong place
+
+The CPU read is done directly on the mapped pointer (the same VA), without going
+through hipMemcpy -- hipMemcpy uses SDMA/blit and therefore reads through the
+GPU, which is precisely the path under suspicion.
 """
 import ctypes
 import os
@@ -95,7 +96,7 @@ for rodada in ("A", "B"):
         ck(hip.hipMalloc(ctypes.byref(p), ctypes.c_size_t(t)), "hipMalloc")
         blocos.append((f"{rodada} {t}B", p, t))
 
-# a GPU escreve um valor unico em cada bloco
+# the GPU writes a unique value into each block
 for k, (rot, p, t) in enumerate(blocos):
     ck(hip.hipMemset(p, ctypes.c_int(k + 1), ctypes.c_size_t(t)), "hipMemset")
 ck(hip.hipDeviceSynchronize(), "sync")
@@ -104,12 +105,12 @@ achou = 0
 for k, (rot, p, t) in enumerate(blocos):
     esperado = k + 1
 
-    # leitura 1: pela CPU, direto no ponteiro mapeado
+    # read 1: from the CPU, directly on the mapped pointer
     cpu = np.frombuffer((ctypes.c_ubyte * t).from_address(p.value), dtype=np.uint8)
     d_cpu = cpu != esperado
     n_cpu = int(d_cpu.sum())
 
-    # leitura 2: por hipMemcpy, que usa SDMA/blit e portanto le pela GPU
+    # read 2: via hipMemcpy, which uses SDMA/blit and therefore reads through the GPU
     buf = (ctypes.c_ubyte * t)()
     ck(hip.hipMemcpy(buf, p, ctypes.c_size_t(t), D2H), "hipMemcpy")
     gpu = np.frombuffer(buf, dtype=np.uint8)

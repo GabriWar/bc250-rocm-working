@@ -1,44 +1,44 @@
 #!/usr/bin/env python3
-"""A corrupcao depende do tempo de vida do buffer de ORIGEM no host?
+"""Does the corruption depend on the lifetime of the SOURCE buffer on the host?
 
-Como a pergunta apareceu
+How the question came up
 ------------------------
-Rodando plant_pattern.py duas vezes, mesmo boot, mesma carga:
+Running plant_pattern.py twice, same boot, same load:
 
-  versao que LIBERA os tensores de origem a cada ciclo   5 de 5 ciclos corromperam
-  versao que SEGURA todos vivos (lista `fontes`)         0 de 5
+  version that FREES the source tensors each cycle   5 of 5 cycles corrupted
+  version that HOLDS them all alive (`fontes` list)  0 of 5
 
-A unica diferenca entre as duas era acumular os tensores numa lista para busca
-posterior -- ou seja, deixar de devolver a memoria de host ao alocador.
+The only difference between the two was accumulating the tensors in a list for a
+later search -- that is, no longer returning host memory to the allocator.
 
-Por que isso seria causal
--------------------------
-Em clr/rocclr/device/rocm/rocblit.cpp o H2D tem dois caminhos. No staged, o dado
-e copiado para um buffer intermediario antes do DMA. No pinado, nao ha copia: o
-DMA le `hostSrc` diretamente. Nos dois casos a funcao retorna sem esperar a
-conclusao -- diferente do D2H, que chama `gpu().Barriers().WaitCurrent()`.
+Why that would be causal
+------------------------
+In clr/rocclr/device/rocm/rocblit.cpp the H2D path has two variants. In the
+staged one, data is copied into an intermediate buffer before the DMA. In the
+pinned one, there is no copy: the DMA reads `hostSrc` directly. In both cases the
+function returns without waiting for completion -- unlike D2H, which calls
+`gpu().Barriers().WaitCurrent()`.
 
-Se o host liberar e reusar aquelas paginas antes do DMA terminar, a GPU le o
-conteudo novo. Isso explicaria o que nenhuma hipotese anterior explicou:
+If the host frees and reuses those pages before the DMA finishes, the GPU reads
+the new content. That would explain what no previous hypothesis explained:
 
-  - valores errados com distribuicao IDENTICA a correta (std 1.0, faixa +-3.9),
-    porque sao randn de outro tensor, nao lixo
-  - destino pre-marcado com NaN volta SEM NaN nenhum: alguem escreveu ali, a
-    copia nao deixou de acontecer
-  - o trecho errado nao casa com nenhum offset do proprio tensor
+  - wrong values with a distribution IDENTICAL to the correct one (std 1.0,
+    range +-3.9), because they are randn from another tensor, not garbage
+  - a destination pre-marked with NaN comes back with NO NaN at all: someone
+    wrote there, the copy did happen
+  - the wrong stretch does not match any offset of the tensor itself
 
-Desenho
--------
-Um processo por braco, seis processos, mesmo boot. Ordem contrabalanceada
-`H F F H H F` para que nenhum braco fique so com as posicoes iniciais -- nesta
-placa a primeira carga de GPU de um processo se comporta diferente das
-seguintes, entao alternar (`H F H F`) daria todas as posicoes impares a um
-braco so.
+Design
+------
+One process per arm, six processes, same boot. Counterbalanced order
+`H F F H H F` so that no arm gets only the early positions -- on this board a
+process's first GPU load behaves differently from the following ones, so
+alternating (`H F H F`) would give every odd position to a single arm.
 
-  HOLD  guarda toda origem viva ate o fim do processo
-  FREE  rebind a cada ciclo, devolvendo a memoria ao alocador
+  HOLD  keeps every source alive until the process ends
+  FREE  rebinds each cycle, returning the memory to the allocator
 
-Tudo o mais e identico, inclusive a semente. Uso:  host_lifetime.py HOLD|FREE
+Everything else is identical, including the seed. Usage: host_lifetime.py HOLD|FREE
 """
 import os
 import sys
@@ -77,7 +77,7 @@ boot = open("/proc/sys/kernel/random/boot_id").read().strip()[:8]
 aquecer()
 torch.manual_seed(0)
 
-segurados = []       # so alimentado no braco HOLD
+segurados = []       # only fed in the HOLD arm
 ruins = 0
 detalhe = []
 for ciclo in range(1, CICLOS + 1):
@@ -87,19 +87,19 @@ for ciclo in range(1, CICLOS + 1):
         cpu.append((h, c, x))
         if braco == "HOLD":
             segurados.append(x)
-        gpu.append(x.to(DEV))                 # rajada, sem sync entre uploads
+        gpu.append(x.to(DEV))                 # burst, no sync between uploads
     torch.cuda.synchronize()
 
     for (h, c, x), xg in zip(cpu, gpu):
         nd = int((xg.cpu() != x).sum())
-        # o endereco vai junto: os dados dizem que a sorte e decidida no inicio
-        # do processo e nao muda, entao a suspeita agora e a FAIXA que o
-        # alocador entregou, nao o instante da copia
+        # the address goes along: the data says the outcome is decided at the start
+        # of the process and does not change, so the suspicion now is the RANGE the
+        # allocator handed out, not the moment of the copy
         detalhe.append(f"c{ciclo}:{c}x{h}@0x{xg.data_ptr():x}={nd}")
         if nd:
             ruins += 1
-    # no braco FREE, `cpu` e `gpu` sao rebindados na proxima volta e a memoria
-    # de host volta para o alocador; no HOLD, `segurados` mantem tudo vivo
+    # in the FREE arm, `cpu` and `gpu` are rebound on the next lap and the host
+    # memory goes back to the allocator; in HOLD, `segurados` keeps everything alive
 
 say(f"braco={braco} boot={boot} pid={os.getpid()} ruins={ruins}/{CICLOS*len(ALVOS)} "
     f"segurados={len(segurados)} | {' '.join(detalhe) if detalhe else 'limpo'}")

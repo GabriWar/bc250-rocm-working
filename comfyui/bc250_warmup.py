@@ -1,15 +1,15 @@
-# BC-250 (gfx1013): aquecimento de code objects.
+# BC-250 (gfx1013): code object warmup.
 #
-# Motivo: nesta placa, um code object carregado TARDE — depois do modelo e de
-# muita alocacao de GPU — produz busca de instrucao em endereco invalido
-# (page fault com cliente SQC (inst), byte alto 0xff).
+# Reason: on this board, a code object loaded LATE -- after the model and a lot
+# of GPU allocation -- produces instruction fetch at an invalid address
+# (page fault with client SQC (inst), high byte 0xff).
 #
-# Estabelecido por A/B na mesma boot em 2026-08-04:
-#   count_nonzero aquecido no inicio -> passa
-#   count_nonzero so no fim          -> illegal memory access
+# Established by A/B on the same boot, 2026-08-04:
+#   count_nonzero warmed up early -> passes
+#   count_nonzero only at the end -> illegal memory access
 #
-# HIP_ENABLE_DEFERRED_LOADING=0 seria a correcao natural, mas segfaulta nesta
-# build do ROCm. Entao aquecemos na mao, cedo, antes de qualquer modelo entrar.
+# HIP_ENABLE_DEFERRED_LOADING=0 would be the natural fix, but it segfaults on
+# this ROCm build. So we warm up by hand, early, before any model comes in.
 
 import os, sys, traceback
 
@@ -37,7 +37,7 @@ if os.environ.get("BC250_WARMUP", "1") != "0":
                 k = torch.randn(8, 8, 3, 3, device=d, dtype=dt)
                 F = torch.nn.functional
                 t = str(dt).split('.')[-1]
-                # reducoes — count_nonzero e a que quebrava o KSampler
+                # reductions -- count_nonzero is the one that broke the KSampler
                 w(f"count_nonzero/{t}", lambda: torch.count_nonzero(a))
                 w(f"sum/{t}",           lambda: a.sum())
                 w(f"mean/{t}",          lambda: a.mean())
@@ -82,7 +82,7 @@ if os.environ.get("BC250_WARMUP", "1") != "0":
                 w(f"transpose/{t}", lambda: a.t().contiguous())
                 w(f"randlike/{t}",  lambda: torch.randn_like(a))
                 del a, b, c, k
-            # int64 — count_nonzero devolve int64
+            # int64 -- count_nonzero returns int64
             i = torch.ones(4096, device=d, dtype=torch.int64)
             w("i64_sum", lambda: i.sum())
             w("i64_max", lambda: i.max())

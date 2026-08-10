@@ -1,33 +1,35 @@
 #!/usr/bin/env python3
-"""Duas alocacoes vivas ocupam a mesma memoria de dispositivo?
+"""Do two live allocations occupy the same device memory?
 
-De onde vem a suspeita
-----------------------
-Medindo com tres pernas (comparacao na GPU + volta dos dois buffers), apareceu
-uma relacao que nenhuma hipotese de corrida explica: o dado errado aparece na
-BASE do buffer vitima e vem de um offset ARBITRARIO de outro tensor.
+Where the suspicion comes from
+------------------------------
+Measuring on three legs (comparison on the GPU + both buffers brought back), a
+relation showed up that no race hypothesis explains: the wrong data appears at
+the BASE of the victim buffer and comes from an ARBITRARY offset of another
+tensor.
 
-    vitima 0x7f2945a00000  <- offset 1425408 de c=320 h=104  (= 2850816 B)
-    vitima 0x7f2947000000  <- offset  196608 de c=320 h=112  (=  393216 B)
+    victim 0x7f2945a00000  <- offset 1425408 of c=320 h=104  (= 2850816 B)
+    victim 0x7f2947000000  <- offset  196608 of c=320 h=112  (=  393216 B)
 
-E, decisivo: buffers que nem participam da rajada sao atingidos. Um tensor
-subido com sync, parado na memoria, volta com o conteudo de outro.
+And, decisively: buffers that do not even take part in the burst are hit. A
+tensor uploaded with sync, sitting still in memory, comes back with another one's
+content.
 
-Se dois tensores compartilham endereco, escrever em um necessariamente escreve
-no outro, e a relacao vira exatamente `vitima_base = outro_base + N`. Nao
-precisa de corrida, de sinal perdido nem de staging: e aritmetica.
+If two tensors share an address, writing to one necessarily writes to the other,
+and the relation becomes exactly `victim_base = other_base + N`. No race, no lost
+signal, no staging needed: it is arithmetic.
 
-O que este script faz
+What this script does
 ---------------------
-1. Aloca como a carga real aloca, com liberacao e reuso.
-2. A cada passo, confere se algum par de tensores VIVOS tem intervalo
-   [ptr, ptr+bytes) sobreposto.
-3. Confirma na pratica: escreve um padrao em cada tensor vivo e verifica se
-   escrever num deles altera outro.
+1. Allocates the way the real workload allocates, with frees and reuse.
+2. At each step, checks whether any pair of LIVE tensors has overlapping
+   [ptr, ptr+bytes) ranges.
+3. Confirms it in practice: writes a pattern into each live tensor and checks
+   whether writing to one changes another.
 
-O passo 3 importa porque o ponteiro do PyTorch e virtual; sobreposicao pode
-existir no mapeamento sem aparecer na aritmetica de ponteiro, e vice-versa.
-Escrever e ler e a prova que nao depende de interpretacao.
+Step 3 matters because PyTorch's pointer is virtual; overlap can exist in the
+mapping without showing up in pointer arithmetic, and vice versa. Writing and
+reading is the proof that does not depend on interpretation.
 """
 import os
 
@@ -58,7 +60,7 @@ def aquecer():
 
 
 def sobrepostos(vivos):
-    """Pares cujos intervalos de endereco se cruzam."""
+    """Pairs whose address ranges intersect."""
     r = []
     it = [(rot, t.data_ptr(), t.numel() * t.element_size()) for rot, t in vivos]
     for i in range(len(it)):
@@ -94,8 +96,8 @@ for ciclo in (1, 2, 3, 4, 5):
         say(f"  ciclo{ciclo} SOBREPOSICAO DE ENDERECO: {ra} @0x{a:x}+{na} "
             f"x {rb} @0x{b:x}+{nb}  (delta {b-a:+d} B)")
 
-    # prova pratica: cada tensor vivo recebe um valor unico; se escrever num
-    # deles muda outro, compartilham memoria de verdade
+    # practical proof: each live tensor gets a unique value; if writing to one
+    # of them changes another, they really share memory
     for k, (rot, t) in enumerate(vivos):
         t.fill_(float(k + 1) / 64.0)
     torch.cuda.synchronize()

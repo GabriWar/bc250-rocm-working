@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""A memoria da GPU guarda o que foi escrito? Sem kernel de conv no meio.
+"""Does GPU memory keep what was written to it? No conv kernel in between.
 
-Motivo (2026-08-05): correlacionando ponteiro de device com erro de conv2d,
-c=320 h=112 erra sempre, e escreve ~1 MB alem de onde c=320 h=104 -- que
-compartilha a mesma base e acerta. Isso prediz uma regiao ruim.
+Reason (2026-08-05): correlating device pointer with conv2d error, c=320 h=112
+always fails, and it writes ~1 MB past where c=320 h=104 does -- which shares the
+same base and passes. That predicts a bad region.
 
-Aqui e escrita e leitura pura: padrao conhecido, sincroniza, le de volta,
-compara. Se falhar, o defeito e a memoria e nenhum kernel esta envolvido.
+Here it is pure write and read: known pattern, synchronize, read back, compare.
+If it fails, the defect is the memory and no kernel is involved.
 """
 import os, torch
 d="cuda"
@@ -17,7 +17,7 @@ def say(s):
 free,total=torch.cuda.mem_get_info()
 say(f"VRAM livre {free/2**20:.0f} MB de {total/2**20:.0f} MB")
 say("")
-CH=64*2**20  # 64 MB por bloco
+CH=64*2**20  # 64 MB per block
 n=CH//4
 total_ruim=0
 blocos=[]
@@ -28,7 +28,7 @@ for i in range(12):
     except RuntimeError as e:
         say(f"  bloco {i}: sem memoria, parando ({type(e).__name__})"); break
     base=t.data_ptr()
-    # padrao dependente do indice: pega bit preso, bit trocado e endereco errado
+    # index-dependent pattern: catches stuck bits, swapped bits and wrong addresses
     ref=torch.arange(n, dtype=torch.int32, device=d) ^ 0x5A5A5A5A
     t.copy_(ref); torch.cuda.synchronize()
     dif=(t!=ref)
@@ -42,7 +42,7 @@ for i in range(12):
             say(f"        offset {j*4} (0x{base+j*4:x}): "
                 f"esperado 0x{int(ref[j])&0xffffffff:08x} "
                 f"obtido 0x{int(t[j])&0xffffffff:08x}")
-    blocos.append(t)  # segura a referencia para nao reciclar
+    blocos.append(t)  # hold the reference so it is not recycled
 
 say("")
 say(f"total de palavras corrompidas: {total_ruim}")

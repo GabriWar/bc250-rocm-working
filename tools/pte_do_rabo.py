@@ -1,51 +1,53 @@
 #!/usr/bin/env python3
-"""A PTE da faixa que FALHA aponta para onde? (nao a da base do bloco)
+"""Where does the PTE of the FAILING range point? (not the block base's)
 
-O buraco que este script fecha
-------------------------------
-O doc 17 conclui que as tabelas de pagina estao corretas e que portanto a GPU le
-FORA delas -- e todo o resto da investigacao foi construido em cima disso,
-inclusive duas hipoteses de invalidacao que ja cairam por medicao.
+The hole this script closes
+---------------------------
+Doc 17 concludes that the page tables are correct and therefore that the GPU
+reads OUTSIDE them -- and the whole rest of the investigation was built on top of
+that, including two invalidation hypotheses that have already fallen to
+measurement.
 
-Mas o triangular_fisico.py, que sustenta essa conclusao, so olha o offset 0:
+But triangular_fisico.py, which backs that conclusion, only looks at offset 0:
 
-    linha 166   hipMemcpy(buf, p, 8, D2H)      le 8 bytes na BASE do bloco
-    linha 187   pg = p.value >> 12             casa a PTE da PRIMEIRA pagina
-    linha 302   alvos = {pa[k] ...}            varre atras dos PAs BASE
+    line 166   hipMemcpy(buf, p, 8, D2H)      reads 8 bytes at the block BASE
+    line 187   pg = p.value >> 12             matches the FIRST page's PTE
+    line 302   alvos = {pa[k] ...}            scans for the BASE PAs
 
-E a corrupcao nao comeca na base. Nos dados de matriz_cpu_gpu:
+And the corruption does not start at the base. In the matriz_cpu_gpu data:
 
-    A 8028160B: 3833856 de 8028160 bytes errados, a partir de 4194304
+    A 8028160B: 3833856 of 8028160 bytes wrong, starting at 4194304
 
-8028160 - 4194304 = 3833856. Erra do offset de 4 MiB ate o fim do bloco, e os
-primeiros 4 MiB estao certos. Ou seja: a PTE que foi conferida e justamente a da
-regiao que FUNCIONA. A PTE da regiao que falha nunca foi lida.
+8028160 - 4194304 = 3833856. It fails from the 4 MiB offset to the end of the
+block, and the first 4 MiB are correct. In other words: the PTE that was checked
+is precisely the one for the region that WORKS. The PTE of the failing region was
+never read.
 
-Alem disso, 85 de 87 offsets onde a corrupcao comeca sao multiplos exatos de
-2 MiB -- a granularidade de pagina grande, o mesmo incr=2097152 das PTEs.
+On top of that, 85 of 87 offsets where the corruption starts are exact multiples
+of 2 MiB -- the large-page granularity, the same incr=2097152 of the PTEs.
 
-Como este script fecha
-----------------------
-1. marcador por PAGINA, nao por bloco: cada pagina de 2 MiB recebe
-   MAGIC | (bloco << 20) | pagina. Assim uma leitura identifica de qual pagina
-   de qual bloco o dado veio, e nao so de qual bloco.
-2. le pela GPU TODAS as paginas de todos os blocos.
-3. para cada pagina divergente, usa o campo `pe` do tracepoint -- que e o
-   endereco fisico da propria entrada de tabela -- para ler os BYTES REAIS da
-   PTE daquela pagina. Sem varrer 12 GiB: pe + indice*8.
+How this script closes it
+-------------------------
+1. marker per PAGE, not per block: each 2 MiB page gets
+   MAGIC | (block << 20) | page. That way a read identifies which page of which
+   block the data came from, not just which block.
+2. reads ALL pages of every block through the GPU.
+3. for each divergent page, uses the tracepoint's `pe` field -- which is the
+   physical address of the table entry itself -- to read the REAL BYTES of that
+   page's PTE. Without scanning 12 GiB: pe + index*8.
 
-Leitura do resultado
---------------------
-  PTE da pagina que falha aponta para o bloco errado
-      -> o defeito e CONTEUDO DE TABELA DE PAGINA. O doc 17 inverte, e isso e
-         software, corrigivel.
-  PTE da pagina que falha esta correta
-      -> a GPU realmente le fora da propria tabela, e o alvo passa a ser o
-         caminho de acesso abaixo dela.
+Reading the result
+------------------
+  the PTE of the failing page points at the wrong block
+      -> the defect is PAGE TABLE CONTENT. Doc 17 is inverted, and this is
+         software, fixable.
+  the PTE of the failing page is correct
+      -> the GPU really does read outside its own table, and the target becomes
+         the access path below it.
 
-Controle embutido: a mesma leitura e feita para uma pagina que NAO divergiu. Se
-a PTE dela nao conferir, a leitura fisica esta sob referencial errado e o
-resultado inteiro e descartado.
+Built-in control: the same read is done for a page that did NOT diverge. If its
+PTE does not check out, the physical read is under the wrong frame of reference
+and the entire result is discarded.
 """
 import ctypes
 import os
@@ -60,9 +62,9 @@ D2H = 2
 TRC = "/sys/kernel/tracing"
 VRAM_DBG = "/sys/kernel/debug/dri/1/amdgpu_vram"
 OUT = os.path.expanduser("~/bc250-grimoire/pte_do_rabo.result")
-PAG = 2 << 20                      # 2 MiB, a granularidade que os dados apontam
+PAG = 2 << 20                      # 2 MiB, the granularity the data points at
 MAGIC = 0x5A5A_0000_0000_0000
-MASC_PA = 0x0000FFFFFFFFF000       # bits 47:12 da PTE guardam o endereco fisico
+MASC_PA = 0x0000FFFFFFFFF000       # bits 47:12 of the PTE hold the physical address
 
 _f = open(OUT, "a", buffering=1)
 
@@ -78,7 +80,7 @@ def root(cmd):
 
 
 def ler_fisico(off, n=8):
-    """Le n bytes da VRAM pelo ENDERECO FISICO, sem passar por VA nenhum."""
+    """Reads n bytes of VRAM by PHYSICAL ADDRESS, without going through any VA."""
     r = root(["python3", "-c",
               "import os,sys;fd=os.open('%s',os.O_RDONLY);"
               "sys.stdout.write(os.pread(fd,%d,%d).hex())" % (VRAM_DBG, n, off)])
@@ -100,8 +102,8 @@ def ck(r, o):
 
 
 def aquecer():
-    # identico ao dos outros reprodutores -- amarrar tensores de device a nomes
-    # faz o aliasing sumir, entao a forma aqui nao e estetica
+    # identical to the other reproducers -- binding device tensors to names
+    # makes the aliasing vanish, so the shape here is not cosmetic
     import torch.nn.functional as F
     for _ in range(2):
         for h in range(32, 136, 8):
@@ -121,14 +123,14 @@ say(f"boot={open('/proc/sys/kernel/random/boot_id').read().strip()[:8]} pid={os.
 
 for e in ("amdgpu_vm_update_ptes", "amdgpu_vm_set_ptes"):
     root(["sh", "-c", f"echo 1 > {TRC}/events/amdgpu/{e}/enable"])
-# o filtro evita as 938 entradas por execucao que, sem ele, perturbam o fenomeno
+# the filter avoids the 938 entries per run that otherwise perturb the phenomenon
 root(["sh", "-c", f"echo 'incr == {PAG}' > {TRC}/events/amdgpu/amdgpu_vm_set_ptes/filter"])
 root(["sh", "-c", f"echo 32768 > {TRC}/buffer_size_kb"])
 root(["sh", "-c", f"echo > {TRC}/trace"])
 root(["sh", "-c", f"echo 1 > {TRC}/tracing_on"])
 
 aquecer()
-for _ in range(3):                                  # rotatividade: cria e libera
+for _ in range(3):                                  # churn: create and free
     tmp = []
     for t in TAM:
         p = ctypes.c_void_p()
@@ -144,7 +146,7 @@ for rodada in ("A", "B"):
         ck(hip.hipMalloc(ctypes.byref(p), ctypes.c_size_t(t)), "hipMalloc")
         blocos.append((f"{rodada}{t}", p, t))
 
-# marcador POR PAGINA: identifica bloco E pagina, nao so bloco
+# marker PER PAGE: identifies block AND page, not just block
 for k, (rot, p, t) in enumerate(blocos):
     for pag in range((t + PAG - 1) // PAG):
         off = pag * PAG
@@ -155,9 +157,9 @@ ck(hip.hipDeviceSynchronize(), "sync")
 root(["sh", "-c", f"echo 0 > {TRC}/tracing_on"])
 trace = root(["cat", f"{TRC}/trace"])
 
-# --- a GPU entrega a pagina certa? ---
+# --- does the GPU deliver the right page? ---
 say("  --- lendo TODAS as paginas pela GPU (nao so a base) ---")
-divergentes = []       # (k, pag, k_origem, pag_origem)
+divergentes = []       # (k, page, src_k, src_page)
 total_pag = 0
 for k, (rot, p, t) in enumerate(blocos):
     for pag in range((t + PAG - 1) // PAG):
@@ -179,10 +181,10 @@ for k, (rot, p, t) in enumerate(blocos):
                 f"{' (' + blocos[ko][0] + ')' if ko < len(blocos) else ''}")
 say(f"    {len(divergentes)} paginas divergentes de {total_pag} lidas")
 
-# --- do trace: para cada pagina de VA, qual PTE e qual PA o driver programou ---
-# update_ptes da a faixa de VA; o set_ptes seguinte da pe (endereco fisico da
-# entrada), addr (PA destino), incr e count.
-mapas = []      # (va_pg_inicial, pe, addr, incr, count)
+# --- from the trace: for each VA page, which PTE and which PA the driver programmed ---
+# update_ptes gives the VA range; the following set_ptes gives pe (physical
+# address of the entry), addr (destination PA), incr and count.
+mapas = []      # (first_va_pg, pe, addr, incr, count)
 pend = None
 for ln in trace.splitlines():
     m = re.search(r'update_ptes: .*start:0x([0-9a-f]+) end:0x([0-9a-f]+), flags:0x([0-9a-f]+)', ln)
@@ -197,7 +199,7 @@ say(f"  --- {len(mapas)} mapeamentos de 2 MiB capturados no trace ---")
 
 
 def pte_de(va):
-    """Devolve (endereco fisico da PTE, PA que o driver mandou) para este VA."""
+    """Returns (physical address of the PTE, PA the driver programmed) for this VA."""
     pg = va >> 12
     for start, pe, addr, incr, count in reversed(mapas):
         n_pg = incr >> 12
@@ -207,7 +209,7 @@ def pte_de(va):
     return None, None
 
 
-# --- calibra a base do FB e VALIDA lendo a PTE de uma pagina que NAO divergiu ---
+# --- calibrates the FB base and VALIDATES by reading the PTE of a page that did NOT diverge ---
 BASE = 0x170000000
 say(f"  --- controle: PTE de uma pagina SEM divergencia (base do FB 0x{BASE:x}) ---")
 ok_controle = False
@@ -251,7 +253,7 @@ else:
         val = struct.unpack("<Q", raw)[0]
         real_pa = val & MASC_PA
 
-        # de quem e o PA que a PTE realmente contem?
+        # whose is the PA the PTE actually contains?
         dono = None
         for kk, (rr, pp, tt) in enumerate(blocos):
             for gg in range((tt + PAG - 1) // PAG):

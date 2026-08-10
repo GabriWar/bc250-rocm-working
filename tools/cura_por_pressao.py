@@ -1,35 +1,35 @@
 #!/usr/bin/env python3
-"""A cura vem de PRESSAO DE EVICCAO ou do MESMO PA? Discrimina.
+"""Does the healing come from EVICTION PRESSURE or from the SAME PA? Discriminates.
 
-O que ficou aberto no doc 23
-----------------------------
-O acesso do segundo processo cura a traducao do primeiro (3 de 3). Mas o filho
-fazia so uma coisa: abrir o handle IPC do PA aliasado e ler ELE. Duas
-explicacoes sobram:
+What doc 23 left open
+---------------------
+The second process's access heals the first one's translation (3 of 3). But the
+child did only one thing: open the IPC handle of the aliased PA and read IT. Two
+explanations remain:
 
-  pressao   qualquer acesso do filho insere traducoes novas na mesma estrutura
-            pequena (UTCL1) e despeja a entrada velha por evicao
-  mesmo-PA  algo especifico de tocar o MESMO endereco fisico por outro
-            mapeamento (probe/snoop por PA)
+  pressure  any access by the child inserts new translations into the same small
+            structure (UTCL1) and evicts the old entry
+  same-PA   something specific about touching the SAME physical address through
+            another mapping (probe/snoop by PA)
 
-Aqui o filho faz as coisas EM ORDEM, e o pai reamostra a pagina errada entre
-cada uma:
+Here the child does things IN ORDER, and the parent resamples the bad page
+between each one:
 
-  A  filho iniciou HIP e alocou 64 MiB proprios (mapeamento, zero acesso)
-  B  filho LEU 1 pagina do buffer proprio       <- uma insercao, PA alheio
-  C  filho leu 32 paginas do buffer proprio     <- pressao de eviccao
-  D  filho abriu o IPC e leu o PA aliasado      <- so agora o mesmo-PA
-  E  filho saiu
+  A  child started HIP and allocated its own 64 MiB (mapping, zero access)
+  B  child READ 1 page of its own buffer     <- one insertion, someone else's PA
+  C  child read 32 pages of its own buffer   <- eviction pressure
+  D  child opened the IPC and read the aliased PA  <- only now the same-PA
+  E  child exited
 
-Leitura:
-  cura em B ou C  -> eviccao generica; a entrada velha mora numa estrutura
-                     pequena o bastante para trafego alheio despejar (UTCL1)
-  cura so em D    -> acoplamento por PA; mecanismo diferente do assumido
-  nao cura        -> a cura do doc 23 dependia da combinacao abrir+ler dali
+Reading:
+  heals at B or C -> generic eviction; the old entry lives in a structure small
+                     enough that unrelated traffic evicts it (UTCL1)
+  heals only at D -> PA coupling; a different mechanism than assumed
+  never heals     -> doc 23's healing depended on the open+read combination there
 
-Ressalva de contexto: este boot roda com bc250_l2_force_miss=7 (braco B do doc
-22). O UTCL2 nao guarda traducao nenhuma, entao qualquer staleness aqui e
-UTCL1 puro. E exatamente o isolamento que se quer para esta pergunta.
+Context caveat: this boot runs with bc250_l2_force_miss=7 (arm B of doc 22). The
+UTCL2 holds no translation at all, so any staleness here is pure UTCL1. That is
+exactly the isolation wanted for this question.
 """
 import ctypes
 import os
@@ -94,7 +94,7 @@ def espera(alvo, limite=120):
     return False
 
 
-# ----------------------------------------------------------------- filho
+# ----------------------------------------------------------------- child
 if "--filho" in sys.argv:
     hip = carregar_hip()
     TAMF = 64 << 20
@@ -104,18 +104,18 @@ if "--filho" in sys.argv:
         sys.exit(1)
     sinal("A-alocou")
     espera("vai-B")
-    # B: UMA leitura de pagina propria (uma insercao de traducao)
+    # B: ONE read of its own page (one translation insertion)
     buf = (ctypes.c_ubyte * 8)()
     hip.hipMemcpy(buf, meu, ctypes.c_size_t(8), D2H)
     sinal("B-leu-1")
     espera("vai-C")
-    # C: 32 paginas proprias (pressao de eviccao)
+    # C: 32 own pages (eviction pressure)
     for pg in range(1, 32):
         hip.hipMemcpy(buf, ctypes.c_void_p(meu.value + pg * PAG),
                       ctypes.c_size_t(8), D2H)
     sinal("C-leu-32")
     espera("vai-D")
-    # D: so agora o mesmo-PA, via IPC
+    # D: only now the same-PA, via IPC
     d = open(HPATH, "rb").read()
     h = Handle()
     ctypes.memmove(ctypes.byref(h), d[:64], 64)
@@ -132,7 +132,7 @@ if "--filho" in sys.argv:
     sys.exit(0)
 
 
-# ------------------------------------------------------------------- pai
+# ------------------------------------------------------------------ parent
 _f = open(OUT, "a", buffering=1)
 
 
@@ -196,7 +196,7 @@ for k, (rot, p, t) in enumerate(blocos):
                            struct.pack("<Q", MAGIC | (k << 20) | pag), 8)
 ck(hip.hipDeviceSynchronize(), "sync")
 
-# so paginas deterministicas (20/20) valem
+# only deterministic pages (20/20) count
 maus = []
 for k, (rot, p, t) in enumerate(blocos):
     for pag in range((t + PAG - 1) // PAG):

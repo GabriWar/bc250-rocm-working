@@ -1,17 +1,17 @@
 #!/bin/bash
-# Instala o amdgpu recompilado (com as chaves de diagnostico de TLB) e recarrega
-# o modulo SEM reboot.
+# Installs the rebuilt amdgpu (with the TLB diagnostic knobs) and reloads the
+# module WITHOUT a reboot.
 #
-# Da para recarregar porque agora o amdgpu esta com 0 referencias e nao ha
-# display server rodando. Se isso mudar, o `modprobe -r` falha e o script para
-# antes de mexer em qualquer coisa.
+# Reloading is possible because amdgpu now has 0 references and no display server
+# is running. If that changes, `modprobe -r` fails and the script stops before
+# touching anything.
 #
-# As chaves nascem todas em 0, entao o modulo novo se comporta como o antigo ate
-# alguem liga-las. O A/B fica em tools/ab_tlb_knobs.sh.
+# The knobs all start at 0, so the new module behaves like the old one until
+# someone enables them. The A/B lives in tools/ab_tlb_knobs.sh.
 #
-# Uso:
-#   instalar_amdgpu_knobs.sh            instala e recarrega
-#   instalar_amdgpu_knobs.sh rollback   volta o modulo salvo e recarrega
+# Usage:
+#   instalar_amdgpu_knobs.sh            installs and reloads
+#   instalar_amdgpu_knobs.sh rollback   restores the saved module and reloads
 
 set -u
 S() { printf 'grdg\n' | sudo -S "$@" 2>/dev/null; }
@@ -21,10 +21,10 @@ KO="$SRC/drivers/gpu/drm/amd/amdgpu/amdgpu.ko"
 DST="/lib/modules/$(uname -r)/kernel/drivers/gpu/drm/amd/amdgpu/amdgpu.ko.zst"
 BAK="/home/gabriwar/bc250-grimoire/amdgpu.ko.zst.antes-das-chaves"
 
-# Os parametros de modulo vem da cmdline no boot. Num reload por modprobe eles
-# NAO sao reaplicados sozinhos, entao sao extraidos daqui e repassados na mao --
-# esquecer isso faria o modulo subir com gttsize e vm_update_mode default, e o
-# A/B mediria outra maquina.
+# Module parameters come from the boot cmdline. On a modprobe reload they are
+# NOT reapplied on their own, so they are extracted here and passed by hand --
+# forgetting this would bring the module up with default gttsize and
+# vm_update_mode, and the A/B would be measuring a different machine.
 PARAMS=$(tr ' ' '\n' < /proc/cmdline | sed -n 's/^amdgpu\.//p' | tr '\n' ' ')
 
 recarregar() {

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""DENTRO de um canal, quais pixels erram?
+"""INSIDE a channel, which pixels fail?
 
-Estabelecido: c=320 h=112 erra 43.3% dos elementos, espalhados por TODOS os
-320 canais, nenhum canal inteiramente errado. Logo todo workgroup executou.
+Established: c=320 h=112 gets 43.3% of the elements wrong, spread across ALL 320
+channels, with no channel entirely wrong. So every workgroup did execute.
 
-O laco do naive conv e:
+The naive conv loop is:
     for(tid = threadIdx.x; tid < ho*wo; tid += blockDim.x)
-com ho*wo = 12544. Se blockDim=256, sao 49 iteracoes por thread.
+with ho*wo = 12544. If blockDim=256, that is 49 iterations per thread.
 
-  errados contiguos no fim   -> laco terminou cedo
-  errados a cada 256         -> iteracao especifica do laco
-  errados por faixa de lane  -> thread/wave especifica
+  wrong contiguous at the end -> the loop ended early
+  wrong every 256             -> a specific loop iteration
+  wrong by lane range         -> a specific thread/wave
 """
 import os, torch, torch.nn.functional as F
 d="cuda"; torch.manual_seed(0)

@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""Roda o pipeline do ComfyUI passo a passo e acha a operacao exata que quebra.
+"""Runs the ComfyUI pipeline step by step and finds the exact operation that breaks.
 
-Motivo (2026-08-05): com o patch de SDMA aplicado, o bc250_conv_fix ficou
-dispensavel, mas SEM o bc250_warmup a geracao morre com hipErrorIllegalAddress
-em boot limpo, como primeira carga de GPU. Ou seja sobrou defeito alem da
-copia H2D, e o warmup de 90 kernels ainda compensa.
+Reason (2026-08-05): with the SDMA patch applied, bc250_conv_fix became
+unnecessary, but WITHOUT bc250_warmup generation dies with hipErrorIllegalAddress
+on a clean boot, as the first GPU load. So there is a defect left beyond the H2D
+copy, and the 90-kernel warmup still compensates for it.
 
-O warmup nao faz nada exotico -- 90 operacoes elementares (count_nonzero, sum,
-mean, max, min, argmax, norm, matmul, conv) em fp32 e fp16. Se rodar essas
-cedo evita o crash, entao o que quebra e uma dessas primeiras operacoes num
-contexto ainda frio.
+The warmup does nothing exotic -- 90 elementary operations (count_nonzero, sum,
+mean, max, min, argmax, norm, matmul, conv) in fp32 and fp16. If running those
+early avoids the crash, then what breaks is one of those first operations in a
+still-cold context.
 
-Este script reproduz o pipeline sem passar pelo servidor do ComfyUI e sem o
-grafo de nos, e intercepta toda chamada aten com TorchDispatchMode. Cada
-operacao e gravada em disco com fsync ANTES de executar, entao se a maquina
-travar a ultima linha do arquivo e exatamente a culpada.
+This script reproduces the pipeline without going through the ComfyUI server and
+without the node graph, and intercepts every aten call with TorchDispatchMode.
+Each operation is written to disk with fsync BEFORE executing, so if the machine
+hangs the last line of the file is exactly the guilty one.
 
-Rodar SEM warmup e como PRIMEIRA carga de GPU do boot:
+Running WITHOUT warmup is like the boot's FIRST GPU load:
     BC250_WARMUP=0 trace_pipeline.py
 
-Conferir antes que `dmesg | grep -c "page fault"` e zero.
+Check beforehand that `dmesg | grep -c "page fault"` is zero.
 """
 import os
 import sys

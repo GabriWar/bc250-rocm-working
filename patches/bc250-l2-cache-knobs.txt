@@ -7,66 +7,66 @@ what makes it usable on a board where invalidation does not complete.
 Measured: force_miss=7 on both hubs -> 6 of 10 runs still dirty. The cache
 is not the source. See docs/22.
 
-/* BC-250/gfx1013: configuracao do cache de TABELA DE PAGINA dentro do L2.
+/* BC-250/gfx1013: page TABLE cache configuration inside the L2.
  *
- * Por que estes botoes existem
- * ---------------------------
- * O defeito desta placa e a GPU entregar, para uma VA, o conteudo de OUTRA
- * alocacao viva -- em blocos inteiros, com granularidade de 2 MiB e offset de
- * pagina constante. Quatro observadores ja mostraram que a culpa nao e de
- * software: a PTE que o driver escreve esta certa, a PTE na memoria esta certa,
- * e o dado lido direto no endereco fisico (sem VA nenhuma) esta certo. So a
- * GPU erra.
+ * Why these knobs exist
+ * ---------------------
+ * This board's defect is the GPU delivering, for one VA, the content of ANOTHER
+ * live allocation -- in whole blocks, with 2 MiB granularity and a constant page
+ * offset. Four observers have already shown the fault is not software: the PTE
+ * the driver writes is right, the PTE in memory is right, and the data read
+ * directly at the physical address (with no VA at all) is right. Only the
+ * GPU gets it wrong.
  *
- * Isso deixa o caminho de traducao da propria GPU. E dentro dele ha um cache
- * que ninguem tinha olhado: o L2 guarda LINHAS DE TABELA DE PAGINA. Um bloco de
- * tabela (PTB) e memoria como outra qualquer -- e liberado e realocado. Se o
- * endereco fisico de um PTB antigo e reusado por um PTB novo, a CPU escreve as
- * PTEs novas la, mas o L2 pode continuar servindo as LINHAS ANTIGAS daquele
- * endereco. O walker le a tabela da geracao anterior, e o resultado tem
- * exatamente a forma medida: bloco inteiro resolvido pelas paginas de outros
- * blocos, na ordem em que eles estavam no PTB antigo.
+ * That leaves the GPU's own translation path. And inside it there is a cache
+ * nobody had looked at: the L2 caches PAGE TABLE LINES. A page table block
+ * (PTB) is memory like any other -- it gets freed and reallocated. If the
+ * physical address of an old PTB is reused by a new PTB, the CPU writes the new
+ * PTEs there, but the L2 may keep serving the OLD LINES for that address. The
+ * walker reads the previous generation's table, and the result has exactly the
+ * measured shape: a whole block resolved through other blocks' pages, in the
+ * order they had in the old PTB.
  *
- * Isso tambem explica os dois fatos que nunca encaixaram em nada:
+ * This also explains the two facts that never fit anything:
  *
- *   - bimodal por processo, deterministico e persistente: depende de os PTBs
- *     daquele processo cairem em enderecos recem-reusados, e nada nunca
- *     despeja essas linhas -- porque nesta placa a invalidacao NUNCA acontece
- *     (e, quando forcada, trava; ver gmc_v10_0.c).
- *   - a taxa acompanhar o tamanho da VRAM (20,4% em 512 MB, 15,7% em 4 GB,
- *     12,0% em 12 GB): menos VRAM, mais reuso de endereco fisico de PTB.
+ *   - bimodal per process, deterministic and persistent: it depends on that
+ *     process's PTBs landing on freshly reused addresses, and nothing ever
+ *     evicts those lines -- because on this board invalidation NEVER happens
+ *     (and, when forced, it wedges; see gmc_v10_0.c).
+ *   - the rate tracking VRAM size (20.4% at 512 MB, 15.7% at 4 GB,
+ *     12.0% at 12 GB): less VRAM, more reuse of PTB physical addresses.
  *
- * O que cada botao faz
- * --------------------
- * bc250_l2_force_miss e uma mascara de bits sobre GCVM_L2_CNTL3. FORCE_MISS
- * obriga o cache a errar sempre, isto e, a reler a entrada da memoria em toda
- * traducao. Nao depende de invalidacao nenhuma -- e por isso que serve aqui,
- * onde invalidar trava.
+ * What each knob does
+ * -------------------
+ * bc250_l2_force_miss is a bitmask over GCVM_L2_CNTL3. FORCE_MISS forces the
+ * cache to always miss, i.e. to re-read the entry from memory on every
+ * translation. It depends on no invalidation at all -- which is why it is usable
+ * here, where invalidating wedges.
  *
- *   bit 0 (1) = L2_CACHE_4K_FORCE_MISS     paginas de 4 KiB
- *   bit 1 (2) = L2_CACHE_BIGK_FORCE_MISS   paginas grandes -- as nossas de 2 MiB
- *   bit 2 (4) = PDE_CACHE_FORCE_MISS       diretorios
- *   7 = os tres (marreta: se isto nao muda a taxa, a hipotese morre)
+ *   bit 0 (1) = L2_CACHE_4K_FORCE_MISS     4 KiB pages
+ *   bit 1 (2) = L2_CACHE_BIGK_FORCE_MISS   large pages -- ours, at 2 MiB
+ *   bit 2 (4) = PDE_CACHE_FORCE_MISS       directories
+ *   7 = all three (sledgehammer: if this does not move the rate, the hypothesis dies)
  *
- * bc250_l2_pde0_tag_mode escolhe como o cache de PDE0 gera a TAG. E um campo de
- * 1 bit que todo hub do driver, de gfx9 a gfx12, escreve como 0 -- com um
- * comentario da propria AMD dizendo "XXX for emulation, Refer to closed source
- * code". Se a geracao de tag trunca endereco nesta configuracao de memoria,
- * duas linhas de tabela em enderecos fisicos diferentes colidem no cache. Isso
- * casa com os dois grupos de enderecos medidos, um na base da VRAM e outro no
- * topo. -1 mantem o padrao do driver.
+ * bc250_l2_pde0_tag_mode selects how the PDE0 cache generates the TAG. It is a
+ * 1-bit field that every hub in the driver, from gfx9 to gfx12, writes as 0 --
+ * with a comment from AMD itself saying "XXX for emulation, Refer to closed
+ * source code". If tag generation truncates addresses in this memory
+ * configuration, two table lines at different physical addresses collide in the
+ * cache. That matches the two address groups measured, one at the base of VRAM
+ * and one at the top. -1 keeps the driver's default.
  *
- * bc250_l2_disable_bigk_opt desliga a otimizacao de pagina grande no L2
- * (GCVM_L2_CNTL2.DISABLE_BIGK_CACHE_OPTIMIZATION). Reserva, caso FORCE_MISS
- * pague mas custe caro demais.
+ * bc250_l2_disable_bigk_opt disables the large-page optimization in the L2
+ * (GCVM_L2_CNTL2.DISABLE_BIGK_CACHE_OPTIMIZATION). A fallback, in case
+ * FORCE_MISS pays off but costs too much.
  *
- * Todos sao 0444: valem so no init, entao mudam por linha de comando e um
- * reboot, e nunca no meio de uma execucao.
+ * All of them are 0444: they apply at init only, so they change via command line
+ * plus a reboot, and never in the middle of a run.
  */
-/* Nao sao static: mmhub_v2_0.c le os mesmos valores por extern, para que os dois
- * hubs fiquem sempre na mesma configuracao. O SDMA acessa memoria pelo MMHUB, e
- * boa parte das medidas de corrupcao passou por hipMemcpy. Mesmo padrao do
- * bc250_tlb_trace, definido em amdgpu_vm.c e lido em gmc_v10_0.c.
+/* Not static: mmhub_v2_0.c reads the same values via extern, so both hubs always
+ * stay in the same configuration. SDMA reaches memory through the MMHUB, and a
+ * good part of the corruption measurements went through hipMemcpy. Same pattern
+ * as bc250_tlb_trace, defined in amdgpu_vm.c and read in gmc_v10_0.c.
  */
 int bc250_l2_force_miss;
 module_param(bc250_l2_force_miss, int, 0444);

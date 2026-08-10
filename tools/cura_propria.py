@@ -1,38 +1,37 @@
 #!/usr/bin/env python3
-"""O PROPRIO processo consegue curar a sua traducao errada?
+"""Can the process heal its OWN wrong translation?
 
-Contexto
---------
-cura_por_pressao.py mediu: UM acesso de OUTRO processo ao buffer dele proprio
-cura a traducao errada do primeiro (B na trajetoria, 2 de 2 rodadas). Mapear
-sem acessar nao cura.
+Context
+-------
+cura_por_pressao.py measured: ONE access by ANOTHER process to its own buffer
+heals the first one's wrong translation (B on the trajectory, 2 of 2 runs).
+Mapping without accessing does not heal.
 
-Mas o "primeiro acesso de outro processo" carrega duas coisas ao mesmo tempo:
+But "the first access by another process" carries two things at once:
 
-  press   insercoes de traducao novas na mesma estrutura pequena (eviccao)
-  troca   a primeira ativacao de outro processo pelo escalonador de hardware
-          -- uma troca de contexto real nos CUs, onde o firmware pode
-          invalidar TLBs por um caminho interno proprio
+  press   new translation insertions into the same small structure (eviction)
+  swap    the first activation of another process by the hardware scheduler
+          -- a real context switch on the CUs, where the firmware may
+          invalidate TLBs through its own internal path
 
-Aqui o PROPRIO pai gera a pressao, sem processo novo nenhum:
+Here the parent itself generates the pressure, with no new process at all:
 
-  base  pagina errada confirmada 20/20
-  P1    pai aloca 64 MiB novos e escreve marcadores (host; sem GPU)
-  P2    pai le 1 pagina do buffer novo via GPU
-  P3    pai le as 32 paginas via GPU
-  P4    pai roda um conv2d pequeno (dispatch de compute de verdade)
+  base  bad page confirmed 20/20
+  P1    parent allocates 64 MiB and writes markers (host; no GPU)
+  P2    parent reads 1 page of the new buffer via GPU
+  P3    parent reads all 32 pages via GPU
+  P4    parent runs a small conv2d (a real compute dispatch)
 
-Leitura:
-  cura em P2/P3  -> eviccao por capacidade; qualquer trafego novo cura, e a
-                    persistencia dos 200/200 vinha de ler sempre as mesmas
-                    paginas. Localizacao: estrutura pequena, UTCL1.
-  cura em P4     -> dispatch de compute cura, blit nao -- caminho de insercao
-                    diferente (SQC/TCP vs blit), ainda eviccao.
-  nao cura       -> pressao do proprio processo NAO basta; o gatilho e a
-                    ATIVACAO DE OUTRO processo. O firmware tem um caminho de
-                    invalidacao que funciona, exercitado na troca -- e nenhuma
-                    quantidade de trafego proprio limpa uma entrada do proprio
-                    VMID.
+Reading:
+  heals at P2/P3 -> capacity eviction; any new traffic heals it, and the
+                    persistence of 200/200 came from always reading the same
+                    pages. Location: small structure, UTCL1.
+  heals at P4    -> compute dispatch heals, blit does not -- a different
+                    insertion path (SQC/TCP vs blit), still eviction.
+  never heals    -> the process's own pressure is NOT enough; the trigger is the
+                    ACTIVATION OF ANOTHER process. The firmware has an
+                    invalidation path that works, exercised on the swap -- and no
+                    amount of self-traffic clears an entry of its own VMID.
 """
 import ctypes
 import os
@@ -164,7 +163,7 @@ def amostra(rot):
 say("")
 amostra("base")
 
-# P1: mapear proprio, sem GPU
+# P1: map its own, no GPU
 novo = ctypes.c_void_p()
 ck(hip.hipMalloc(ctypes.byref(novo), ctypes.c_size_t(64 << 20)), "hipMalloc(64M)")
 for pg in range(32):
@@ -173,14 +172,14 @@ say("")
 say("  P1: pai alocou 64 MiB e escreveu marcadores (host, sem GPU)")
 e1 = amostra("apos mapear proprio")
 
-# P2: 1 pagina propria via GPU
+# P2: 1 own page via GPU
 buf = (ctypes.c_ubyte * 8)()
 hip.hipMemcpy(buf, novo, ctypes.c_size_t(8), D2H)
 say("")
 say("  P2: pai leu 1 pagina do buffer novo via GPU")
 e2 = amostra("apos 1 acesso proprio")
 
-# P3: 32 paginas proprias via GPU
+# P3: 32 own pages via GPU
 for pg in range(1, 32):
     hip.hipMemcpy(buf, ctypes.c_void_p(novo.value + pg * PAG),
                   ctypes.c_size_t(8), D2H)
@@ -188,7 +187,7 @@ say("")
 say("  P3: pai leu as 32 paginas via GPU")
 e3 = amostra("apos 32 acessos proprios")
 
-# P4: dispatch de compute de verdade
+# P4: a real compute dispatch
 import torch.nn.functional as F  # noqa: E402
 x = torch.randn(1, 64, 64, 64, dtype=torch.float16).to(DEV)
 w = torch.randn(64, 64, 3, 3, dtype=torch.float16).to(DEV)

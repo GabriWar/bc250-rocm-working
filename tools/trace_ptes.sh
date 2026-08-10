@@ -1,21 +1,21 @@
 #!/bin/bash
-# Captura as escritas reais de PTE durante o reprodutor de aliasing e mostra
-# duas faixas de VA recebendo o mesmo endereco fisico.
+# Captures the real PTE writes during the aliasing reproducer and shows two VA
+# ranges receiving the same physical address.
 #
-# Por que este e o teste certo agora
-# ----------------------------------
-# Ja esta medido que a associacao errada SOBREVIVE a uma invalidacao forcada de
-# TLB: apos hipMalloc/hipFree (que passa por kfd_flush_tlb) e reescrever, o
-# bloco continua com o valor do outro. Logo nao e cache de traducao velha -- a
-# entrada de tabela de pagina em si aponta para a memoria fisica errada.
+# Why this is the right test now
+# ------------------------------
+# It is already measured that the wrong association SURVIVES a forced TLB
+# invalidation: after hipMalloc/hipFree (which goes through kfd_flush_tlb) and a
+# rewrite, the block still holds the other one's value. So it is not a stale
+# translation cache -- the page table entry itself points at the wrong memory.
 #
-# Com vm_update_mode=3 quem escreve as PTEs e a CPU (amdgpu_vm_cpu_update), e o
-# tracepoint amdgpu_vm_update_ptes ja existe no kernel em uso: da a faixa de VA
-# (start, end), o incremento, as flags e o vetor dst[] com os enderecos fisicos
-# de destino. Nao precisa recompilar nada.
+# With vm_update_mode=3 the CPU is what writes the PTEs (amdgpu_vm_cpu_update),
+# and the amdgpu_vm_update_ptes tracepoint already exists in the running kernel:
+# it gives the VA range (start, end), the increment, the flags and the dst[]
+# vector with the destination physical addresses. Nothing needs recompiling.
 #
-# O reprodutor imprime os VAs aliasados; o cruzamento com o trace mostra se as
-# duas faixas receberam o mesmo dst.
+# The reproducer prints the aliased VAs; cross-referencing with the trace shows
+# whether the two ranges received the same dst.
 
 T=/sys/kernel/tracing
 OUT=/home/gabriwar/bc250-grimoire/trace_ptes
@@ -23,13 +23,13 @@ S() { printf 'grdg\n' | sudo -S "$@" 2>/dev/null; }
 
 mkdir -p "$OUT"
 
-# Buffer grande para nao perder evento: dump no fim, sem pipe concorrente.
+# Large buffer so no event is lost: dump at the end, no concurrent pipe.
 S sh -c "echo 8192 > $T/buffer_size_kb"
 S sh -c "echo 0 > $T/tracing_on"
 S sh -c "echo > $T/trace"
 S sh -c "echo 1 > $T/events/amdgpu/amdgpu_vm_update_ptes/enable"
-# set_ptes e o unico cujo print fmt renderiza addr=, o endereco fisico de
-# destino. O dst[] do update_ptes e __data_loc e sai vazio no texto do ftrace.
+# set_ptes is the only one whose print fmt renders addr=, the destination physical
+# address. update_ptes's dst[] is __data_loc and comes out empty in ftrace's text.
 S sh -c "echo 1 > $T/events/amdgpu/amdgpu_vm_set_ptes/enable"
 S sh -c "echo 1 > $T/events/amdgpu/amdgpu_vm_bo_mapping/enable"
 S sh -c "echo 1 > $T/events/amdgpu/amdgpu_vm_bo_unmap/enable"

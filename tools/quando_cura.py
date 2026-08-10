@@ -1,45 +1,46 @@
 #!/usr/bin/env python3
-"""O aliasing se cura. Quando, exatamente?
+"""The aliasing heals itself. When, exactly?
 
-Por que este script existe
---------------------------
-O doc 17 afirma que o aliasing, uma vez estabelecido, e deterministico e
-persiste -- "invalidacao forcada de TLB e reescrita nao recuperam o bloco".
+Why this script exists
+----------------------
+Doc 17 claims that the aliasing, once established, is deterministic and persists
+-- "forced TLB invalidation and rewriting do not recover the block".
 
-tools/duas_vas.py contradisse isso por acidente. A sequencia era:
+tools/duas_vas.py contradicted that by accident. The sequence was:
 
-    le VA1 -> errado
+    read VA1 -> wrong
     hipIpcGetMemHandle
-    processo filho abre o mesmo PA por outra VA, le, fecha, sai
-    le VA1 -> CERTO
+    child process opens the same PA through another VA, reads, closes, exits
+    read VA1 -> RIGHT
 
-Alguma etapa dali curou. Como o filho leu certo, ficou ambiguo se ele leu certo
-porque a VA dele e boa (traducao) ou porque quando ele leu ja tinha curado.
+Some step in there healed it. Since the child read correctly, it stayed ambiguous
+whether it read correctly because its VA is good (translation) or because by the
+time it read it had already healed.
 
-Este script reamostra a VA1 em CADA etapa, entao cada transicao errado->certo
-fica presa entre duas leituras adjacentes.
+This script resamples VA1 at EVERY step, so each wrong->right transition is
+trapped between two adjacent reads.
 
-Etapas medidas
+Measured steps
 --------------
-    0  logo apos achar as divergentes, N releituras seguidas
-       (se ja oscila aqui, nao e "persistente" nem com IPC no meio, e o resto
-        do experimento e sobre outra coisa)
-    1  depois de hipIpcGetMemHandle, sem nenhum processo novo
-    2  com o filho VIVO, depois de ele abrir o handle mas ANTES de ler
-    3  com o filho VIVO, depois de ele ter lido
-    4  depois de o filho fechar o handle e sair
+    0  right after finding the divergent ones, N reads in a row
+       (if it already oscillates here, it is not "persistent" even with IPC in
+        the middle, and the rest of the experiment is about something else)
+    1  after hipIpcGetMemHandle, with no new process at all
+    2  with the child ALIVE, after it opened the handle but BEFORE it read
+    3  with the child ALIVE, after it has read
+    4  after the child closed the handle and exited
 
-O que cada resposta significa
------------------------------
-    cura na 0   nao e persistente; a releitura sozinha resolve, e a premissa do
-                doc 17 cai inteira
-    cura na 1   pegar o handle ja mexe no mapeamento (o driver refaz PTEs)
-    cura na 2   abrir o mesmo BO num segundo VM e o gatilho
-    cura na 3   a LEITURA pelo outro VM e o gatilho
-    cura na 4   a saida do processo -- teardown de KFD -- e o gatilho
+What each answer means
+----------------------
+    heals at 0  not persistent; re-reading alone solves it, and doc 17's premise
+                falls entirely
+    heals at 1  taking the handle already touches the mapping (the driver redoes PTEs)
+    heals at 2  opening the same BO in a second VM is the trigger
+    heals at 3  the READ by the other VM is the trigger
+    heals at 4  the process exit -- KFD teardown -- is the trigger
 
-Qualquer uma delas e uma mitigacao candidata, e todas sao baratas de aplicar
-comparadas a mexer em hardware que nao responde.
+Any of them is a candidate mitigation, and all are cheap to apply compared to
+poking at hardware that does not respond.
 """
 import ctypes
 import os
@@ -100,7 +101,7 @@ def espera(caminho, alvo, limite=60):
     return False
 
 
-# ----------------------------------------------------------------- filho
+# ----------------------------------------------------------------- child
 if "--filho" in sys.argv:
     hip = carregar_hip()
     d = open(HPATH, "rb").read()
@@ -112,7 +113,7 @@ if "--filho" in sys.argv:
     if r != 0:
         open(SINAL, "w").write(f"erro-open-{r}")
         sys.exit(1)
-    open(SINAL, "w").write("abriu")          # etapa 2: pai mede agora
+    open(SINAL, "w").write("abriu")          # step 2: parent measures now
     espera(SINAL, "pode-ler")
     got = ler(hip, p.value, off)
     open(SINAL, "w").write(f"leu {got[0] if got else -1} {got[1] if got else -1}")
@@ -122,7 +123,7 @@ if "--filho" in sys.argv:
     sys.exit(0)
 
 
-# ------------------------------------------------------------------- pai
+# ------------------------------------------------------------------ parent
 _f = open(OUT, "a", buffering=1)
 
 
@@ -186,10 +187,10 @@ for k, (rot, p, t) in enumerate(blocos):
                            struct.pack("<Q", MAGIC | (k << 20) | pag), 8)
 ck(hip.hipDeviceSynchronize(), "sync")
 
-# So paginas DETERMINISTICAS entram. Medido em tools/oscila.py: existem
-# paginas intermitentes, e uma delas -- rotulada por uma leitura so -- fez este
-# script sair na etapa 0 concluindo "cura so de reler", o que era verdade para
-# aquela pagina e falso para o fenomeno.
+# Only DETERMINISTIC pages get in. Measured in tools/oscila.py: there are
+# intermittent pages, and one of them -- labeled by a single read -- made this
+# script bail out at step 0 concluding "heals just by re-reading", which was true
+# for that page and false for the phenomenon.
 K = 20
 maus = []
 for k, (rot, p, t) in enumerate(blocos):
@@ -215,10 +216,10 @@ say(f"  {len(maus)} paginas divergentes: " +
 
 
 def amostra(rotulo):
-    """Quantas das divergentes ainda erram em TODAS as K leituras?
+    """How many of the divergent ones still fail on ALL K reads?
 
-    Uma leitura so faria uma pagina parcialmente curada aparecer como curada
-    ou como intacta conforme a sorte."""
+    A single read would make a partially healed page look either healed or
+    intact, depending on luck."""
     err = 0
     det = []
     for k, pag in maus:

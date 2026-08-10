@@ -1,63 +1,61 @@
 #!/usr/bin/env python3
-"""Qual operacao devolveu numero errado: a conv, o cast, ou o im2col+GEMM?
+"""Which operation returned the wrong number: the conv, the cast, or im2col+GEMM?
 
-Contexto (2026-08-05)
----------------------
-Comparando a saida de `F.conv2d` de duas formas, para c=320 h=128 depois de
-aquecer, deu isto:
+Context (2026-08-05)
+--------------------
+Comparing `F.conv2d`'s output two ways, for c=320 h=128 after warmup, gave this:
 
-    comparada NA GPU contra im2col+GEMM     erro 1.293e+00   errado
-    copiada e comparada contra a CPU        erro 3.770e-04   certo
+    compared ON THE GPU against im2col+GEMM   error 1.293e+00   wrong
+    copied and compared against the CPU       error 3.770e-04   right
 
-Como a segunda esta certa, a saida da conv esta certa e quem mentiu foi o lado
-GPU da comparacao. Mas aquele caminho junta DUAS operacoes que a comparacao no
-host nao usa:
+Since the second one is right, the conv's output is right and what lied was the
+GPU side of the comparison. But that path bundles TWO operations the host
+comparison does not use:
 
-    1. F.unfold + matmul em fp32 na GPU   (a referencia)
-    2. g.float()  -- o cast fp16->fp32 NA GPU
+    1. F.unfold + matmul in fp32 on the GPU   (the reference)
+    2. g.float()  -- the fp16->fp32 cast ON THE GPU
 
-Isso importa porque (1) e exatamente o caminho do bc250_conv_fix.py, que o
-repo apresenta como correcao. Se ele erra, nao e correcao, e so outro modo de
-falha.
+This matters because (1) is exactly the path of bc250_conv_fix.py, which the repo
+presents as a fix. If it is wrong, it is not a fix, just another failure mode.
 
-O que este script mede
-----------------------
-Quatro numeros por shape, montados para que cada um acuse uma operacao:
+What this script measures
+-------------------------
+Four numbers per shape, arranged so each one indicts one operation:
 
-    conv      = |g.cpu().float()  - cpu_ref|   copia fp16 crua, cast na CPU
-                -> a conv do MIOpen sozinha, sem cast de GPU no meio
+    conv      = |g.cpu().float()  - cpu_ref|   raw fp16 copy, cast on the CPU
+                -> MIOpen's conv alone, with no GPU cast in between
 
     cast      = |g.float().cpu()  - g.cpu().float()|
-                -> os dois caminhos partem do MESMO buffer; se diferem, o
-                   cast fp16->fp32 na GPU esta errado. Qualquer valor acima de
-                   zero ja e defeito, nao arredondamento.
+                -> both paths start from the SAME buffer; if they differ, the
+                   fp16->fp32 cast on the GPU is wrong. Any value above zero is
+                   already a defect, not rounding.
 
     im2col    = |unfold_matmul(gpu).cpu() - cpu_ref|
-                -> o caminho do bc250_conv_fix, trazido ao host ANTES de
-                   comparar, para nao herdar o erro do cast
+                -> the bc250_conv_fix path, brought to the host BEFORE
+                   comparing, so it does not inherit the cast's error
 
     conv~im2col = |g.cpu().float() - unfold_matmul(gpu).cpu()|
-                -> os dois caminhos de GPU entre si
+                -> the two GPU paths against each other
 
-Leitura:
-    so `conv` grande        -> MIOpen errou
-    so `im2col` grande      -> o patch errou; ele nao e correcao
-    so `cast` grande        -> o cast fp16->fp32 na GPU errou
-    conv e im2col grandes   -> nao e caminho especifico, e mais embaixo
+Reading:
+    only `conv` large       -> MIOpen got it wrong
+    only `im2col` large     -> the patch got it wrong; it is not a fix
+    only `cast` large       -> the fp16->fp32 cast on the GPU got it wrong
+    conv and im2col large   -> not a specific path, it is further down
 
-Uso
----
-    qual_mentiu.py limpo          # SEM aquecimento: primeira carga do boot
-    qual_mentiu.py sujo           # com aquecimento, 3 repeticoes
-    qual_mentiu.py sujo 5         # com aquecimento, 5 repeticoes
+Usage
+-----
+    qual_mentiu.py limpo          # NO warmup: first load of the boot
+    qual_mentiu.py sujo           # with warmup, 3 repetitions
+    qual_mentiu.py sujo 5         # with warmup, 5 repetitions
 
-Protocolo combinado: depois de cada reboot, uma rodada `limpo` e depois
-algumas `sujo`, repetindo por 3 boots, para separar o que e do estado
-acumulado do que e da operacao.
+Agreed protocol: after each reboot, one `limpo` run and then a few `sujo` ones,
+repeating over 3 boots, to separate what comes from accumulated state from what
+comes from the operation.
 
-Cada execucao ANEXA ao historico em ~/bc250-grimoire/qual_mentiu.historico,
-marcada com o boot_id, o uptime e a contagem de page faults no inicio. Assim o
-padrao entre boots fica num arquivo so.
+Each run APPENDS to the history in ~/bc250-grimoire/qual_mentiu.historico,
+tagged with the boot_id, the uptime and the page fault count at the start. That
+way the cross-boot pattern lives in a single file.
 """
 import os
 import subprocess
@@ -87,13 +85,13 @@ def sh(cmd):
 
 
 def rel(a, b):
-    """Erro relativo ao maximo da referencia, o mesmo criterio do resto do repo."""
+    """Error relative to the reference's maximum, the same criterion as the rest of the repo."""
     return (a - b).abs().max().item() / max(b.abs().max().item(), 1e-6)
 
 
 def im2col_fp32(xg, wg):
-    """im2col + GEMM promovendo para fp32. NAO e o que o patch faz -- o GEMM
-    em fp32 usa kernels rocBLAS diferentes dos de fp16."""
+    """im2col + GEMM promoting to fp32. NOT what the patch does -- a GEMM in
+    fp32 uses different rocBLAS kernels than the fp16 ones."""
     n, cin, hi, wi = xg.shape
     cout = wg.shape[0]
     cols = F.unfold(xg, (3, 3), padding=1)
@@ -102,10 +100,10 @@ def im2col_fp32(xg, wg):
 
 
 def im2col_fp16(xg, wg):
-    """Exatamente o que bc250_conv_fix.py faz: tudo em fp16, sem promover.
+    """Exactly what bc250_conv_fix.py does: everything in fp16, no promotion.
 
-    Copiado do corpo de _conv2d_im2col para o caso 3x3 stride 1 padding 1, que
-    e o que estes shapes usam. Se este errar, o patch nao e correcao."""
+    Copied from the body of _conv2d_im2col for the 3x3 stride 1 padding 1 case,
+    which is what these shapes use. If this one fails, the patch is not a fix."""
     n, cin, hi, wi = xg.shape
     cout = wg.shape[0]
     cols = F.unfold(xg, (3, 3), padding=1)
@@ -154,10 +152,10 @@ for rep in range(1, reps + 1):
         w = torch.randn(c, c, 3, 3, dtype=torch.float16)
         xg, wg = x.to(DEV), w.to(DEV)
 
-        # ORDEM ALTERNADA. Rodar sempre conv primeiro e im2col depois faria o
-        # segundo herdar qualquer envenenamento por posicao, e eu estaria
-        # medindo ordem enquanto acreditava estar medindo operacao. A coluna
-        # `1o` diz quem foi lancado primeiro nesta medida.
+        # ALTERNATING ORDER. Always running conv first and im2col second would make the
+        # second inherit any positional poisoning, and I would be measuring order
+        # while believing I was measuring operation. The `1o` column says which one
+        # was launched first in this measurement.
         conv_primeiro = (rep + alvos.index((h, c))) % 2 == 0
 
         if conv_primeiro:
@@ -171,18 +169,18 @@ for rep in range(1, reps + 1):
 
         cpu_ref = F.conv2d(x.float(), w.float(), padding=1)
 
-        g_puro = g.cpu().float()      # copia o fp16, cast na CPU
-        g_cast = g.float().cpu()      # cast na GPU, depois copia
-        i16 = r16.cpu().float()       # o patch, exatamente
-        i32 = r32.cpu()               # variante promovida
+        g_puro = g.cpu().float()      # copy the fp16, cast on the CPU
+        g_cast = g.float().cpu()      # cast on the GPU, then copy
+        i16 = r16.cpu().float()       # the patch, exactly
+        i32 = r32.cpu()               # promoted variant
 
         e_conv = rel(g_puro, cpu_ref)
         e_cast = (g_cast - g_puro).abs().max().item()
         e_i16 = rel(i16, cpu_ref)
         e_i32 = rel(i32, cpu_ref)
 
-        # nan nunca e "ok": qualquer comparacao com nan e falsa, entao um
-        # `> TOL` engole a pior falha possivel. Aconteceu na primeira bateria.
+        # nan is never "ok": any comparison with nan is false, so a `> TOL`
+        # swallows the worst possible failure. It happened in the first batch.
         def falhou(e):
             return (not (e == e)) or e > TOL
 

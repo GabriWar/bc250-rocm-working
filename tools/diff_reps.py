@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""O que muda entre a primeira e a segunda passada?
+"""What changes between the first and the second pass?
 
-Medido em 2026-08-05: rodando os mesmos 26 shapes varias vezes no mesmo
-processo, o numero de erros vai 3, 0, 4, 5, 5, 5 -- converge para um conjunto
-fixo de cinco, todos c=320. Mas o conjunto muda entre sessoes, o que nao e
-compativel com "o kernel calcula errado para esses shapes".
+Measured 2026-08-05: running the same 26 shapes several times in the same
+process, the error count goes 3, 0, 4, 5, 5, 5 -- it converges to a fixed set of
+five, all c=320. But the set changes between sessions, which is not compatible
+with "the kernel computes these shapes wrong".
 
-A hipotese restante e alocacao: uma regiao ruim que o alocador do torch passa a
-reusar depois da primeira passada. Este script testa isso diretamente,
-registrando o ponteiro de device de cada tensor ao lado do erro.
+The remaining hypothesis is allocation: a bad region that torch's allocator
+starts reusing after the first pass. This script tests that directly, recording
+each tensor's device pointer next to the error.
 
-Se os que erram compartilharem faixa de endereco, e alocacao.
-Se os endereços forem indistinguiveis dos que acertam, nao e.
+If the failing ones share an address range, it is allocation.
+If the addresses are indistinguishable from the passing ones, it is not.
 
-Saida: ~/bc250-grimoire/diff_reps.result (fsync por linha) e um resumo no fim.
+Output: ~/bc250-grimoire/diff_reps.result (fsync per line) and a summary at the end.
 """
 import os
 

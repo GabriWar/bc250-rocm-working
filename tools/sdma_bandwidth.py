@@ -1,7 +1,7 @@
 import torch, time, os, sys
-N=64*1024*1024   # 128 MiB em fp16
+N=64*1024*1024   # 128 MiB in fp16
 h=torch.randn(N, dtype=torch.float16)
-d=h.to('cuda'); torch.cuda.synchronize()          # aquece
+d=h.to('cuda'); torch.cuda.synchronize()          # warm up
 t=[]
 for _ in range(5):
     t0=time.perf_counter(); d=h.to('cuda'); torch.cuda.synchronize(); t.append(time.perf_counter()-t0)

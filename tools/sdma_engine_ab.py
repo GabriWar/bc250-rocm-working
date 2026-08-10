@@ -1,35 +1,35 @@
 #!/usr/bin/env python3
-"""A escrita de conclusao da SDMA0 chega a memoria? A/B contra a SDMA1.
+"""Does SDMA0's completion write reach memory? A/B against SDMA1.
 
-A pergunta
-----------
-Com HSA_ENABLE_SDMA=1 e as filas de usuario liberadas para a engine 0, o ROCr
-trava girando a 100% de CPU em estado R. Estado R e busy-poll de memoria, nao
-sono esperando interrupcao -- entao a ausencia de interrupcao ali nao prova
-nada: o runtime pode simplesmente nunca ter pedido uma.
-
-O que essa distincao esconde e a pergunta que importa: a copia termina e a
-escrita de conclusao NAO chega a memoria (caminho de dados), ou a copia nem
-comeca (caminho de comando)? Nenhum esquema de polling ou de interrupcao salva
-o primeiro caso.
-
-Como se mede
+The question
 ------------
-hsa_amd_memory_async_copy_on_engine() aceita a engine como parametro, entao da
-para enfileirar a MESMA copia na engine 0 e na engine 1 e comparar. O signal de
-conclusao e lido direto da memoria em laco, com timestamp, em vez de esperar --
-assim se ve a transicao 1 -> 0 acontecer (ou nao) sem depender de interrupcao.
+With HSA_ENABLE_SDMA=1 and user queues released for engine 0, ROCr hangs spinning
+at 100% CPU in state R. State R is a memory busy-poll, not sleeping on an
+interrupt -- so the absence of an interrupt there proves nothing: the runtime may
+simply never have asked for one.
 
-Alem do signal, o BUFFER DE DESTINO e conferido. Os dois juntos separam tres
-desfechos que de fora parecem iguais:
+What that distinction hides is the question that matters: does the copy finish
+and the completion write NOT reach memory (data path), or does the copy never
+start (command path)? No polling or interrupt scheme saves the first case.
 
-    signal cai, dados corretos     a engine funciona
-    signal cai, dados errados      completou cedo demais; e o bug dos 2 MiB
-    signal nao cai, dados corretos a copia rodou e so a conclusao se perdeu
-    signal nao cai, dados errados  a copia nao aconteceu
+How it is measured
+------------------
+hsa_amd_memory_async_copy_on_engine() takes the engine as a parameter, so the
+SAME copy can be queued on engine 0 and on engine 1 and compared. The completion
+signal is read straight from memory in a loop, with a timestamp, instead of
+waiting -- that way the 1 -> 0 transition can be seen happening (or not) without
+depending on an interrupt.
 
-Uso:
-    sdma_engine_ab.py [tamanho_mib] [timeout_s]
+Beyond the signal, the DESTINATION BUFFER is checked. Together they separate
+three outcomes that look identical from outside:
+
+    signal drops, data correct      the engine works
+    signal drops, data wrong        completed too early; this is the 2 MiB bug
+    signal does not drop, data correct  the copy ran and only completion was lost
+    signal does not drop, data wrong    the copy never happened
+
+Usage:
+    sdma_engine_ab.py [size_mib] [timeout_s]
 """
 import ctypes
 import sys
@@ -78,9 +78,10 @@ def check(r, o):
 
 
 def declarar():
-    """Sem argtypes o ctypes passa struct-por-valor errado no x86-64 e a chamada
-    e aceita mas nao faz nada -- que foi como a primeira versao deste script
-    reprovou ate a engine boa. Se o controle falha, o instrumento e que quebrou.
+    """Without argtypes, ctypes passes struct-by-value wrong on x86-64 and the
+    call is accepted but does nothing -- which is how the first version of this
+    script failed even the good engine. If the control fails, it is the
+    instrument that broke.
     """
     hsa.hsa_agent_get_info.argtypes = [Agent, ctypes.c_int, ctypes.c_void_p]
     hsa.hsa_amd_memory_pool_get_info.argtypes = [Pool, ctypes.c_int, ctypes.c_void_p]
@@ -160,8 +161,8 @@ def main():
     lista = (Agent * 1)(agentes["gpu"])
     hsa.hsa_amd_agents_allow_access(1, lista, None, host)
 
-    # padrao reconhecivel: byte i = i % 251. Primo, entao qualquer bloco
-    # deslocado ou repetido aparece na comparacao.
+    # recognizable pattern: byte i = i % 251. Prime, so any shifted or
+    # repeated block shows up in the comparison.
     padrao = bytes((i % 251) for i in range(256)) * (N // 256)
     ctypes.memmove(host, padrao, N)
 
@@ -169,8 +170,8 @@ def main():
 
     for nome, eng in (("SDMA0", HSA_AMD_SDMA_ENGINE_0),
                       ("SDMA1", HSA_AMD_SDMA_ENGINE_1)):
-        # destino sujo de proposito: se a copia nao rodar, os dados nao batem
-        # por acidente
+        # destination dirtied on purpose: if the copy does not run, the data will not
+        # match by accident
         ctypes.memset(dev, 0xAB, N)
 
         sig = Signal()
@@ -186,9 +187,9 @@ def main():
             hsa.hsa_signal_destroy(sig)
             continue
 
-        # laco de leitura DIRETA do signal. Nao usamos hsa_signal_wait porque
-        # ele pode dormir esperando interrupcao, e e justamente isso que
-        # queremos tirar da equacao.
+        # DIRECT read loop on the signal. We do not use hsa_signal_wait because
+        # it may sleep waiting for an interrupt, and that is exactly what we
+        # want out of the equation.
         caiu = False
         leituras = 0
         while time.perf_counter() - t0 < TIMEOUT:
@@ -199,7 +200,7 @@ def main():
                 break
         dt = time.perf_counter() - t0
 
-        # o buffer de destino chegou inteiro?
+        # did the destination buffer arrive whole?
         volta = ctypes.create_string_buffer(N)
         ctypes.memmove(volta, dev, N)
         iguais = volta.raw == padrao

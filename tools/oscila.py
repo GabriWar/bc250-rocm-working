@@ -1,36 +1,36 @@
 #!/usr/bin/env python3
-"""O erro e por LEITURA ou por PAGINA? Caracteriza a intermitencia.
+"""Is the error per READ or per PAGE? Characterizes the intermittency.
 
-O achado que motiva
--------------------
-tools/quando_cura.py mediu a mesma pagina divergente seis vezes seguidas, sem
-alocar nada entre as leituras, e ela oscilou: errado, certo, errado, certo,
-certo, certo.
+The finding that motivates this
+-------------------------------
+tools/quando_cura.py measured the same divergent page six times in a row, with no
+allocation between reads, and it oscillated: wrong, right, wrong, right, right,
+right.
 
-Cache nao faz isso. Entrada de TLB velha, tag colidido e linha de tabela velha
-sao todos DETERMINISTICOS -- errariam em toda leitura ate alguem invalidar. Uma
-oscilacao por leitura nao vem de nenhum deles.
+Caches do not do that. A stale TLB entry, a collided tag and a stale table line
+are all DETERMINISTIC -- they would fail on every read until someone invalidates.
+A per-read oscillation comes from none of them.
 
-Mas seis amostras nao decidem nada, e havia um furo obvio: e se o caminho de
-leitura estiver instavel para TUDO, inclusive paginas boas?
+But six samples decide nothing, and there was an obvious hole: what if the read
+path is unstable for EVERYTHING, good pages included?
 
-O que se mede
--------------
-Para cada pagina divergente e para um numero igual de paginas boas, N leituras
-independentes da MESMA pagina, intercaladas. Intercalar importa: se as boas
-fossem todas lidas antes das ruins, qualquer deriva no tempo viraria diferenca
-entre os grupos.
+What is measured
+----------------
+For each divergent page and for an equal number of good pages, N independent
+reads of the SAME page, interleaved. Interleaving matters: if the good ones were
+all read before the bad ones, any drift over time would look like a difference
+between the groups.
 
-Leitura do resultado
---------------------
-  ruins ~0%, boas 0%     nao reproduziu; a divergencia foi de uma leitura so
-  ruins >0%, boas 0%     o erro e por leitura, mas so em certos enderecos.
-                         Nao e cache. E transiente no caminho de endereco.
-  ruins ~100%, boas 0%   e deterministico depois de tudo, e a oscilacao de
-                         quando_cura.py precisa de outra explicacao
-  boas >0%               o proprio caminho de leitura e instavel, e nenhuma
-                         medida anterior deste projeto que usou hipMemcpy para
-                         decidir "certo/errado" vale sem revisao
+Reading the result
+------------------
+  bad ~0%, good 0%      did not reproduce; the divergence was a single read
+  bad >0%, good 0%      the error is per read, but only at certain addresses.
+                        Not a cache. A transient in the address path.
+  bad ~100%, good 0%    it is deterministic after all, and quando_cura.py's
+                        oscillation needs another explanation
+  good >0%              the read path itself is unstable, and no earlier
+                        measurement in this project that used hipMemcpy to decide
+                        "right/wrong" is valid without review
 """
 import ctypes
 import os
@@ -122,10 +122,10 @@ for k, (rot, p, t) in enumerate(blocos):
                            struct.pack("<Q", MAGIC | (k << 20) | pag), 8)
 ck(hip.hipDeviceSynchronize(), "sync")
 
-# CLASSIFICACAO POR K LEITURAS, nao por uma.
-# A versao anterior rotulava com UMA leitura. Uma pagina que erra metade das
-# vezes tinha 50% de chance de entrar no grupo de controle, e entrou -- o
-# controle vinha contaminado e a conclusao saiu invertida.
+# CLASSIFICATION BY K READS, not by one.
+# The previous version labeled with ONE read. A page that fails half the
+# time had a 50% chance of landing in the control group, and it did -- the
+# control came contaminated and the conclusion came out inverted.
 K = 20
 todas = []
 for k, (rot, p, t) in enumerate(blocos):
@@ -164,7 +164,7 @@ if not ruins:
     say("  execucao LIMPA -- rode de novo ate sujar")
     sys.exit(0)
 
-# controle: paginas que acertaram nas K leituras da classificacao, espalhadas
+# control: pages that passed the K classification reads, spread out
 passo = max(1, len(boas) // max(1, len(ruins)))
 boas = boas[::passo][:max(2, len(ruins))]
 
@@ -177,7 +177,7 @@ cnt = {("R", k, p): 0 for k, p in ruins}
 cnt.update({("B", k, p): 0 for k, p in boas})
 vistos = {c: {} for c in cnt}
 
-# intercalado: uma volta le todas as ruins e todas as boas, na mesma volta
+# interleaved: one lap reads all the bad and all the good ones, in the same lap
 for _ in range(N):
     for tag, lista in (("R", ruins), ("B", boas)):
         for k, p in lista:

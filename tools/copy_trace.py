@@ -1,35 +1,36 @@
 #!/usr/bin/env python3
-"""Rastreia cada sub-copia do ROCclr e cruza com onde o dado realmente caiu.
+"""Traces every ROCclr sub-copy and cross-references where the data actually landed.
 
-O que ja se sabe (medido, nao suposto)
---------------------------------------
-Numa rajada de uploads sem sync, o conteudo INTEIRO de um tensor aparece dentro
-do buffer de destino de OUTRO tensor da mesma rajada, no offset 0 da origem:
+What is already known (measured, not assumed)
+---------------------------------------------
+In a burst of uploads without sync, the ENTIRE content of one tensor shows up
+inside the destination buffer of ANOTHER tensor of the same burst, at source
+offset 0:
 
-    ciclo1 c=320 h=64 @0x7fc1cba9a000, errado a partir do elemento 733184
-      -> endereco absoluto 0x7fc1cbC00000 (2 MiB alinhado)
-      -> conteudo = offset 0 de c=64 h=64, os 262144 elementos completos
+    cycle1 c=320 h=64 @0x7fc1cba9a000, wrong from element 733184 on
+      -> absolute address 0x7fc1cbC00000 (2 MiB aligned)
+      -> content = offset 0 of c=64 h=64, all 262144 elements
 
-Nao e memoria velha: o destino foi pre-marcado com NaN e voltou sem nenhum NaN.
-Alguem escreveu dado valido no lugar errado.
+It is not stale memory: the destination was pre-marked with NaN and came back
+without a single NaN. Someone wrote valid data in the wrong place.
 
-O que este script decide
+What this script decides
 ------------------------
-O ROCclr loga cada sub-copia com destino, origem e tamanho:
+ROCclr logs every sub-copy with destination, source and size:
 
     HSA Copy copy_engine=.., dst=0x.., src=0x.., size=.., wait_event=0x..,
              completion_signal=0x..
 
-  - se existir uma linha com dst = endereco do extravio, o runtime EMITIU a
-    copia no lugar errado -> defeito de software, da para consertar no clr
-  - se todos os dst estiverem certos, a copia foi emitida certa e o dado saiu
-    do lugar errado -> ou o slot de staging (o `src`) foi reescrito antes do
-    DMA ler, ou o hardware entregou fora
+  - if there is a line with dst = address of the stray write, the runtime ISSUED
+    the copy to the wrong place -> software defect, fixable in clr
+  - if every dst is right, the copy was issued correctly and the data came out
+    of the wrong place -> either the staging slot (the `src`) was rewritten
+    before the DMA read it, or the hardware delivered it wrong
 
-O `src` e o endereco do slot de staging. Se duas copias em voo compartilharem o
-mesmo `src`, a colisao de slot fica visivel direto no log.
+The `src` is the address of the staging slot. If two in-flight copies share the
+same `src`, the slot collision shows up directly in the log.
 
-Cada ciclo emite um upload de tamanho unico como marcador, para fatiar o log.
+Each cycle emits an upload of unique size as a marker, to slice up the log.
 """
 import os
 import subprocess
@@ -63,7 +64,7 @@ def aquecer():
 
 
 def marcador(n_bytes):
-    """Upload de tamanho unico: vira uma linha reconhecivel no log do ROCclr."""
+    """Upload of unique size: becomes a recognizable line in the ROCclr log."""
     t = torch.zeros(n_bytes // 2, dtype=torch.float16)
     g = t.to(DEV)
     torch.cuda.synchronize()
@@ -78,7 +79,7 @@ aquecer()
 
 torch.manual_seed(0)
 for ciclo in range(1, 6):
-    mk = 1000000 + ciclo * 2000       # tamanho unico por ciclo
+    mk = 1000000 + ciclo * 2000       # unique size per cycle
     marcador(mk)
     say(f"########## ciclo {ciclo}  marcador size={mk} ##########")
 
@@ -86,7 +87,7 @@ for ciclo in range(1, 6):
     for h, c in ALVOS:
         x = torch.randn(1, c, h, h, dtype=torch.float16)
         cpu.append((h, c, x))
-        gpu.append(x.to(DEV))          # rajada, sem sync entre uploads
+        gpu.append(x.to(DEV))          # burst, no sync between uploads
     torch.cuda.synchronize()
 
     for (h, c, x), xg in zip(cpu, gpu):
@@ -104,7 +105,7 @@ for ciclo in range(1, 6):
         abs_a = xg.data_ptr() + i0 * 2
         say(f"  !! CORROMPIDO c={c} h={h}: {nd} errados a partir de {i0}")
         say(f"     extravio em 0x{abs_a:x}  (base 0x{xg.data_ptr():x} + {i0*2} B)")
-        # de qual tensor veio
+        # which tensor it came from
         import numpy as np
         w = volta.flatten()[i0:i0 + 64].view(torch.int16).numpy()
         for hh, cc, xx in cpu:

@@ -1,30 +1,30 @@
-# BC-250 (gfx1013): substitui conv2d do MIOpen por im2col + GEMM.
+# BC-250 (gfx1013): replaces MIOpen's conv2d with im2col + GEMM.
 #
-# MOTIVO, medido em 2026-08-05 em boot limpo, primeira carga de GPU:
+# REASON, measured 2026-08-05 on a clean boot, first GPU load:
 #
-#   familia de operacao          errados
+#   operation family             wrong
 #   ---------------------------  -------
 #   matmul (rocBLAS/Tensile)       0/26
-#   elementwise (kernels torch)    0/26
+#   elementwise (torch kernels)    0/26
 #   unfold / im2col                0/26
 #   im2col + GEMM manual           0/26
-#   conv2d via MIOpen             12/26   <- primeiro erro na 6a operacao
+#   conv2d via MIOpen             12/26   <- first error on the 6th operation
 #
-# Ou seja: nao e a fila de compute, nao e o tamanho do dispatch, nao e
-# precisao (fp32 quebra igual), nao e o alocador. E o caminho de convolucao
-# do MIOpen especificamente. O MIOpen nao tem banco de tuning pra gfx1013
-# (84 arquivos de db, zero pra esta arquitetura), entao compila em JIT por
-# heuristica generica e o resultado sai errado sem reportar erro nenhum.
+# In other words: it is not the compute queue, not the dispatch size, not
+# precision (fp32 breaks the same way), not the allocator. It is the MIOpen
+# convolution path specifically. MIOpen has no tuning database for gfx1013
+# (84 db files, zero for this architecture), so it JIT-compiles from generic
+# heuristics and the result comes out wrong without reporting any error.
 #
-# O proprio MIOpen ja escolhe o solver GemmFwdRest para estes shapes, que e
-# im2col + GEMM. Este patch faz a mesma coisa pelos kernels do torch.
+# MIOpen itself already picks the GemmFwdRest solver for these shapes, which is
+# im2col + GEMM. This patch does the same thing through torch kernels.
 #
-# CUSTO medido: nenhum.
+# MEASURED COST: none.
 #   c=320 h= 64   conv2d 1.68ms   im2col+mm 1.72ms
 #   c=320 h=128   conv2d 6.32ms   im2col+mm 6.52ms
 #   c=640 h= 32   conv2d 2.63ms   im2col+mm 2.67ms
 #
-# Desligar com BC250_CONV_FIX=0.
+# Disable with BC250_CONV_FIX=0.
 
 import os
 
@@ -38,18 +38,18 @@ if os.environ.get("BC250_CONV_FIX", "1") != "0":
 
         _orig_conv2d = F.conv2d
 
-        # Teto para a matriz intermediaria do im2col, em MB.
-        # im2col materializa (cin*kh*kw) x (ho*wo). No UNet o latente e 64x64 e
-        # isso da ~24 MB, mas o VAE decodifica em 512x512: 128 canais x 9 x
-        # 512 x 512 = 604 MB em fp16. Numa placa com 4 GB de UMA isso derruba a
-        # maquina -- aconteceu em 2026-08-05 antes desta guarda existir.
-        # Acima do teto, cai de volta no conv2d do MIOpen: pior correcao, mas
-        # a alternativa e travar o host.
+        # Ceiling for the im2col intermediate matrix, in MB.
+        # im2col materializes (cin*kh*kw) x (ho*wo). In the UNet the latent is 64x64 and
+        # that gives ~24 MB, but the VAE decodes at 512x512: 128 channels x 9 x
+        # 512 x 512 = 604 MB in fp16. On a board with 4 GB of UMA that takes the
+        # machine down -- it happened on 2026-08-05 before this guard existed.
+        # Above the ceiling, fall back to MIOpen's conv2d: worse correction, but
+        # the alternative is hanging the host.
         _MAX_COLS_MB = int(os.environ.get("BC250_CONV_FIX_MAX_MB", "192"))
 
         def _conv2d_im2col(input, weight, bias=None, stride=1, padding=0,
                            dilation=1, groups=1):
-            # Fora da GPU, ou em casos que o im2col nao cobre bem, usa o original.
+            # Off the GPU, or in cases im2col does not cover well, use the original.
             if (not input.is_cuda) or groups != 1 or input.dim() != 4:
                 return _orig_conv2d(input, weight, bias, stride, padding,
                                     dilation, groups)
@@ -64,16 +64,16 @@ if os.environ.get("BC250_CONV_FIX", "1") != "0":
             ho = (hi + 2 * pd[0] - dl[0] * (kh - 1) - 1) // st[0] + 1
             wo = (wi + 2 * pd[1] - dl[1] * (kw - 1) - 1) // st[1] + 1
 
-            # Acima do teto, cai de volta no conv2d do MIOpen.
+            # Above the ceiling, fall back to MIOpen's conv2d.
             #
-            # TENTATIVA DESCARTADA (2026-08-05): fatiar o im2col por faixas de
-            # linhas, para nunca usar o MIOpen. O resultado numerico ficava
-            # correto nos testes isolados (pico de 1152 MB caiu para ~670 MB),
-            # mas a geracao completa do ComfyUI passou a DERRUBAR A MAQUINA de
-            # forma reprodutivel, enquanto a versao com este fallback simples
-            # roda em 37.7s/29.3s. A/B: sem patch 38.2/34.3 ok, com fatiamento
-            # crash, com fallback simples 37.7/29.3 ok. Nao investiguei por que
-            # -- provavelmente o padrao de alocacao do torch.cat por faixa.
+            # DISCARDED ATTEMPT (2026-08-05): slicing the im2col by row ranges,
+            # so MIOpen would never be used. The numeric result stayed correct
+            # in isolated tests (peak went from 1152 MB down to ~670 MB),
+            # but a full ComfyUI generation started TAKING THE MACHINE DOWN
+            # reproducibly, while the version with this simple fallback
+            # runs in 37.7s/29.3s. A/B: no patch 38.2/34.3 ok, with slicing
+            # crash, with simple fallback 37.7/29.3 ok. Never investigated why
+            # -- probably torch.cat's per-range allocation pattern.
             cols_mb = (n * cin * kh * kw * ho * wo *
                        input.element_size()) / (1024 * 1024)
             if cols_mb > _MAX_COLS_MB:

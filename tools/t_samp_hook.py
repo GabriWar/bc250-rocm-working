@@ -1,6 +1,6 @@
-# KSampler cfg=1.0 steps=1 COM hooks por modulo.
-# Se o ultimo crumb for M::algo -> fault dentro do UNet.
-# Se for um marcador S_* -> fault fora do UNet (euler / cond batching).
+# KSampler cfg=1.0 steps=1 WITH per-module hooks.
+# If the last crumb is M::something -> fault inside the UNet.
+# If it is an S_* marker -> fault outside the UNet (euler / cond batching).
 import sys, os, torch
 sys.path.insert(0, "/home/gabriwar/ComfyUI")
 CRUMB = "/home/gabriwar/bc250-grimoire/rocm-test/sh_crumb.txt"

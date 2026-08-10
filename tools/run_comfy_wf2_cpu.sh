@@ -1,5 +1,5 @@
 #!/bin/bash
-ulimit -c 0   # coredump pos-fault de GPU trava a maquina
+ulimit -c 0   # a post-GPU-fault coredump hangs the machine
 set -u
 R=/home/gabriwar/bc250-grimoire/rocm-test
 L=$R/comfy-wf2-cpuvae.log
@@ -16,7 +16,7 @@ for i in $(seq 1 240); do
 done
 grep -q "To see the GUI" "$L" || { echo "### SERVIDOR NAO SUBIU ###" >>"$L"; exit 1; }
 
-MARK=$(wc -l < "$L")          # so olhamos DEPOIS daqui
+MARK=$(wc -l < "$L")          # we only look AFTER this point
 echo "### SERVIDOR OK, enfileirando (MARK=$MARK) ###" >>"$L"
 curl -s -X POST -H 'Content-Type: application/json' -d @"$R/wf2.json" \
      http://127.0.0.1:8188/prompt >>"$L" 2>&1

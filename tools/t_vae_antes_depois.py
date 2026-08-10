@@ -1,5 +1,5 @@
-# O VAE decode funciona ANTES do sampler e falha DEPOIS?
-# Se sim, isola o gatilho no que o sampler faz.
+# Does VAE decode work BEFORE the sampler and fail AFTER?
+# If so, it isolates the trigger to what the sampler does.
 import sys, os, torch
 sys.path.insert(0,"/home/gabriwar/ComfyUI")
 C="/home/gabriwar/bc250-grimoire/rocm-test/ad_crumb.txt"
@@ -29,7 +29,7 @@ vm = vae.first_stage_model
 vm.half().to('cuda')
 say("C_vae_na_gpu")
 
-# 1) ANTES de qualquer coisa pesada
+# 1) BEFORE anything heavy
 if not decode(vm, "ANTES"): say("Z_FIM"); sys.exit(2)
 
 # 2) CLIP encode
@@ -38,12 +38,12 @@ neg = nodes.CLIPTextEncode().encode(clip, "blurry")[0]
 say("D_clip_encode_ok")
 if not decode(vm, "POS_CLIP"): say("Z_FIM"); sys.exit(2)
 
-# 3) UNet na GPU
+# 3) UNet on the GPU
 mm.load_models_gpu([model])
 say("E_unet_gpu_ok")
 if not decode(vm, "POS_UNET_LOAD"): say("Z_FIM"); sys.exit(2)
 
-# 4) sampler com N passos crescentes
+# 4) sampler with an increasing number of steps
 lat = nodes.EmptyLatentImage().generate(512,512,1)[0]
 ks = nodes.KSampler()
 for n in (1, 4, 12, 24):

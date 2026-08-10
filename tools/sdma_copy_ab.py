@@ -25,7 +25,7 @@ hsa.hsa_amd_memory_pool_allocate(pl["cpu"],ctypes.c_size_t(N),0,ctypes.byref(h))
 hsa.hsa_amd_memory_pool_allocate(pl["gpu"],ctypes.c_size_t(N),0,ctypes.byref(d))
 hsa.hsa_amd_agents_allow_access(1,(Agent*1)(ags["gpu"]),None,h)
 hsa.hsa_amd_agents_allow_access(1,(Agent*1)(ags["cpu"]),None,d)
-# controle: async_copy GENERICO, deixando o ROCr escolher o caminho
+# control: GENERIC async_copy, letting ROCr pick the path
 hsa.hsa_amd_memory_async_copy.argtypes=[ctypes.c_void_p,Agent,ctypes.c_void_p,Agent,
     ctypes.c_size_t,ctypes.c_uint32,ctypes.c_void_p,Signal]
 hsa.hsa_amd_memory_async_copy.restype=ctypes.c_int

@@ -1,37 +1,36 @@
 #!/usr/bin/env python3
-"""LoRA backward nesta placa: trava? e, sobretudo, da o numero certo?
+"""LoRA backward on this board: does it hang? and, above all, is the number right?
 
-O relato da comunidade
-----------------------
-Numa BC-250, tudo funciona -- matmul cru de qualquer formato, distilgpt2
-forward, treino sem LoRA, generate(), LoRA forward -- e SO o LoRA backward
-trava.
+The community report
+--------------------
+On a BC-250, everything works -- raw matmul of any shape, distilgpt2 forward,
+training without LoRA, generate(), LoRA forward -- and ONLY LoRA backward hangs.
 
-Duas coisas diferentes sendo medidas aqui
------------------------------------------
-TRAVA e a assinatura do KIQ/preempcao. Nao e o defeito que este repo persegue.
+Two different things are measured here
+--------------------------------------
+A HANG is the KIQ/preemption signature. It is not the defect this repo chases.
 
-CORRUPCAO SILENCIOSA e o nosso: numero errado, sem erro, sem trava. Por isso
-cada estagio compara o resultado da GPU com o da CPU. Um estagio que termina
-rapido e devolve lixo passaria num teste de "travou ou nao" -- e foi exatamente
-assim que o fp16 do Z-Image enganou (exit 0, std=0.0, imagem de uma cor so).
+SILENT CORRUPTION is ours: wrong number, no error, no hang. That is why every
+stage compares the GPU result against the CPU. A stage that finishes fast and
+returns garbage would pass a "did it hang or not" test -- and that is exactly how
+Z-Image's fp16 fooled us (exit 0, std=0.0, single-color image).
 
-O que o backward tem de especial
---------------------------------
-Com y = x @ (W + B@A), o forward faz GEMMs cheias. O backward gera GEMMs em que
-uma das dimensoes e o RANK -- 8, 16, 32 -- muito menor que as outras. Kernel
-"magro", caminho de selecao do Tensile diferente do forward.
+What is special about the backward
+----------------------------------
+With y = x @ (W + B@A), the forward does full GEMMs. The backward generates GEMMs
+where one of the dimensions is the RANK -- 8, 16, 32 -- much smaller than the
+others. A "skinny" kernel, a different Tensile selection path from the forward.
 
-E o passo de otimizador importa: LoRA inicia com B=0, entao no primeiro
-backward grad_A e identicamente zero e a GEMM roda com entrada nula. So depois
-de alguns passos B fica denso e o backward exercita os dados de verdade.
+And the optimizer step matters: LoRA starts with B=0, so on the first backward
+grad_A is identically zero and the GEMM runs with a null input. Only after a few
+steps does B get dense and the backward exercise real data.
 
-Cada estagio roda como processo separado, com timeout, para que uma trava nao
-leve o resto junto.
+Each stage runs as a separate process, with a timeout, so that a hang does not
+take the rest down with it.
 
-Uso:
-    lora_backward.py [ITERS]      todos os estagios, cada um isolado
-    lora_backward.py --um <nome> [ITERS]
+Usage:
+    lora_backward.py [ITERS]      all stages, each isolated
+    lora_backward.py --um <name> [ITERS]
 """
 import json
 import os
@@ -39,24 +38,24 @@ import subprocess
 import sys
 import time
 
-# Sem isto o print do driver fica no buffer ate o processo terminar, e um teste
-# de horas parece travado enquanto anda. Ja custou um diagnostico errado.
+# Without this the driver's print stays buffered until the process ends, and an
+# hours-long test looks hung while it is running. It already cost a wrong diagnosis.
 try:
     sys.stdout.reconfigure(line_buffering=True)
 except Exception:
     pass
 
 DEV = "cuda"
-# Criterio GROSSEIRO, de proposito. A GPU roda fp16 e a referencia e fp32; com
-# k=4096 o acumulo em fp16 erra ~1e-2 por si so, e uma tolerancia apertada
-# marcaria isso como defeito -- ruido, nao sinal. O defeito deste repo entrega
-# o CONTEUDO DE OUTRO BUFFER: erro de dezenas de por cento, ou NaN, ou zero
-# chapado. E isso que se quer pegar.
+# COARSE criterion, on purpose. The GPU runs fp16 and the reference is fp32; with
+# k=4096 fp16 accumulation is off by ~1e-2 on its own, and a tight tolerance
+# would flag that as a defect -- noise, not signal. This repo's defect delivers
+# THE CONTENT OF ANOTHER BUFFER: error of tens of percent, or NaN, or flat
+# zero. That is what we want to catch.
 TOL = 0.10
 
 
 def cfgs(iters):
-    """(nome, h, t, rank, dtype, passos_de_otimizador)"""
+    """(name, h, t, rank, dtype, optimizer_steps)"""
     c = []
     for h, t in ((768, 512), (1024, 1024), (2048, 1024), (4096, 512)):
         for r in (8, 32):
@@ -75,8 +74,8 @@ def roda(nome, iters):
         for n in (1024, 2048, 4096):
             a = torch.randn(n, n, dtype=torch.float16)
             b = torch.randn(n, n, dtype=torch.float16)
-            # referencia na CPU uma vez so; em 4096 usa float64 por blocos seria
-            # caro demais, entao fp32 mesmo -- a tolerancia ja e relativa
+            # CPU reference just once; at 4096, blocked float64 would be
+            # too expensive, so fp32 it is -- the tolerance is already relative
             ref = (a.float() @ b.float())
             ag, bg = a.to(DEV), b.to(DEV)
             for _ in range(iters):
@@ -87,17 +86,17 @@ def roda(nome, iters):
         return "erro_rel_max " + " ".join(out)
 
     if nome.startswith("multipass"):
-        """Carga SUSTENTADA, que e o regime que nenhum teste deste repo tocou.
+        """SUSTAINED load, which is the regime no test in this repo touched.
 
-        O relato da comunidade sobre `cp queue preemption time out` e sobre
-        GEMM grande e sustentado -- e unmap_queues_cpsch() escala um timeout de
-        preempcao direto para kfd_hws_hang() e reset da GPU. Com o patch do
-        runlist ligado, cada unmap vira uma preempcao, entao e exatamente aqui
-        que ele pode virar gerador de reset em vez de conserto.
+        The community report about `cp queue preemption time out` is about large
+        sustained GEMMs -- and unmap_queues_cpsch() escalates a preemption
+        timeout straight into kfd_hws_hang() and a GPU reset. With the runlist
+        patch enabled, every unmap becomes a preemption, so this is exactly where
+        it may turn into a reset generator instead of a fix.
 
-        Alem de travar, mede DERIVA: a corrupcao pode nao aparecer no passe 1 e
-        aparecer no passe 300. Por isso confere contra a referencia a cada K
-        passes, em vez de so no fim.
+        Besides hanging, it measures DRIFT: the corruption may not show up on
+        pass 1 and show up on pass 300. That is why it checks against the
+        reference every K passes, rather than only at the end.
         """
         h, t, r = (2048, 1024, 32)
         passes = 400 if "longo" in nome else 150
@@ -108,7 +107,7 @@ def roda(nome, iters):
         AA = A.clone().to(DEV).requires_grad_(True)
         BB = B.clone().to(DEV).requires_grad_(True)
 
-        # referencia na CPU, uma vez, com os MESMOS pesos iniciais
+        # CPU reference, once, with the SAME initial weights
         xc, wc = x.cpu(), w.cpu()
         Ac = A.clone().requires_grad_(True); Bc = B.clone().requires_grad_(True)
         yc = xc @ wc + (xc @ Ac.t()) @ Bc.t()
@@ -124,7 +123,7 @@ def roda(nome, iters):
             dB = float((BB.grad.float().cpu() - refB).abs().max() / refB.abs().max())
             return max(dA, dB)
 
-        # aloca e libera a cada passe: e o churn que gera a traducao obsoleta
+        # allocate and free every pass: the churn is what generates the stale translation
         piores, ruins = [], 0
         for i in range(passes):
             lixo = torch.empty(t * h, device=DEV, dtype=torch.float16)
@@ -145,12 +144,12 @@ def roda(nome, iters):
                            "trilha": " ".join(piores), "passes": passes})
 
     if nome == "distilgpt2_lora_bwd":
-        """LoRA backward num modelo causal REAL -- o mais proximo do relato.
+        """LoRA backward on a REAL causal model -- the closest thing to the report.
 
-        Precisa do guard de FSDP em transformers/generation/utils.py: este
-        PyTorch foi compilado com USE_DISTRIBUTED=0 e o transformers 5.x importa
-        FSDP incondicionalmente. O unico simbolo usado dali fica atras de
-        `world_size > 1`, impossivel sem distributed, entao o fallback e exato.
+        Needs the FSDP guard in transformers/generation/utils.py: this PyTorch
+        was built with USE_DISTRIBUTED=0 and transformers 5.x imports FSDP
+        unconditionally. The only symbol used from there sits behind
+        `world_size > 1`, impossible without distributed, so the fallback is exact.
         """
         from transformers import AutoModelForCausalLM
         m = AutoModelForCausalLM.from_pretrained("distilgpt2",
@@ -188,8 +187,8 @@ def roda(nome, iters):
         finito = all(bool(torch.isfinite(a.grad).all()) for a in As) and \
                  all(bool(torch.isfinite(b.grad).all()) for b in Bs)
         chapado = gB == 0.0
-        # sem referencia de CPU: o modelo inteiro na CPU levaria minutos. O que
-        # se checa aqui e trava, NaN, gradiente morto e a perda andando.
+        # no CPU reference: the whole model on the CPU would take minutes. What is
+        # checked here is hangs, NaN, dead gradients and the loss moving.
         anda = abs(perdas[-1] - perdas[0]) > 1e-6
         return json.dumps({"eA": 0.0, "eB": 0.0,
                            "ok": finito and not chapado and anda,
@@ -199,17 +198,17 @@ def roda(nome, iters):
                            "passes": iters})
 
     if nome == "bloco_transformer_lora":
-        """Bloco estilo GPT-2 na mao: atencao + MLP + layernorm, com LoRA no qkv.
+        """Hand-written GPT-2 style block: attention + MLP + layernorm, with LoRA on qkv.
 
-        Substitui o estagio que usava distilgpt2. O transformers 5.x nao carrega
-        aqui -- este PyTorch foi compilado SEM distributed, e o GenerationMixin
-        importa torch._C._distributed_c10d incondicionalmente. E limitacao do
-        ambiente, nao defeito da placa, mas fecha o caminho para modelos causais
+        Replaces the stage that used distilgpt2. transformers 5.x does not load
+        here -- this PyTorch was built WITHOUT distributed, and GenerationMixin
+        imports torch._C._distributed_c10d unconditionally. It is an environment
+        limitation, not a board defect, but it closes the path to causal models
         via transformers.
 
-        A mistura importa: o backward de um bloco real intercala GEMMs magras do
-        LoRA com softmax, layernorm e GEMMs cheias -- padrao de alocacao bem mais
-        movimentado que o LoRA sintetico, que e onde a traducao obsoleta nasce.
+        The mix matters: a real block's backward interleaves LoRA's skinny GEMMs
+        with softmax, layernorm and full GEMMs -- a much busier allocation
+        pattern than synthetic LoRA, which is where the stale translation is born.
         """
         h, nh, t, r, camadas = 768, 12, 256, 8, 6
         dk = h // nh
@@ -265,7 +264,7 @@ def roda(nome, iters):
                            and not chapado, "finito": finito, "chapado": chapado,
                            "gA": float(gA.abs().sum()), "gB": float(gB.abs().sum())})
 
-    # --- estagios de LoRA sintetico, com referencia na CPU ---
+    # --- synthetic LoRA stages, with a CPU reference ---
     for cn, h, t, r, dt, passos in cfgs(iters):
         if cn != nome:
             continue
@@ -273,17 +272,18 @@ def roda(nome, iters):
         x = torch.randn(t, h, dtype=td)
         w = torch.randn(h, h, dtype=td) * 0.02
         A0 = torch.randn(r, h, dtype=td) * 0.01
-        B0 = torch.randn(h, r, dtype=td) * 0.01   # NAO zero: exercita os dados
+        B0 = torch.randn(h, r, dtype=td) * 0.01   # NOT zero: exercises the data
 
         def treina(dev, reps):
-            """reps repeticoes do backward. Na GPU e o estresse; na CPU basta 1,
-            porque zero_grad() a cada volta faz toda iteracao produzir o mesmo
-            gradiente -- repetir la so gastava minutos por estagio.
+            """reps repetitions of the backward. On the GPU it is the stress; on
+            the CPU 1 is enough, because zero_grad() every lap makes each
+            iteration produce the same gradient -- repeating there only burned
+            minutes per stage.
 
-            E a CPU roda em fp32, sempre. Esta CPU nao tem fp16 nativo: em
-            emulacao um x@w de 1024x2048x2048 leva dezenas de segundos, e nos
-            estagios de h=4096 travava o teste inteiro. fp32 tambem e a
-            referencia que se quer -- a GPU e que esta sendo julgada."""
+            And the CPU runs in fp32, always. This CPU has no native fp16: under
+            emulation a 1024x2048x2048 x@w takes tens of seconds, and in the
+            h=4096 stages it hung the whole test. fp32 is also the reference we
+            want -- the GPU is the one on trial."""
             tdd = torch.float32 if dev == "cpu" else td
             xx, ww = x.to(dev, tdd), w.to(dev, tdd)
             AA = A0.clone().to(dev, tdd).requires_grad_(True)
@@ -310,8 +310,8 @@ def roda(nome, iters):
 
         eA, eB = rel(gA_gpu, gA_cpu), rel(gB_gpu, gB_cpu)
         finito = bool(torch.isfinite(gA_gpu).all()) and bool(torch.isfinite(gB_gpu).all())
-        # gradiente identicamente zero e a assinatura do fp16 saturando ou do
-        # buffer nunca escrito -- passa em qualquer teste de "travou ou nao"
+        # an identically zero gradient is the signature of fp16 saturating or of a
+        # buffer never written -- it passes any "did it hang or not" test
         chapado = float(gB_gpu.abs().sum()) == 0.0
         ok = eA < TOL and eB < TOL and finito and not chapado
         return json.dumps({"eA": eA, "eB": eB, "ok": ok, "finito": finito,

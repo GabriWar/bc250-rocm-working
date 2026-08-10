@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""O erro esta no CALCULO ou na COPIA de volta para o host?
+"""Is the error in the COMPUTE or in the COPY back to the host?
 
-Ate aqui: c=320 h=112 erra 43% dos elementos, espalhados por todos os 320
-canais, em faixas contiguas dentro de cada canal. Memoria pura passa 768 MB
-sem uma palavra corrompida. Kernel e ISA corretos.
+So far: c=320 h=112 gets 43% of the elements wrong, spread across all 320
+channels, in contiguous ranges within each channel. Pure memory passes 768 MB
+without a single corrupted word. Kernel and ISA are correct.
 
-Faixas contiguas alinhadas a blocos cheiram a escrita que nao ficou visivel,
-nao a aritmetica errada. E este env desliga o SDMA (HSA_ENABLE_SDMA=0), entao
-a copia device->host segue um caminho alternativo.
+Contiguous, block-aligned ranges smell like a write that never became visible,
+not like wrong arithmetic. And this env disables SDMA (HSA_ENABLE_SDMA=0), so
+the device->host copy takes an alternative path.
 
-Aqui a mesma saida e comparada de duas formas:
-  A) inteiramente NA GPU, contra referencia im2col+GEMM (que mede 0/26)
-  B) copiada para o host e comparada com a CPU
+Here the same output is compared two ways:
+  A) entirely ON THE GPU, against an im2col+GEMM reference (which measures 0/26)
+  B) copied to the host and compared with the CPU
 
-A pequeno e B grande -> o calculo esta certo e a copia corrompe
-A e B grandes iguais -> o calculo esta errado mesmo
+A small and B large -> the compute is right and the copy corrupts
+A and B both large   -> the compute really is wrong
 """
 import os, torch, torch.nn.functional as F
 d="cuda"; torch.manual_seed(0)
@@ -23,7 +23,7 @@ def say(s):
     out.write(s+"\n"); out.flush(); os.fsync(out.fileno()); print(s,flush=True)
 
 def ref_na_gpu(xg, wg):
-    """conv por im2col+GEMM, o caminho que mede 0/26. Fica tudo na GPU."""
+    """conv via im2col+GEMM, the path that measures 0/26. Everything stays on the GPU."""
     n,cin,hi,wi = xg.shape; cout = wg.shape[0]
     cols = F.unfold(xg, (3,3), padding=1)
     o = (wg.reshape(cout,-1).float() @ cols.float())
@@ -44,16 +44,16 @@ for h,c in [(112,320),(104,320),(64,64),(128,320)]:
     xg,wg=x.to(d),w.to(d)
     g=F.conv2d(xg,wg,padding=1); torch.cuda.synchronize()
 
-    # A: tudo na GPU
+    # A: everything on the GPU
     rg=ref_na_gpu(xg,wg)
     ea=((g.float()-rg).abs().max()/rg.abs().max().clamp(min=1e-6)).item()
 
-    # B: copia para o host e compara com a CPU
+    # B: copy to the host and compare with the CPU
     gc=g.float().cpu()
     rc=F.conv2d(x.float(),w.float(),padding=1)
     eb=(gc-rc).abs().max().item()/max(rc.abs().max().item(),1e-6)
 
-    # C: segunda copia do MESMO buffer -- as duas copias concordam entre si?
+    # C: second copy of the SAME buffer -- do the two copies agree with each other?
     gc2=g.float().cpu()
     ec=(gc-gc2).abs().max().item()
 

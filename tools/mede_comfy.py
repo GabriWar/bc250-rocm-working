@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Mede segundos por imagem no ComfyUI, com seed fixa.
+"""Measures seconds per image in ComfyUI, with a fixed seed.
 
-Seed fixa de proposito: sem ela, cada rodada gera uma imagem diferente e o
-tempo varia com o conteudo. Com ela, as rodadas sao comparaveis e ainda serve
-de teste de corretude -- a mesma seed tem de produzir a mesma imagem, entao
-qualquer diferenca de saida entre rodadas e corrupcao, nao aleatoriedade.
+Fixed seed on purpose: without it, each run generates a different image and the
+time varies with the content. With it, runs are comparable and it doubles as a
+correctness test -- the same seed must produce the same image, so any output
+difference between runs is corruption, not randomness.
 
-Uso: mede-comfy.py <arquivo-api.json> <rotulo> <n>
+Usage: mede-comfy.py <api.json-file> <label> <n>
 """
 import hashlib
 import json
@@ -58,7 +58,7 @@ def main():
             time.sleep(2)
         dt = time.perf_counter() - t0
 
-        # hash da imagem: mesma seed tem de dar o mesmo arquivo
+        # image hash: the same seed must give the same file
         sha = None
         if img:
             try:

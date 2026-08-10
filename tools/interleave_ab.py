@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Intercalar computacao com copia device->host corrompe?
+"""Does interleaving compute with device->host copies corrupt?
 
-Achado em 2026-08-05: duas baterias identicas em shapes e aquecimento deram
-11 erros de 18 e depois 0 de 18. A unica diferenca era que na primeira o
-im2col rodava ENTRE copias D2H, e na segunda toda computacao vinha antes de
-qualquer copia.
+Found on 2026-08-05: two batches identical in shapes and warmup gave 11 errors
+out of 18 and then 0 out of 18. The only difference was that in the first one
+im2col ran BETWEEN D2H copies, and in the second all compute came before any
+copy.
 
-Importa porque este env tem HSA_ENABLE_SDMA=0. Sem SDMA a copia D2H nao usa
-engine de DMA: vira um kernel de blit despachado na fila de compute. Entao
-intercalar copia com computacao e intercalar dois kernels na mesma fila.
+It matters because this env has HSA_ENABLE_SDMA=0. Without SDMA, a D2H copy does
+not use a DMA engine: it becomes a blit kernel dispatched on the compute queue.
+So interleaving copy with compute is interleaving two kernels on the same queue.
 
-A: computa tudo, depois copia tudo      (sem intercalar)
-B: computa, copia, computa, copia...    (intercalado)
+A: compute everything, then copy everything  (not interleaved)
+B: compute, copy, compute, copy...           (interleaved)
 
-Mesmas operacoes e mesma quantidade nos dois. So muda a intercalacao.
+Same operations and same amount in both. Only the interleaving changes.
 """
 import os, torch, torch.nn.functional as F
 d="cuda"; torch.manual_seed(0)
@@ -46,12 +46,12 @@ for ciclo in (1,2,3):
     for modo in ("A","B"):
         dados=prep()
         if modo=="A":
-            # computa TUDO primeiro
+            # compute EVERYTHING first
             res=[(im2col(xg,wg), F.conv2d(xg,wg,padding=1)) for _,_,_,_,xg,wg,_ in dados]
             torch.cuda.synchronize()
             saida=[(i.cpu().float(), g.cpu().float()) for i,g in res]
         else:
-            # intercala: computa um, copia, computa outro, copia...
+            # interleave: compute one, copy, compute another, copy...
             saida=[]
             for _,_,_,_,xg,wg,_ in dados:
                 i=im2col(xg,wg); torch.cuda.synchronize(); ic=i.cpu().float()

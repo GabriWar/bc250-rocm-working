@@ -17,7 +17,7 @@ grep -q "To see the GUI" "$L" || { echo "### NAO SUBIU ###" >>"$L"; exit 1; }
 MARK=$(wc -l < "$L")
 echo "### SERVIDOR OK (MARK=$MARK) ###" >>"$L"
 
-# enfileira 5 geracoes com seeds distintos
+# queue 5 generations with distinct seeds
 for s in 101 202 303 404 505; do
   python3 -c "
 import json,sys
@@ -30,7 +30,7 @@ print(json.dumps(w))" > /tmp/wf_$s.json
   echo "### ENFILEIRADO seed=$s ###" >>"$L"
 done
 
-# espera as 5 terminarem (ou falha)
+# wait for all 5 to finish (or fail)
 for i in $(seq 1 600); do
   N=$(ls /home/gabriwar/ComfyUI/output/bc250_multi_*.png 2>/dev/null | wc -l)
   [ "$N" -ge 5 ] && { echo "### 5 IMAGENS PRONTAS ###" >>"$L"; break; }

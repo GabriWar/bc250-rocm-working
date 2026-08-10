@@ -1,44 +1,44 @@
 #!/usr/bin/env python3
-"""Triangula o mesmo dado por tres caminhos independentes.
+"""Triangulates the same data through three independent paths.
 
-O que ja esta estabelecido
---------------------------
-A GPU le e escreve consistentemente a memoria de outro bloco; a CPU e coerente
-consigo mesma e nao e afetada. Reproduz em ~83% das execucoes. E o trace das
-escritas de PTE mostra que as tabelas de pagina estao CORRETAS: cada bloco
-recebe cobertura exata do tamanho dele, com enderecos fisicos coerentes, e as
-faixas de blocos diferentes nao se cruzam.
+What is already established
+---------------------------
+The GPU consistently reads and writes another block's memory; the CPU is coherent
+with itself and is not affected. Reproduces in ~83% of runs. And the trace of PTE
+writes shows the page tables are CORRECT: each block gets coverage of exactly its
+size, with coherent physical addresses, and the ranges of different blocks do not
+intersect.
 
-Ja excluidos, cada um com medida propria: MIOpen, fila de compute, staging do
-ROCclr e seu tamanho, SDMA, corrida entre transferencias, tempo de vida do
-buffer de host, alocador do PyTorch, mapeamento de host, bc250_flush_mapped_vmids
-(5/6 vs 5/6), vm_update_mode CPU vs SDMA (10/12 vs 5/6), evicção por TTM, e as
-proprias tabelas de pagina.
+Already excluded, each with its own measurement: MIOpen, the compute queue,
+ROCclr staging and its size, SDMA, races between transfers, host buffer lifetime,
+PyTorch's allocator, host mapping, bc250_flush_mapped_vmids (5/6 vs 5/6),
+vm_update_mode CPU vs SDMA (10/12 vs 5/6), TTM eviction, and the page tables
+themselves.
 
-A pergunta que sobra
---------------------
-Se a PTE aponta para o endereco fisico certo e a GPU ainda le outra coisa, o
-defeito esta ABAIXO da tabela de pagina. Para provar isso falta um terceiro
-observador: ler a memoria pelo ENDERECO FISICO, sem passar por VA nenhum.
+The remaining question
+----------------------
+If the PTE points at the right physical address and the GPU still reads something
+else, the defect is BELOW the page table. To prove that, a third observer is
+missing: reading memory by PHYSICAL ADDRESS, without going through any VA.
 
-O debugfs amdgpu_vram faz exatamente isso -- o offset de leitura e endereco de
-VRAM. Entao para o mesmo bloco:
+The amdgpu_vram debugfs does exactly that -- the read offset is a VRAM address. So
+for the same block:
 
-    CPU pelo VA      o que o BO realmente contem
-    GPU pelo VA      o que a GPU entrega (sabidamente errado as vezes)
-    CPU pelo PA      o que existe no endereco fisico que a PTE aponta
+    CPU via VA      what the BO actually contains
+    GPU via VA      what the GPU delivers (known to be wrong sometimes)
+    CPU via PA      what exists at the physical address the PTE points at
 
-    PA contem o dado do bloco   -> a PTE esta certa e a GPU le fora dela:
-                                   defeito abaixo da tabela (controlador/L2)
-    PA contem dado de OUTRO     -> a PTE aponta para o BO errado apesar de a
-                                   analise de faixas nao ter mostrado cruzamento
+    PA holds the block's data  -> the PTE is right and the GPU reads outside it:
+                                  defect below the table (controller/L2)
+    PA holds ANOTHER's data    -> the PTE points at the wrong BO despite the range
+                                  analysis showing no intersection
 
-Calibracao da base
-------------------
-O `addr` da PTE e endereco de MC, nao offset de VRAM: em gmc_v10,
-vram_base_offset = gfxhub.get_mc_fb_offset(). Em vez de deduzir a formula, a
-base e descoberta empiricamente -- um bloco que NAO diverge tem que conter o
-proprio marcador no PA dele, e a base que faz isso acontecer e a certa.
+Base calibration
+----------------
+The PTE's `addr` is an MC address, not a VRAM offset: in gmc_v10,
+vram_base_offset = gfxhub.get_mc_fb_offset(). Instead of deriving the formula, the
+base is discovered empirically -- a block that does NOT diverge must contain its
+own marker at its PA, and the base that makes that happen is the right one.
 """
 import ctypes
 import os
@@ -112,18 +112,18 @@ root(["sh", "-c", f"echo > {TRC}/trace"])
 root(["sh", "-c", f"echo 1 > {TRC}/tracing_on"])
 
 aquecer()
-# Terceiro modo, "vaVirgem": em vez de liberar a rotatividade, ela e MANTIDA
-# viva. Assim o alocador de VA do ROCr nao tem faixa liberada para reciclar e os
-# blocos de teste caem em enderecos virtuais nunca usados antes.
+# Third mode, "vaVirgem": instead of freeing the churn, it is KEPT
+# alive. That way ROCr's VA allocator has no freed range to recycle and the test
+# blocks land at virtual addresses never used before.
 #
-# Isso separa o que o discriminador anterior nao separou. Aquele comparava o PA
-# entregue com o historico do proprio VA, mas 0x176000000 aparece no historico de
-# quase todo VA -- e um PA reciclado o tempo todo, porque a rotatividade aloca as
-# mesmas formas na mesma ordem. "Ja foi deste VA" era quase sempre verdade por
-# acaso.
+# This separates what the previous discriminator did not. That one compared the
+# delivered PA against the VA's own history, but 0x176000000 shows up in the
+# history of almost every VA -- it is a PA recycled all the time, because the
+# churn allocates the same shapes in the same order. "It was already this VA's"
+# was almost always true by accident.
 #
-#   VA virgem e limpo    -> o perigo e o reuso de VA (traducao velha)
-#   VA virgem e corrompe -> o endereco fisico e que aliasa
+#   virgin VA is clean     -> the danger is VA reuse (stale translation)
+#   virgin VA corrupts     -> it is the physical address that aliases
 VIRGEM = len(sys.argv) > 3 and sys.argv[3] == "vaVirgem"
 segurados = []
 for _ in range(3):
@@ -146,8 +146,8 @@ for rodada in ("A", "B"):
         ck(hip.hipMalloc(ctypes.byref(p), ctypes.c_size_t(t)), "hipMalloc")
         blocos.append((f"{rodada}{t}", p, t))
 
-# marcador de 8 bytes unico por bloco, escrito pela CPU no inicio de cada
-# pagina de 2 MiB -- assim qualquer leitura fisica de 2 MiB alinhada o encontra
+# unique 8-byte marker per block, written by the CPU at the start of each
+# 2 MiB page -- that way any 2 MiB-aligned physical read finds it
 MAGIC = 0x5A5A0000_00000000
 for k, (rot, p, t) in enumerate(blocos):
     ctypes.memset(p, 0xAA, min(t, 4096))
@@ -158,7 +158,7 @@ ck(hip.hipDeviceSynchronize(), "sync")
 root(["sh", "-c", f"echo 0 > {TRC}/tracing_on"])
 trace = root(["cat", f"{TRC}/trace"])
 
-# --- o que a GPU entrega para cada bloco ---
+# --- what the GPU delivers for each block ---
 say("  --- o que a GPU entrega, pelo VA ---")
 divergentes = []
 for k, (rot, p, t) in enumerate(blocos):
@@ -172,7 +172,7 @@ for k, (rot, p, t) in enumerate(blocos):
 if not divergentes:
     say("    todos coerentes -- execucao limpa")
 
-# --- PA de cada bloco, do trace ---
+# --- PA of each block, from the trace ---
 pa = {}
 seq = []
 pend = None
@@ -191,11 +191,11 @@ for k, (rot, p, t) in enumerate(blocos):
 
 say(f"  --- PA do inicio de {len(pa)} de {len(blocos)} blocos ---")
 
-# --- calibra a base lendo VRAM por endereco fisico ---
-# Varre a VRAM inteira nos offsets alinhados em 2 MiB procurando os marcadores.
-# Isso dispensa descobrir a base do FB: em vez de converter o `addr` da PTE em
-# offset, descobre-se empiricamente ONDE cada bloco realmente mora, e a base cai
-# como subproduto (base = addr_da_pte - offset_encontrado).
+# --- calibrates the base by reading VRAM by physical address ---
+# Scans the whole VRAM at 2 MiB-aligned offsets looking for the markers.
+# That removes the need to figure out the FB base: instead of converting the PTE's
+# `addr` into an offset, it empirically discovers WHERE each block really lives,
+# and the base falls out as a by-product (base = pte_addr - found_offset).
 say("  --- varrendo a VRAM pelos marcadores (6144 leituras de 8 bytes) ---")
 achados = {}
 r = root(["python3", os.path.expanduser("~/bc250-grimoire/varrer_vram.py"),
@@ -217,11 +217,11 @@ if bases:
 else:
     b = None
 
-# A varredura fisica confirmou onde o dado esta. Reler pela GPU AGORA fecha o
-# unico buraco que sobrava: se a escrita da CPU (memoria write-combining) so
-# tivesse chegado a memoria depois da primeira leitura, a GPU teria lido dado
-# velho em vez de lugar errado. Se continuar errado com o dado comprovadamente
-# na memoria, essa explicacao cai.
+# The physical scan confirmed where the data is. Re-reading through the GPU NOW
+# closes the only remaining hole: if the CPU's write (write-combining memory) had
+# only reached memory after the first read, the GPU would have read stale data
+# instead of the wrong place. If it stays wrong with the data provably in memory,
+# that explanation falls.
 say("  --- releitura pela GPU, apos a varredura confirmar a memoria ---")
 for k in list(divergentes):
     buf = (ctypes.c_ubyte * 8)()
@@ -233,19 +233,19 @@ for k in list(divergentes):
     if dono == k:
         say("      => acertou na segunda: era ordenacao de escrita da CPU, nao lugar errado")
 
-# ---- relacao em BITS entre o PA que a PTE manda e o PA de onde o dado veio ----
-# Se o defeito for de decodificacao de endereco (interleave de canal, linha de
-# endereco presa, hash do data fabric), o par certo-x-entregue tem relacao fixa:
-# XOR com poucos bits, ou sempre os mesmos bits. Se for aleatorio, nao e decode.
-# O PA entregue e sempre 0x176000000 ou 0x176800000, enquanto os esperados se
-# espalham. Duas explicacoes preveem isso:
+# ---- BIT relation between the PA the PTE points at and the PA the data came from ----
+# If the defect is address decoding (channel interleave, stuck address line,
+# data fabric hash), the correct-vs-delivered pair has a fixed relation:
+# XOR with few bits, or always the same bits. If it is random, it is not decode.
+# The delivered PA is always 0x176000000 or 0x176800000, while the expected ones
+# are spread out. Two explanations predict that:
 #
-#   (a) esses enderecos fisicos aliasam de verdade -> reservar as paginas resolve
-#   (b) a GPU usa uma traducao VELHA daquele mesmo VA, de uma geracao anterior da
-#       rotatividade, presa numa cache que o flush de TLB nao alcanca. Como o
-#       alocador e deterministico, a geracao anterior cai sempre no mesmo PA.
+#   (a) those physical addresses really do alias -> reserving the pages fixes it
+#   (b) the GPU uses a STALE translation of that same VA, from a previous churn
+#       generation, stuck in a cache the TLB flush does not reach. Since the
+#       allocator is deterministic, the previous generation always lands on the same PA.
 #
-# O que separa: o PA entregue esta entre os que ESTE VA ja apontou antes?
+# What separates them: is the delivered PA among the ones THIS VA pointed at before?
 say("  --- o PA entregue e uma traducao antiga deste mesmo VA? ---")
 hist = {}
 for k, (rot, p_, t_) in enumerate(blocos):
@@ -292,11 +292,11 @@ for k in divergentes:
             say(f"      => a PTE aponta para onde mora o bloco {dono or '?'}:")
             say("      => a entrada de tabela de pagina esta errada")
 
-# ---- le os BYTES REAIS da tabela de pagina ----
-# Ate aqui foi verificado o que o driver ESCREVEU (via tracepoint), nao o que
-# esta na memoria no momento do acesso. As tabelas moram na mesma VRAM: se a
-# corrupcao as atinge, as escritas apareceriam corretas enquanto o hardware le
-# uma entrada estragada. Este bloco fecha esse furo.
+# ---- read the REAL BYTES of the page table ----
+# So far what was verified is what the driver WROTE (via tracepoint), not what is
+# in memory at the time of access. The tables live in the same VRAM: if the
+# corruption reaches them, the writes would look correct while the hardware reads
+# a mangled entry. This block closes that hole.
 if divergentes and b is not None:
     say("  --- lendo os bytes reais das PTEs (varredura de 12 GiB, ~100 s) ---")
     alvos = sorted({pa[k] for k in pa})
@@ -310,7 +310,7 @@ if divergentes and b is not None:
     say(f"    entradas encontradas apontando para PAs conhecidos: {len(slots)}")
 
     MASC = 0x0000FFFFFFFFF000
-    # de qual bloco e cada entrada achada
+    # which block each found entry belongs to
     de_quem = {}
     for off, val in slots.items():
         for k, a in pa.items():
@@ -329,7 +329,7 @@ if divergentes and b is not None:
             say("      => NENHUMA entrada na memoria aponta para o PA que o driver")
             say("      => escreveu: a tabela de pagina foi CORROMPIDA depois da escrita")
         else:
-            # vizinhos no mesmo bloco de 4 KiB: cobrem VAs adjacentes
+            # neighbors in the same 4 KiB block: they cover adjacent VAs
             off0 = meus[0][0]
             tab = off0 & ~0xFFF
             idx = (off0 - tab) // 8

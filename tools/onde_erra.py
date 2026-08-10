@@ -1,4 +1,4 @@
-# Os elementos errados sao CONTIGUOS (memoria ruim) ou ESPALHADOS (calculo)?
+# Are the wrong elements CONTIGUOUS (bad memory) or SCATTERED (compute)?
 import torch, torch.nn.functional as F, os
 d="cuda"; torch.manual_seed(0)
 out=open(os.path.expanduser("~/bc250-grimoire/onde_erra.result"),"w",buffering=1)
@@ -6,7 +6,7 @@ def say(s):
     out.write(s+"\n"); out.flush(); os.fsync(out.fileno()); print(s,flush=True)
 
 shapes=[(h,c) for h in range(32,136,8) for c in (64,320)]
-# aquece ate o conjunto estabilizar (reps 1-3), como medido
+# warm up until the set stabilizes (reps 1-3), as measured
 for rep in range(3):
     for h,c in shapes:
         x=torch.randn(1,c,h,h,dtype=torch.float16); w=torch.randn(c,c,3,3,dtype=torch.float16)
@@ -26,9 +26,9 @@ for h,c in [(64,320),(96,320),(128,320),(64,64)]:
     if nb==0:
         say(f"c={c:3d} h={h:3d}: 0 errados de {bad.numel()}  -> ok"); continue
     flat=bad.flatten(); idx=torch.nonzero(flat).flatten()
-    # quantos blocos contiguos formam os elementos errados?
+    # how many contiguous blocks do the wrong elements form?
     saltos=int((idx[1:]-idx[:-1] != 1).sum())+1 if len(idx)>1 else 1
-    # erram canais inteiros de saida?
+    # do whole output channels fail?
     porcanal=bad.reshape(c,-1).sum(1)
     canais_afetados=int((porcanal>0).sum())
     canais_totais=int((porcanal==bad.reshape(c,-1).shape[1]).sum())

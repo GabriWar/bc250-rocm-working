@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Candidatos a correcao da corrupcao de upload H2D em rajada.
+"""Candidate fixes for the H2D burst upload corruption.
 
-Estabelecido 2026-08-05: subindo varios tensores grandes sem sincronizar entre
-eles, exatamente um bloco de 2 MiB (2^20 elementos fp16) de um deles nao chega.
-Sem conv, sem MIOpen, sem kernel: e a copia host->device.
+Established 2026-08-05: uploading several large tensors without syncing between
+them, exactly one 2 MiB block (2^20 fp16 elements) of one of them does not
+arrive. No conv, no MIOpen, no kernel: it is the host->device copy.
 
-Candidatos:
-  base            como esta hoje (HSA_ENABLE_SDMA=0)
-  pinned          memoria pinada no host, que evita o buffer de staging
-  nonblock        .to(device, non_blocking=True) com memoria pinada
-Repetido varias vezes porque a falha e intermitente.
+Candidates:
+  base            as it stands today (HSA_ENABLE_SDMA=0)
+  pinned          pinned host memory, which avoids the staging buffer
+  nonblock        .to(device, non_blocking=True) with pinned memory
+Repeated several times because the failure is intermittent.
 
-HSA_ENABLE_SDMA=1 nao da para testar aqui: e lido na inicializacao do runtime,
-entao precisa de processo novo com a variavel ja setada.
+HSA_ENABLE_SDMA=1 cannot be tested here: it is read at runtime init, so it needs
+a new process with the variable already set.
 """
 import os, sys, torch
 d="cuda"
@@ -27,11 +27,11 @@ alvos=[(112,320),(128,320),(104,320),(96,320),(64,320),(64,64)]
 
 torch.manual_seed(0)
 
-# AQUECIMENTO OBRIGATORIO. A primeira versao deste script pulava isso e deu 0
-# corrompidos em 48 uploads no modo base -- o que teria me feito concluir que
-# `pinned` corrige algo que nem estava quebrado. O h2d_check.py, que reproduz,
-# roda 2 passadas do sweep de conv2d antes. A corrupcao de upload precisa de
-# trabalho de GPU acumulado antes; sem ele, todos os modos passam.
+# MANDATORY WARMUP. The first version of this script skipped it and gave 0
+# corrupted out of 48 uploads in base mode -- which would have made me conclude
+# that `pinned` fixes something that was not even broken. h2d_check.py, which
+# does reproduce, runs 2 passes of the conv2d sweep first. Upload corruption
+# needs accumulated GPU work beforehand; without it, every mode passes.
 import torch.nn.functional as F
 _sweep=[(h,c) for h in range(32,136,8) for c in (64,320)]
 say("  aquecendo (2 passadas de 26 conv2d) -- sem isso nada reproduz")

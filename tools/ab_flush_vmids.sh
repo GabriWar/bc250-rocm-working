@@ -1,11 +1,11 @@
 #!/bin/bash
-# A/B de bc250_flush_mapped_vmids contra o reprodutor de aliasing de tabelas de
-# pagina (tools/hipmalloc_cru.py).
+# A/B of bc250_flush_mapped_vmids against the page table aliasing reproducer
+# (tools/hipmalloc_cru.py).
 #
-# Hipotese
-# --------
-# Com o parametro em 0, gmc_v10_0_flush_gpu_tlb sai pelo atalho da linha 24 e
-# submete a invalidacao de TLB pela fila KIQ:
+# Hypothesis
+# ----------
+# With the parameter at 0, gmc_v10_0_flush_gpu_tlb takes the shortcut on line 24
+# and submits the TLB invalidation through the KIQ queue:
 #
 #   if (!(bc250_flush_mapped_vmids && device == BC250) &&
 #       adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes && ...) {
@@ -13,27 +13,27 @@
 #           return;
 #   }
 #
-# O proprio driver ja registra que KIQ trava nesta placa
+# The driver itself already records that KIQ hangs on this board
 # (flush_pasid_uses_kiq = false, "gfx1013/BC-250: KIQ TLB flush wedges").
-# Se a submissao nao completa mas a funcao retorna, a GPU segue traduzindo pela
-# entrada antiga -- que e exatamente o que o reprodutor mede: dois VAs vivos,
-# BOs distintos, mesma memoria fisica, e so a GPU ve.
+# If the submission never completes but the function returns, the GPU keeps
+# translating through the old entry -- which is exactly what the reproducer
+# measures: two live VAs, distinct BOs, same physical memory, and only the GPU sees it.
 #
-# Com o parametro em 1, o codigo pula o KIQ e invalida por MMIO direto.
+# With the parameter at 1, the code skips the KIQ and invalidates via direct MMIO.
 #
-# Desenho
-# -------
-# O parametro e 0644, entao alterna sem reboot. O fenomeno e por PROCESSO
-# (bimodal: um processo ou aliasa em todos os ciclos ou em nenhum), entao cada
-# execucao e um ensaio independente e o A/B no mesmo boot e mais forte que entre
-# boots: elimina a variacao de boot inteira.
+# Design
+# ------
+# The parameter is 0644, so it can be toggled without a reboot. The phenomenon is
+# per PROCESS (bimodal: a process either aliases on every cycle or on none), so
+# each run is an independent trial and an A/B in the same boot is stronger than
+# across boots: it eliminates whole-boot variation.
 #
-# Ordem contrabalanceada `1 0 0 1 1 0 0 1 1 0 0 1`, nao alternada: alternar daria
-# a um braco todas as posicoes impares, e nesta placa a primeira carga de GPU de
-# um boot se comporta diferente das seguintes.
+# Counterbalanced order `1 0 0 1 1 0 0 1 1 0 0 1`, not alternating: alternating
+# would give one arm all the odd positions, and on this board a boot's first GPU
+# load behaves differently from the following ones.
 #
-# Referencia sem patch, medida antes deste script, mesmo boot:
-#   bc250_flush_mapped_vmids=0  ->  6 de 6 execucoes com aliasing
+# Unpatched reference, measured before this script, same boot:
+#   bc250_flush_mapped_vmids=0  ->  6 of 6 runs with aliasing
 
 P=/sys/module/amdgpu/parameters/bc250_flush_mapped_vmids
 H=/home/gabriwar/bc250-grimoire/ab_flush_vmids.historico
@@ -51,9 +51,9 @@ source /etc/profile.d/bc250-rocm.sh
 i=0
 for W in $ORDEM; do
     i=$((i + 1))
-    # CUIDADO: S() faz `printf senha | sudo -S ...`, entao ele SEMPRE substitui o
-    # stdin. `echo "$W" | S tee "$P"` nao funciona -- o tee recebe a senha, nao o
-    # valor, e o parametro fica inalterado sem erro nenhum visivel.
+    # CAREFUL: S() does `printf password | sudo -S ...`, so it ALWAYS replaces
+    # stdin. `echo "$W" | S tee "$P"` does not work -- tee receives the password,
+    # not the value, and the parameter stays unchanged with no visible error.
     S sh -c "echo $W > $P"
     LIDO=$(cat "$P")
     if [ "$LIDO" != "$W" ]; then

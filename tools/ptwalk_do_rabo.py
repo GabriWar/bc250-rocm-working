@@ -1,44 +1,43 @@
 #!/usr/bin/env python3
-"""Para cada pagina que a GPU entrega errado, pergunta ao DRIVER o que a
-hierarquia de tabelas de pagina realmente diz para aquele VA.
+"""For each page the GPU delivers wrong, asks the DRIVER what the page table
+hierarchy actually says for that VA.
 
-Por que este script existe
---------------------------
-O doc 17 conclui que as tabelas estao corretas e que a GPU le fora delas. Essa
-conclusao sustenta tudo que veio depois -- e foi tirada conferindo a PTE do
-offset 0 de cada bloco, enquanto a corrupcao comeca no rabo: 85 de 87 offsets
-onde ela comeca sao multiplos exatos de 2 MiB, e num caso medido o bloco erra
-do offset 4 MiB ate o fim.
+Why this script exists
+----------------------
+Doc 17 concludes that the tables are correct and that the GPU reads outside them.
+That conclusion underpins everything that came after -- and it was drawn by
+checking the PTE at offset 0 of each block, while the corruption starts at the
+tail: 85 of 87 offsets where it begins are exact multiples of 2 MiB, and in one
+measured case the block fails from offset 4 MiB to the end.
 
-Conferir de fora e impreciso. Com vm_update_mode=3 o campo `pe` do tracepoint e
-endereco virtual de KERNEL (amdgpu_vm_cpu.c:87), nao fisico, e varrer os 12 GiB
-de VRAM atras do valor nao diz a qual VA cada slot pertence. Por isso a
-caminhada foi para dentro do driver, onde os ponteiros sao reais:
+Checking from outside is imprecise. With vm_update_mode=3 the tracepoint's `pe`
+field is a KERNEL virtual address (amdgpu_vm_cpu.c:87), not physical, and
+scanning the 12 GiB of VRAM for the value does not say which VA each slot belongs
+to. So the walk moved inside the driver, where the pointers are real:
 
     /sys/kernel/debug/dri/1/bc250_ptwalk
 
-O que a assinatura ja sugere
-----------------------------
-Com marcador por PAGINA (e nao por bloco) apareceu isto:
+What the signature already suggests
+-----------------------------------
+With a per-PAGE marker (rather than per block) this showed up:
 
-    A8028160 pagina 0 -> pagina 0 de A2621440    (A2621440 tem 2 paginas)
-    A8028160 pagina 1 -> pagina 1 de A2621440
-    A8028160 pagina 2 -> pagina 0 de A5898240
-    A8028160 pagina 3 -> pagina 1 de A5898240
+    A8028160 page 0 -> page 0 of A2621440    (A2621440 has 2 pages)
+    A8028160 page 1 -> page 1 of A2621440
+    A8028160 page 2 -> page 0 of A5898240
+    A8028160 page 3 -> page 1 of A5898240
 
-As 4 paginas de um bloco consomem TODAS as paginas de outro e depois as
-primeiras de um terceiro, em ordem. Isso tem o formato de quem percorreu a
-lista de paginas errada ao escrever as PTEs -- nao de cache errando nem de
-entrada solta corrompida.
+One block's 4 pages consume ALL the pages of another and then the first ones of a
+third, in order. That has the shape of walking the wrong page list while writing
+the PTEs -- not of a cache missing nor of a single corrupted entry.
 
-Como ler o resultado
---------------------
-  folha aponta PA de outro BO   -> conteudo de tabela de pagina: KERNEL
-  folha correta                 -> a GPU le fora da tabela: abaixo dela
-  invalidacao pendente          -> a GPU pode estar em traducao anterior
+How to read the result
+----------------------
+  leaf points at another BO's PA -> page table content: KERNEL
+  leaf correct                   -> the GPU reads outside the table: below it
+  pending invalidation           -> the GPU may be on a previous translation
 
-O controle e a consulta de uma pagina que NAO divergiu: se a caminhada dela nao
-fizer sentido, o instrumento esta mentindo e o resto e descartado.
+The control is querying a page that did NOT diverge: if its walk makes no sense,
+the instrument is lying and the rest is discarded.
 """
 import ctypes
 import os
@@ -53,10 +52,10 @@ D2H = 2
 PAG = 2 << 20
 MAGIC = 0x5A5A_0000_0000_0000
 def _achar_walk():
-    """O no de debugfs do dispositivo muda de nome entre boots: ora e o minor
-    numerico (dri/1), ora o endereco PCI (dri/0000:01:00.0). Procurar evita
-    silencio quando o caminho fixo nao existe -- e silencio foi lido como
-    'resultado vazio' uma vez."""
+    """The device's debugfs node changes name between boots: sometimes it is the
+    numeric minor (dri/1), sometimes the PCI address (dri/0000:01:00.0).
+    Searching avoids silence when the fixed path does not exist -- and silence
+    was read as 'empty result' once."""
     r = subprocess.run(["sudo", "-S", "sh", "-c",
                         "ls -d /sys/kernel/debug/dri/*/bc250_ptwalk 2>/dev/null | head -1"],
                        input="grdg\n", capture_output=True, text=True)
@@ -86,7 +85,7 @@ WALK = _achar_walk()
 
 
 def caminhar(pasid, va):
-    """Pergunta ao driver a hierarquia para este VA."""
+    """Asks the driver for the hierarchy of this VA."""
     w = root(["sh", "-c", f"echo '{pasid:x} {va:x}' > {WALK}"])
     if w.returncode:
         return f"!! falha ao escrever em {WALK}: {w.stderr.strip()}"
@@ -147,11 +146,11 @@ for k, (rot, p, t) in enumerate(blocos):
             ctypes.memmove(p.value + off, struct.pack("<Q", MAGIC | (k << 20) | pag), 8)
 ck(hip.hipDeviceSynchronize(), "sync")
 
-# --- a chave da busca e o PID, nao o PASID ---
-# O BIOS desliga SVM nesta placa ("SVM disabled (by BIOS) in MSR_VM_CR") e o KFD
-# reporta pasid=0 em /sys/class/kfd/kfd/proc/<pid>/pasid, entao a xarray de
-# pasids do driver nunca acha a VM de um processo de compute. O driver resolve
-# pelo caminho do proprio KFD a partir do PID.
+# --- the search key is the PID, not the PASID ---
+# The BIOS disables SVM on this board ("SVM disabled (by BIOS) in MSR_VM_CR") and
+# KFD reports pasid=0 in /sys/class/kfd/kfd/proc/<pid>/pasid, so the driver's
+# pasid xarray never finds a compute process's VM. The driver resolves it through
+# KFD's own path starting from the PID.
 pasid = os.getpid()
 kfd_pasid = "?"
 try:
@@ -160,7 +159,7 @@ except Exception:
     pass
 say(f"  PID {pasid} (o KFD reporta pasid={kfd_pasid}, por isso a busca e por PID)")
 
-# --- quais paginas a GPU entrega erradas ---
+# --- which pages does the GPU deliver wrong ---
 say("  --- lendo todas as paginas pela GPU ---")
 maus, bom = [], None
 for k, (rot, p, t) in enumerate(blocos):
@@ -189,7 +188,7 @@ if not maus:
 else:
     say(f"    {len(maus)} paginas divergentes")
 
-# --- controle: a caminhada de uma pagina BOA faz sentido? ---
+# --- control: does the walk of a GOOD page make sense? ---
 if bom:
     k, pag = bom
     va = blocos[k][1].value + pag * PAG
@@ -199,7 +198,7 @@ if bom:
     for ln in caminhar(pasid, va).splitlines():
         say("  " + ln)
 
-# --- e agora as que falharam ---
+# --- and now the failing ones ---
 for k, pag, ko, pago in maus:
     va = blocos[k][1].value + pag * PAG
     say("")

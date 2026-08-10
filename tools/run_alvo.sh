@@ -1,26 +1,26 @@
 #!/bin/bash
-# ComfyUI na configuracao que a gente QUER: VAE na GPU e sem warmup.
+# ComfyUI in the configuration we WANT: VAE on the GPU and no warmup.
 #
-# Contexto
-# --------
-# O VAE na GPU e o warmup nao sao dois problemas, sao o mesmo. O VAE funciona
-# sozinho na GPU (262 modulos, 512px, zero faults) e a GEMM que ele usa funciona
-# isolada (6,22 TFLOP/s). Ele so falha DENTRO do pipeline, depois de outro
-# trabalho pesado de GPU -- que e exatamente a condicao de gatilho do aliasing
-# documentado em docs/17. O HIPBLAS_STATUS_INTERNAL_ERROR e o rocBLAS achando as
-# proprias estruturas internas estragadas.
+# Context
+# -------
+# The VAE on the GPU and the warmup are not two problems, they are the same one.
+# The VAE works on its own on the GPU (262 modules, 512px, zero faults) and the
+# GEMM it uses works in isolation (6.22 TFLOP/s). It only fails INSIDE the
+# pipeline, after other heavy GPU work -- which is exactly the trigger condition
+# of the aliasing documented in docs/17. HIPBLAS_STATUS_INTERNAL_ERROR is rocBLAS
+# finding its own internal structures mangled.
 #
-# A aposta aqui e o alocador: o gatilho exige alocacao e execucao de kernel
-# INTERCALADAS (so alocacao 0/3, so kernel 0/3, as duas 3/3). Com
-# expandable_segments o PyTorch reserva uma faixa virtual grande e cresce dentro
-# dela por VMM, em vez de mapear e desmapear blocos o tempo todo.
+# The bet here is the allocator: the trigger requires allocation and kernel
+# execution INTERLEAVED (allocation only 0/3, kernel only 0/3, both 3/3). With
+# expandable_segments PyTorch reserves a large virtual range and grows inside it
+# via VMM, instead of mapping and unmapping blocks all the time.
 #
-# Medido no reprodutor: 4/4 sujas sem, 1/4 com. Mas aquele teste aloca os blocos
-# com hipMalloc cru, fora do alocador do PyTorch -- entao la o expandable_segments
-# so afetou o aquecimento. No ComfyUI TUDO passa pelo alocador, entao o efeito
-# pode ser bem maior. Ou nenhum. E o que este script mede.
-#
-# Uso: run_alvo.sh <vae> <warmup> <alloc>
+# Measured in the reproducer: 4/4 dirty without, 1/4 with. But that test allocates
+# the blocks with raw hipMalloc, outside PyTorch's allocator -- so there
+# expandable_segments only affected the warmup. In ComfyUI EVERYTHING goes through
+# the allocator, so the effect may be much larger. Or none. That is what this
+# script measures.
+# Usage: run_alvo.sh <vae> <warmup> <alloc>
 #   vae     cpu | fp16 | fp32 | bf16
 #   warmup  0 | 1
 #   alloc   pad | exp
@@ -82,8 +82,8 @@ print(json.dumps(w))" > "$R/wf_alvo_$s.json"
     if [ -n "$ERRO" ]; then
         echo "  seed=$s FALHOU em ${DT}s: $ERRO" | tee -a "$RES"; FALHOU=$((FALHOU+1))
     else
-        # imagem valida por estatistica de pixel, nao por existir:
-        # corrompida da std ~10 e ~2000 cores, boa da std ~75 e ~100k
+        # image valid by pixel statistics, not by existing:
+        # corrupted gives std ~10 and ~2000 colors, good gives std ~75 and ~100k
         PIX=$(python3 -c "
 from PIL import Image; import numpy as np, glob
 f=sorted(glob.glob('/home/gabriwar/ComfyUI/output/bc250_alvo_${s}_*.png'))

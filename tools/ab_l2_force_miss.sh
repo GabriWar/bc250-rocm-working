@@ -1,56 +1,56 @@
 #!/bin/bash
-# O cache de LINHAS DE TABELA DE PAGINA do L2 e quem entrega a traducao errada?
+# Is the L2's PAGE TABLE LINE cache the one delivering the wrong translation?
 #
-# O que este teste decide
-# -----------------------
-# O caminho VA->PA dentro da GPU tem DOIS caches, e ate agora foram tratados
-# como um so:
+# What this test decides
+# ----------------------
+# The VA->PA path inside the GPU has TWO caches, and until now they were treated
+# as one:
 #
-#   VA -> UTCL1/UTCL2 ....... cache de TRADUCOES prontas          [TLB]
+#   VA -> UTCL1/UTCL2 ....... cache of finished TRANSLATIONS          [TLB]
 #          -> miss -> walker
-#              -> le PDE1/PDE0/PTE da memoria
-#                  -> essas leituras passam pelo cache de LINHAS DE TABELA no L2
+#              -> reads PDE1/PDE0/PTE from memory
+#                  -> those reads go through the TABLE LINE cache in the L2
 #                      -> PA
 #
-# FORCE_MISS mata SO o de baixo: obriga o walker a reler a entrada da memoria em
-# toda traducao. O TLB fica intocado. Entao o resultado localiza a quebra:
+# FORCE_MISS kills ONLY the lower one: it forces the walker to re-read the entry
+# from memory on every translation. The TLB is untouched. So the result localizes
+# the breakage:
+#   rate drops to ~0  -> the walker was reading a wrong table line. The breakage
+#                        is in the PDE/PTE fetch: below the TLB, above memory.
+#   rate unchanged    -> the walker's fetch is fine. That leaves the TLB: a stale
+#                        VA->PA entry or a colliding tag, above the walker.
 #
-#   taxa cai para ~0  -> o walker lia linha de tabela errada. A quebra esta na
-#                        busca de PDE/PTE: abaixo do TLB, acima da memoria.
-#   taxa nao muda     -> a busca do walker esta boa. Sobra o TLB: entrada VA->PA
-#                        velha ou com tag colidindo, acima do walker.
+# The lower side is already closed by an earlier measurement (doc 17): data read
+# directly at the physical address, with no VA at all, is correct. So "below
+# memory" is not a candidate, and the two halves above are the only ones left.
 #
-# O lado de baixo ja esta fechado por medicao anterior (doc 17): o dado lido
-# direto no endereco fisico, sem VA nenhuma, esta correto. Entao "abaixo da
-# memoria" nao e candidato, e as duas metades acima sao as unicas que restam.
+# Why arm C exists
+# ----------------
+# Our pages are 2 MiB, i.e. BIGK. Arm C enables only
+# L2_CACHE_4K_FORCE_MISS, which does NOT touch our pages. If the corruption also
+# disappears in C, then nothing was fixed -- only the timing changed, and the
+# optimistic reading of the other arms dies before becoming a conclusion. Without
+# that control the test is worthless.
 #
-# Por que o braco C existe
-# ------------------------
-# Nossas paginas sao de 2 MiB, ou seja BIGK. O braco C liga so
-# L2_CACHE_4K_FORCE_MISS, que NAO toca nas nossas paginas. Se a corrupcao sumir
-# tambem em C, entao nada foi consertado -- so o timing mudou, e a leitura
-# otimista dos outros bracos morre antes de virar conclusao. Sem esse controle o
-# teste nao vale.
+# Usage
+# -----
+# This test CANNOT be run as an A/B in the same boot: the parameters are 0444,
+# read only at init. Each arm is a boot with a different command line.
 #
-# Uso
-# ---
-# Este teste NAO da para rodar como A/B no mesmo boot: os parametros sao 0444,
-# lidos so no init. Cada braco e um boot com uma linha de comando diferente.
+#   ab_l2_force_miss.sh <reps>     measures the arm matching the CURRENT cmdline
 #
-#   ab_l2_force_miss.sh <reps>     mede o braco correspondente a cmdline ATUAL
+# Arms, in the order they should be run:
 #
-# Bracos, na ordem em que devem ser rodados:
+#   A  (no parameter)                        base, expected ~7/10 dirty
+#   B  amdgpu.bc250_l2_force_miss=7          sledgehammer: 4K + BIGK + PDE
+#   C  amdgpu.bc250_l2_force_miss=1          NEGATIVE CONTROL: 4K only
+#   D  amdgpu.bc250_l2_force_miss=2          BIGK only, the one that really matters
+#   E  amdgpu.bc250_l2_pde0_tag_mode=1       tag collision, zero cost
 #
-#   A  (sem parametro)                       base, esperado ~7/10 sujo
-#   B  amdgpu.bc250_l2_force_miss=7          marreta: 4K + BIGK + PDE
-#   C  amdgpu.bc250_l2_force_miss=1          CONTROLE NEGATIVO: so 4K
-#   D  amdgpu.bc250_l2_force_miss=2          so BIGK, o que importa de verdade
-#   E  amdgpu.bc250_l2_pde0_tag_mode=1       colisao de tag, custo zero
-#
-# Leitura:
-#   B limpo, C sujo   -> o cache de tabela de pagina e a causa. Segue para D e E.
-#   B limpo, C limpo  -> artefato de timing. Nada provado, hipotese sem suporte.
-#   B sujo            -> a hipotese morre aqui. O alvo sobe para o TLB.
+# Reading:
+#   B clean, C dirty  -> the page table cache is the cause. Move on to D and E.
+#   B clean, C clean  -> timing artifact. Nothing proven, hypothesis unsupported.
+#   B dirty           -> the hypothesis dies here. The target moves up to the TLB.
 
 set -u
 REPS=${1:-10}
@@ -77,7 +77,7 @@ case "$FM:$TM:$BK" in
     *)      BRACO="? fm=$FM tm=$TM bk=$BK" ;;
 esac
 
-# o driver so imprime a linha de confirmacao quando algum botao esta ligado
+# the driver only prints the confirmation line when some knob is enabled
 CONFIRMA=$(S dmesg | grep -c 'BC-250 L2/')
 BOOT=$(cut -c1-8 /proc/sys/kernel/random/boot_id)
 

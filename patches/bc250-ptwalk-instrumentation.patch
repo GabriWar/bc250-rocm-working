@@ -21,33 +21,33 @@
 +
 +
 +/* ==================================================================
-+ * BC-250: percorre a hierarquia de tabelas de pagina para um VA.
++ * BC-250: walks the page table hierarchy for a VA.
 + *
-+ * Por que isto existe
-+ * -------------------
-+ * O doc 17 conclui que as tabelas de pagina estao CORRETAS e que portanto a
-+ * GPU le fora delas. Essa conclusao sustenta tudo que veio depois -- e ela foi
-+ * tirada conferindo a PTE do offset 0 de cada bloco, enquanto a corrupcao
-+ * comeca no rabo (85 de 87 offsets sao multiplos exatos de 2 MiB, e num caso
-+ * medido o bloco erra do offset 4 MiB ate o fim).
++ * Why this exists
++ * ---------------
++ * Doc 17 concludes that the page tables are CORRECT and therefore that the
++ * GPU reads outside them. That conclusion underpins everything that came after
++ * -- and it was drawn by checking the PTE at offset 0 of each block, while the
++ * corruption starts at the tail (85 of 87 offsets are exact multiples of 2 MiB,
++ * and in one measured case the block fails from offset 4 MiB to the end).
 + *
-+ * Verificar isso de fora e impreciso: com vm_update_mode=3 o campo `pe` do
-+ * tracepoint e endereco virtual de KERNEL (amdgpu_vm_cpu.c:87), nao fisico, e
-+ * varrer 12 GiB de VRAM atras do valor nao diz a qual VA cada slot pertence.
-+ * Aqui dentro os ponteiros sao reais e o cursor e o mesmo que o driver usa.
++ * Verifying that from outside is imprecise: with vm_update_mode=3 the `pe` field
++ * of the tracepoint is a KERNEL virtual address (amdgpu_vm_cpu.c:87), not
++ * physical, and scanning 12 GiB of VRAM for the value does not say which VA each
++ * slot belongs to. In here the pointers are real and the cursor is the driver's own.
 + *
-+ * Uso
-+ * ---
++ * Usage
++ * -----
 + *   echo "<pasid_hex> <va_hex>" > /sys/kernel/debug/dri/1/bc250_ptwalk
 + *   cat /sys/kernel/debug/dri/1/bc250_ptwalk
 + *
-+ * Imprime, por nivel: indice, entrada crua, flags decodificadas, endereco
-+ * fisico, o BO da tabela, e as entradas vizinhas. No fim compara o que a
-+ * caminhada encontrou com o que a arvore de intervalos do driver diz que
-+ * deveria estar mapeado -- as duas fontes que precisam concordar.
++ * Prints, per level: index, raw entry, decoded flags, physical
++ * address, the table BO, and the neighbouring entries. At the end it compares
++ * what the walk found against what the driver's interval tree says should be
++ * mapped -- the two sources that need to agree.
 + *
-+ * Somente leitura. Nao toca em registrador nenhum: leitura de MMIO cru nesta
-+ * placa ja travou a maquina antes.
++ * Read only. It touches no register: a raw MMIO read on this board has
++ * hung the machine before.
 + */
 +
 +static const char *bc250_nivel(unsigned int l)
@@ -104,9 +104,9 @@
 +	int passo = 0;
 +	int grande = 0;
 +
-+	/* o argumento e tratado como PID primeiro: nesta placa o SVM esta
-+	 * desligado pelo BIOS e o KFD reporta pasid=0, entao a xarray de pasids
-+	 * nao acha VM de processo de compute. Se falhar, tenta como pasid.
++	/* the argument is treated as a PID first: on this board SVM is
++	 * disabled by the BIOS and KFD reports pasid=0, so the pasid xarray
++	 * never finds a compute process's VM. If that fails, try it as a pasid.
 +	 */
 +	vm = amdgpu_bc250_vm_from_pid(pasid);
 +	if (vm) {
@@ -124,14 +124,14 @@
 +		return;
 +	}
 +
-+	/* Trava de seguranca: a caminhada segue ponteiros de estruturas que a
-+	 * VM pode estar mutando (a hierarquia de tabelas e a arvore de
-+	 * mapeamentos). Ler isso concorrentemente com uma alteracao seguiria
-+	 * ponteiro morto e derrubaria o kernel.
++	/* Safety latch: the walk follows pointers into structures the VM may be
++	 * mutating (the table hierarchy and the mapping tree). Reading that
++	 * concurrently with a change would follow a dead pointer and take the
++	 * kernel down.
 +	 *
-+	 * Entao: trylock. Se a VM estiver ocupada, aborta e diz. Nunca espera,
-+	 * para nao poder travar nem o leitor nem o processo alvo -- este e um
-+	 * caminho de depuracao, e depuracao que trava a maquina nao serve.
++	 * So: trylock. If the VM is busy, abort and say so. Never wait, so that
++	 * neither the reader nor the target process can be blocked -- this is a
++	 * debug path, and debugging that hangs the machine is useless.
 +	 */
 +	if (!vm->root.bo) {
 +		seq_puts(m, "VM sem BO raiz\n");
@@ -149,16 +149,16 @@
 +		   pasid, va, pfn);
 +	seq_printf(m, "  vm=%p  compute=%d  pasid=0x%x\n",
 +		   vm, vm->is_compute_context, vm->pasid);
-+	/* --- a invalidacao chegou a acontecer para as mudancas desta VM? ---
++	/* --- did the invalidation ever happen for this VM's changes? ---
 +	 *
-+	 * tlb_seq conta atualizacoes de tabela; kfd_last_flushed_seq conta o que
-+	 * ja foi invalidado. amdgpu_vm_flush_compute_tlb() DESCARTA o flush
-+	 * quando os dois sao iguais -- e medimos nesta placa que isso acontece
-+	 * em metade das vezes (20 PULADO para 20 FLUSH).
++	 * tlb_seq counts table updates; kfd_last_flushed_seq counts what has
++	 * already been invalidated. amdgpu_vm_flush_compute_tlb() DROPS the flush
++	 * when the two are equal -- and we measured on this board that this
++	 * happens half the time (20 SKIPPED to 20 FLUSH).
 +	 *
-+	 * Se aqui, no momento da falha, tlb_seq > kfd_last_flushed_seq, entao
-+	 * existem mudancas de mapeamento que a GPU nunca foi avisada, e a
-+	 * traducao que ela usou pode ser de antes delas.
++	 * If here, at the moment of failure, tlb_seq > kfd_last_flushed_seq, then
++	 * there are mapping changes the GPU was never told about, and the
++	 * translation it used may predate them.
 +	 */
 +	{
 +		u64 s = atomic64_read(&vm->tlb_seq);
@@ -189,7 +189,7 @@
 +				vm->root.bo ? amdgpu_bo_gpu_offset_no_check(vm->root.bo) : 0,
 +				vm->pasid, m);
 +
-+	/* --- o que o driver ACHA que mapeou aqui --- */
++	/* --- what the driver THINKS it mapped here --- */
 +	seq_puts(m, "  --- arvore de intervalos (a intencao do driver) ---\n");
 +	mapa = amdgpu_vm_bo_lookup_mapping(vm, pfn);
 +	if (!mapa) {
@@ -238,7 +238,7 @@
 +			   (e & 0x0000FFFFFFFFF000ULL) : (e & 0x0000FFFFFFFFF000ULL));
 +		bc250_decodifica(m, e);
 +
-+		/* vizinhas: revelam a estrutura local da tabela */
++		/* neighbours: they reveal the table's local structure */
 +		seq_puts(m, "        vizinhas:");
 +		for (j = -8; j <= 8; j++) {
 +			int v = (int)idx + j;
@@ -259,18 +259,18 @@
 +				   tam >> 10);
 +			seq_printf(m, "        >>> PA final = 0x%llx\n", pa);
 +
-+			/* O PA da folha bate com o que o driver DEVERIA ter escrito?
++			/* Does the leaf's PA match what the driver SHOULD have written?
 +			 *
-+			 * Nao da para calcular isso como "base do BO + N * 2 MiB":
-+			 * a VRAM e alocada em fragmentos e o BO nao e contiguo.
-+			 * Medido: paginas de CONTROLE (que a GPU entrega certo)
-+			 * apareciam deslocadas de +2, -4, +2 MiB por essa formula
-+			 * ingenua -- ou seja, a formula erra, nao a tabela.
++			 * This cannot be computed as "BO base + N * 2 MiB":
++			 * VRAM is allocated in fragments and the BO is not contiguous.
++			 * Measured: CONTROL pages (which the GPU delivers correctly)
++			 * came out shifted by +2, -4, +2 MiB under that naive
++			 * formula -- i.e. the formula is wrong, not the table.
 +			 *
-+			 * O calculo exato e o mesmo que amdgpu_vm_update_range()
-+			 * faz ao ESCREVER a PTE (amdgpu_vm.c:1210):
++			 * The exact computation is the same one amdgpu_vm_update_range()
++			 * does when WRITING the PTE (amdgpu_vm.c:1210):
 +			 *     addr = vram_base + cursor.start
-+			 * com o cursor percorrendo os fragmentos fisicos reais.
++			 * with the cursor walking the real physical fragments.
 +			 */
 +			if (mapa && mapa->bo_va && mapa->bo_va->base.bo &&
 +			    mapa->bo_va->base.bo->tbo.resource) {
@@ -303,10 +303,10 @@
 +				seq_puts(m, "        >>> sem BO/resource para calcular o esperado\n");
 +			}
 +
-+			/* de QUEM e o endereco fisico que a tabela realmente aponta?
-+			 * Varre todos os mapeamentos desta VM e acha o BO cuja faixa
-+			 * fisica contem esse PA. Isso responde 'para onde foi' sem
-+			 * depender de marcador nenhum no dado.
++			/* WHOSE is the physical address the table actually points at?
++			 * Scans every mapping of this VM and finds the BO whose
++			 * physical range contains that PA. That answers 'where it went'
++			 * without depending on any marker in the data.
 +			 */
 +			{
 +				struct rb_node *n;
@@ -347,11 +347,11 @@
 +		passo++;
 +	} while (amdgpu_vm_pt_descendant(adev, &cur));
 +
-+	/* A folha de 4 KiB fica na tabela PTB, e o laco acima nao a le: o
-+	 * cursor para AO CHEGAR nesse nivel, entao a ultima entrada decodificada
-+	 * e a do nivel PDB0. Para mapeamento de 2 MiB isso basta (a pagina
-+	 * grande termina em PDB0), mas para mapeamento granular de 4 KiB a
-+	 * entrada que realmente decide ficaria de fora.
++	/* The 4 KiB leaf lives in the PTB table, and the loop above does not read
++	 * it: the cursor stops ON REACHING that level, so the last decoded entry
++	 * is the PDB0 one. For 2 MiB mappings that is enough (the large page
++	 * ends at PDB0), but for a fine-grained 4 KiB mapping the entry that
++	 * actually decides would be left out.
 +	 */
 +	if (!grande && cur.level == AMDGPU_VM_PTB && cur.entry && cur.entry->bo) {
 +		unsigned int mask  = amdgpu_vm_pt_entries_mask(adev, AMDGPU_VM_PTB);
@@ -399,13 +399,13 @@
 + *   echo "<pasid_hex> <va_hex>" > bc250_ptwalk
 + *   cat bc250_ptwalk
 + *
-+ * Percorre a hierarquia de tabelas de pagina de dentro do driver, onde os
-+ * ponteiros sao reais. Existe porque conferir isso de fora e impreciso: com
-+ * vm_update_mode=3 o campo `pe` do tracepoint e endereco de KERNEL, nao
-+ * fisico, e varrer a VRAM atras do valor nao diz a qual VA cada slot pertence.
++ * Walks the page table hierarchy from inside the driver, where the
++ * pointers are real. It exists because checking this from outside is imprecise:
++ * with vm_update_mode=3 the tracepoint's `pe` field is a KERNEL address, not
++ * physical, and scanning VRAM for the value does not say which VA each slot belongs to.
 + *
-+ * Somente leitura de memoria. Nao toca em registrador: MMIO cru nesta placa
-+ * ja travou a maquina.
++ * Memory reads only. It touches no register: raw MMIO on this board has
++ * already hung the machine.
 + */
 +static u32 bc250_ptwalk_pasid;
 +static u64 bc250_ptwalk_va;
@@ -475,13 +475,13 @@
  
  #endif
 +
-+/* BC-250: acha a amdgpu_vm de um processo pelo PID.
++/* BC-250: finds a process's amdgpu_vm by PID.
 + *
-+ * Nao da para usar PASID nesta placa: o BIOS desliga SVM
-+ * ("SVM disabled (by BIOS) in MSR_VM_CR") e o KFD reporta pasid=0 em
-+ * /sys/class/kfd/kfd/proc/<pid>/pasid, entao a xarray adev->vm_manager.pasids
-+ * nunca acha a VM de um processo de compute. O PID resolve pelo caminho do
-+ * proprio KFD, que e quem de fato tem o ponteiro.
++ * PASID cannot be used on this board: the BIOS disables SVM
++ * ("SVM disabled (by BIOS) in MSR_VM_CR") and KFD reports pasid=0 in
++ * /sys/class/kfd/kfd/proc/<pid>/pasid, so the adev->vm_manager.pasids xarray
++ * never finds a compute process's VM. The PID resolves through KFD's own
++ * path, which is what actually holds the pointer.
 + */
 +struct amdgpu_vm *amdgpu_bc250_vm_from_pid(u32 nr)
 +{

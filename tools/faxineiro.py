@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""Processo que pinga a GPU periodicamente para limpar traducoes velhas.
+"""Process that pings the GPU periodically to clear stale translations.
 
-Por que isso deveria funcionar
-------------------------------
-Medido em cura_por_pressao.py + cura_propria.py:
+Why this should work
+--------------------
+Measured in cura_por_pressao.py + cura_propria.py:
 
-  - o PROPRIO processo nao consegue curar a propria traducao errada: 32
-    acessos novos e um dispatch de compute nao despejam a entrada (20/20
-    errada antes e depois)
-  - UM acesso de OUTRO processo cura na hora (0/20), e mapear sem acessar
-    nao cura
+  - the process itself cannot heal its own wrong translation: 32 new
+    accesses and a compute dispatch do not evict the entry (20/20 wrong
+    before and after)
+  - ONE access by ANOTHER process heals it immediately (0/20), and mapping
+    without accessing does not heal
 
-Ou seja: a ativacao de um processo pelo escalonador de hardware dispara uma
-invalidacao interna do firmware que o unmap nunca dispara. Este processo
-existe para disparar essa invalidacao de proposito, de tempos em tempos.
+In other words: a process activation by the hardware scheduler triggers an
+internal firmware invalidation that unmap never triggers. This process exists to
+trigger that invalidation on purpose, at regular intervals.
 
-Modos:
-    faxineiro.py persistente [ms]   um processo, pinga a cada ms (default 200)
-    faxineiro.py nasce-e-morre [s]  spawna um processo NOVO a cada s (default 2)
-                                    -- caso a co-execucao nao limpe e so a
-                                    ativacao de processo NOVO limpe
+Modes:
+    faxineiro.py persistente [ms]   one process, pings every ms (default 200)
+    faxineiro.py nasce-e-morre [s]  spawns a NEW process every s (default 2)
+                                    -- in case co-execution does not clear and
+                                    only a NEW process activation does
 """
 import ctypes
 import os

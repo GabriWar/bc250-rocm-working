@@ -1,41 +1,41 @@
 # BC-250 (gfx1013) — ROCm/HIP runtime
-# Config validada 2026-08-04: 400 tensores / 1218 MB em 2.0s, zero page fault.
-# Descoberta no Discord da comunidade (neoney, anrp, wtfuzz).
+# Config validated 2026-08-04: 400 tensors / 1218 MB in 2.0s, zero page faults.
+# Discovered on the community Discord (neoney, anrp, wtfuzz).
 
-# Limiar a partir do qual o ROCr usa memoria pinned na transferencia.
-# SEM isto: trava carregando modelo ("layer loading hanging").
+# Threshold above which ROCr uses pinned memory for the transfer.
+# WITHOUT this: hangs while loading the model ("layer loading hanging").
 export GPU_PINNED_MIN_XFER_SIZE=16384
 
-# SDMA esta quebrado para host<->VRAM nesta placa (anrp).
-# ATENCAO: a doc antiga dizia =1. Estava ERRADO. Todos que fizeram
-# funcionar usam =0.
+# SDMA is broken for host<->VRAM on this board (anrp).
+# WARNING: the old docs said =1. That was WRONG. Everyone who got it
+# working uses =0.
 export HSA_ENABLE_SDMA=0
 
-export TORCH_BLAS_PREFER_HIPBLASLT=0   # hipBLASLt nao tem kernels gfx1013
+export TORCH_BLAS_PREFER_HIPBLASLT=0   # hipBLASLt has no gfx1013 kernels
 
-# MKL: torch linkado contra .so.2, sistema tem .so.3.
-# ldconfig nao resolve (indexa por SONAME), entao vai por caminho.
+# MKL: torch is linked against .so.2, the system has .so.3.
+# ldconfig does not resolve it (it indexes by SONAME), so go by path.
 _m=/home/gabriwar/ComfyUI/venv-gfx1013/mkl-compat
 [ -d "$_m" ] && export LD_LIBRARY_PATH="${_m}:/opt/intel/oneapi/mkl/latest/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 unset _m
 
-# --- REMOVIDAS em 2026-08-08, com medicao (ver docs/27) ---
+# --- REMOVED on 2026-08-08, with measurements (see docs/27) ---
 #
 #   HIP_LAUNCH_BLOCKING=1  AMD_SERIALIZE_KERNEL=3  AMD_SERIALIZE_COPY=3
 #   AMD_DIRECT_DISPATCH=0  GPU_MAX_HW_QUEUES=1
 #
-# A doc dizia "ainda NECESSARIA: sem ela, 1 falha em 3 rodadas". Testado com o
-# defeito EXPOSTO (bc250_flush_by_runlist=0), que e a unica condicao onde a
-# pergunta tem resposta:
+# The docs said "still REQUIRED: without it, 1 failure in 3 runs". Tested with the
+# defect EXPOSED (bc250_flush_by_runlist=0), which is the only condition where the
+# question has an answer:
 #
-#   com as flags: 3 rodadas, 2 corrompidas, 35 tensores pisados
-#   sem as flags: 3 rodadas, 3 corrompidas, 25 tensores pisados, 1 crash
+#   with the flags: 3 runs, 2 corrupted, 35 tensors clobbered
+#   without them:   3 runs, 3 corrupted, 25 tensors clobbered, 1 crash
 #
-# Corrompe dos dois lados, na mesma ordem de grandeza. Nao protegem.
-# Com o patch de runlist ligado: 16 rodadas, 0 corrompidas, dos dois lados.
-# Quem segura esta placa e o runlist, nao a serializacao.
+# It corrupts on both sides, in the same order of magnitude. They do not protect.
+# With the runlist patch enabled: 16 runs, 0 corrupted, on both sides.
+# What holds this board together is the runlist, not the serialization.
 #
-# Nao aceleram nem desaceleram carga real: cyberrealistic hires, n=3,
-# 111,9s com contra 107,5s sem, com dispersao de 25s dentro de cada braco.
-# (Um microbenchmark de kernel minusculo mostrava 2,7x, mas ali o que domina e
-# overhead de dispatch, que some quando a GPU esta de fato ocupada.)
+# They neither speed up nor slow down a real workload: cyberrealistic hires, n=3,
+# 111.9s with against 107.5s without, with 25s spread inside each arm.
+# (A tiny kernel microbenchmark showed 2.7x, but there what dominates is
+# dispatch overhead, which disappears once the GPU is actually busy.)

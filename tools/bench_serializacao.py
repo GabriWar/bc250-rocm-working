@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""Quanto custam as cinco flags de serializacao que ficaram no ambiente?
+"""How much do the five serialization flags left in the environment cost?
 
-Por que existe
---------------
-/etc/profile.d/bc250-rocm.sh removeu cinco variaveis em 2026-08-05 e as
-restaurou "temporariamente" para um bisect, no mesmo dia. Elas ficaram:
+Why this exists
+---------------
+/etc/profile.d/bc250-rocm.sh removed five variables on 2026-08-05 and restored
+them "temporarily" for a bisect, the same day. They stayed:
 
     GPU_MAX_HW_QUEUES=1  HIP_LAUNCH_BLOCKING=1  AMD_SERIALIZE_KERNEL=3
     AMD_SERIALIZE_COPY=3  AMD_DIRECT_DISPATCH=0
 
-Foram restauradas ANTES de o patch de runlist existir, ou seja, compensavam um
-defeito que hoje tem correcao de causa raiz. O proprio arquivo ja duvidava
-delas: o dispatch com completion_signal=0x0 apareceu COM as tres ativas.
+They were restored BEFORE the runlist patch existed, i.e. they compensated for a
+defect that today has a root-cause fix. The file itself already doubted them:
+the dispatch with completion_signal=0x0 showed up WITH all three enabled.
 
-O que se mede
--------------
-Perfil de kernel parecido com difusao: muitos kernels pequenos em sequencia,
-que e exatamente o regime onde HIP_LAUNCH_BLOCKING pesa. Nao e um modelo real
-de proposito -- um modelo traria variancia de alocacao e carregamento que
-esconderia o efeito.
+What is measured
+----------------
+A kernel profile similar to diffusion: many small kernels in sequence, which is
+exactly the regime where HIP_LAUNCH_BLOCKING hurts. Deliberately not a real
+model -- a model would bring allocation and loading variance that would hide the
+effect.
 
-Cada rodada devolve tempo E um veredito de corretude. Uma flag que acelera e
-traz o defeito de volta nao serve, entao o tempo sozinho nao decide nada.
+Each run returns time AND a correctness verdict. A flag that speeds things up and
+brings the defect back is useless, so time alone decides nothing.
 
-Uso:
-    bench_serializacao.py <nome-da-condicao>
+Usage:
+    bench_serializacao.py <condition-name>
 """
 import json
 import os
@@ -39,7 +39,7 @@ DEV = "cuda"
 
 
 def bloco(x, w1, w2, k):
-    """Um passo com a mistura de operacoes que uma UNet faz de verdade."""
+    """One step with the mix of operations a real UNet performs."""
     x = torch.nn.functional.conv2d(x, k, padding=1)
     x = torch.nn.functional.silu(x)
     b, c, h, wd = x.shape
@@ -56,7 +56,7 @@ def main():
     w1 = torch.randn(64, 64, device=DEV) * 0.05
     w2 = torch.randn(64, 64, device=DEV) * 0.05
 
-    # aquecimento fora da medicao: primeira execucao paga compilacao de kernel
+    # warmup outside the measurement: the first run pays for kernel compilation
     x = x0.clone()
     for _ in range(5):
         x = bloco(x, w1, w2, k)
@@ -69,8 +69,8 @@ def main():
     torch.cuda.synchronize()
     dt = time.perf_counter() - t0
 
-    # corretude: falha grosseira apenas. Numero diferente nao e problema aqui;
-    # NaN, infinito ou saida chapada sao.
+    # correctness: gross failures only. A different number is not a problem here;
+    # NaN, infinity or flat output are.
     f = x.float()
     finito = bool(torch.isfinite(f).all())
     desvio = float(f.std())

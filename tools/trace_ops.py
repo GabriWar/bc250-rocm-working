@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Rastreia CADA operacao aten do decode do VAE ate a que trava.
+"""Traces EVERY aten operation of the VAE decode up to the one that hangs.
 
-Usa TorchDispatchMode, que intercepta toda chamada no nivel de aten. Cada
-operacao e gravada em disco com fsync ANTES de executar, entao se a maquina
-travar a ultima linha do arquivo e exatamente a operacao culpada.
+Uses TorchDispatchMode, which intercepts every call at the aten level. Each
+operation is written to disk with fsync BEFORE executing, so if the machine hangs
+the last line of the file is exactly the guilty operation.
 
-Tambem valida numericamente na saida quando barato, para pegar corrupcao
-silenciosa alem de travamento.
+It also validates numerically on the output when that is cheap, to catch silent
+corruption beyond hangs.
 
-Saida: ~/bc250-grimoire/trace_vae.result
-Uso:   trace_vae.py [gpu|cpu]
+Output: ~/bc250-grimoire/trace_vae.result
+Usage:  trace_vae.py [gpu|cpu]
 """
 import os
 import sys
@@ -43,7 +43,7 @@ class Tracer(TorchDispatchMode):
         ins = [s for s in (shape_of(a) for a in args) if s]
         say(f"{_n:6d} ANTES  {nome:44s} {' '.join(ins[:3])}")
         out = func(*args, **(kwargs or {}))
-        # sincroniza para que um travamento apareca AQUI e nao numa op adiante
+        # synchronize so that a hang shows up HERE and not in some later op
         if isinstance(out, torch.Tensor) and out.is_cuda:
             torch.cuda.synchronize()
             bad = ""
@@ -74,7 +74,7 @@ say(f"latente {tuple(lat.shape)} -> decode em {dev}")
 say("")
 
 vae.first_stage_model.to(dev)
-vae.first_stage_model.to(torch.float16)   # forca fp16: bf16 e sabidamente quebrado aqui
+vae.first_stage_model.to(torch.float16)   # force fp16: bf16 is known to be broken here
 x = lat.to(dev).to(next(vae.first_stage_model.parameters()).dtype)
 
 with Tracer():

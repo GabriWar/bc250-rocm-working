@@ -1,47 +1,48 @@
 #!/usr/bin/env python3
-"""E MESMO a traducao? Le a MESMA memoria fisica por uma SEGUNDA VA.
+"""Is it REALLY the translation? Read the SAME physical memory via a SECOND VA.
 
-A pergunta
-----------
-O doc 22 elimina tudo no caminho VA->PA menos o TLB. Mas existe um candidato que
-produz sintoma IDENTICO sem envolver traducao nenhuma:
+The question
+------------
+Doc 22 rules out everything in the VA->PA path except the TLB. But there is a
+candidate that produces an IDENTICAL symptom without involving translation at all:
 
-  A) TLB              a GPU resolve VA->PA errado          indexado por VA
-  B) cache de dados   o PA esta certo, o L2 serve a linha   indexado por PA
-                      de outro PA (colisao de tag)
+  A) TLB          the GPU resolves VA->PA wrong          indexed by VA
+  B) data cache   the PA is right, the L2 serves the      indexed by PA
+                  line of another PA (tag collision)
 
-Os dois dao: PTE correta, memoria correta, GPU entregando dado de outro bloco
-vivo. O doc 17 refutou o L2 nao escrevendo de volta -- nao refutou colisao de
-tag na leitura. E os dois grupos de endereco medidos la (0x171-0x173 na base da
-VRAM e 0x469-0x46f no topo, separados por 0x518000000) tem exatamente a forma de
-um tag truncado.
+Both give: correct PTE, correct memory, GPU delivering data from another live
+block. Doc 17 refuted the L2 not writing back -- it did not refute tag collision
+on read. And the two address groups measured there (0x171-0x173 at the base of
+VRAM and 0x469-0x46f at the top, separated by 0x518000000) have exactly the shape
+of a truncated tag.
 
-A diferenca entre A e B e o eixo. Entao: pegar uma pagina que a GPU entrega
-errada, abrir a MESMA memoria fisica num segundo processo via hipIpc -- o que da
-uma VA diferente para o mesmo PA -- e ler de novo.
+The difference between A and B is the axis. So: take a page the GPU delivers
+wrong, open the SAME physical memory in a second process via hipIpc -- which
+gives a different VA for the same PA -- and read it again.
 
-  le CERTO pela VA2      -> o erro acompanha a VA  -> TRADUCAO (A)
-  le o MESMO ERRADO      -> o erro acompanha o PA  -> CACHE DE DADOS (B)
+  reads CORRECT via VA2  -> the error follows the VA  -> TRANSLATION (A)
+  reads the SAME WRONG   -> the error follows the PA  -> DATA CACHE (B)
 
-Nos dois casos a resposta e util, e uma das duas hipoteses morre.
+Either way the answer is useful, and one of the two hypotheses dies.
 
-Ressalva de leitura
--------------------
-O segundo processo tem VA diferente E VMID diferente. Se ele ler certo, nao da
-para separar "outra VA" de "outro VMID" -- mas as duas apontam para traducao, e
-nenhuma para cache de dados. O desfecho ambiguo nao existe: so o "leu certo"
-tem duas explicacoes, e elas concordam no que importa.
+Reading caveat
+--------------
+The second process has a different VA AND a different VMID. If it reads
+correctly, there is no way to separate "another VA" from "another VMID" -- but
+both point at translation, and neither at data cache. There is no ambiguous
+outcome: only "read correctly" has two explanations, and they agree on what
+matters.
 
-Controles
----------
-1. uma pagina que NAO divergiu, lida pela VA2: tem de vir certa. Se nao vier, o
-   mapeamento IPC esta quebrado e o resto e descartado.
-2. a mesma pagina divergente relida pela VA1 no fim: tem de continuar errada. Se
-   tiver se curado sozinha, a comparacao nao vale.
+Controls
+--------
+1. a page that did NOT diverge, read via VA2: must come back correct. If it does
+   not, the IPC mapping is broken and the rest is discarded.
+2. the same divergent page re-read via VA1 at the end: must still be wrong. If it
+   healed on its own, the comparison is void.
 
-Uso:
-    duas_vas.py            processo pai (o unico que se roda a mao)
-    duas_vas.py --filho    interno, chamado pelo pai
+Usage:
+    duas_vas.py            parent process (the only one run by hand)
+    duas_vas.py --filho    internal, spawned by the parent
 """
 import ctypes
 import os
@@ -76,7 +77,7 @@ def carregar_hip():
 
 
 def ler_pagina(hip, base, off):
-    """Le 8 bytes pela GPU no offset dado."""
+    """Reads 8 bytes through the GPU at the given offset."""
     buf = (ctypes.c_ubyte * 8)()
     r = hip.hipMemcpy(buf, ctypes.c_void_p(base + off), ctypes.c_size_t(8), D2H)
     if r != 0:
@@ -87,11 +88,11 @@ def ler_pagina(hip, base, off):
     return ((v >> 20) & 0xFFF, v & 0xFFFFF), None
 
 
-# ----------------------------------------------------------------- filho
+# ----------------------------------------------------------------- child
 if "--filho" in sys.argv:
     hip = carregar_hip()
     dados = open(os.environ["DV_HANDLES"], "rb").read()
-    # formato: por entrada, 64 bytes de handle + offset (8) + rotulo (16)
+    # layout: per entry, 64 bytes of handle + offset (8) + label (16)
     saida = []
     n = len(dados) // (IPC_HANDLE_SIZE + 8 + 16)
     for i in range(n):
@@ -116,7 +117,7 @@ if "--filho" in sys.argv:
     sys.exit(0)
 
 
-# ------------------------------------------------------------------- pai
+# ------------------------------------------------------------------ parent
 _f = open(OUT, "a", buffering=1)
 
 
@@ -127,7 +128,7 @@ def say(s):
     print(s, flush=True)
 
 
-import torch  # noqa: E402  (so no pai; o filho nao precisa)
+import torch  # noqa: E402  (parent only; the child does not need it)
 
 DEV = "cuda"
 TAM = [320*112*112*2, 320*128*128*2, 320*104*104*2,
@@ -181,12 +182,12 @@ for k, (rot, p, t) in enumerate(blocos):
                            struct.pack("<Q", MAGIC | (k << 20) | pag), 8)
 ck(hip.hipDeviceSynchronize(), "sync")
 
-# Classificacao com K leituras, nao com uma.
-# Medido em tools/oscila.py: por pagina o comportamento e DETERMINISTICO
-# (200/200 ou 0/200), mas existem paginas intermitentes e paginas que curam
-# sozinhas. Rotular com uma leitura poe uma intermitente no controle -- ja
-# aconteceu, e inverteu a conclusao. So paginas 20/20 erradas entram no teste,
-# porque so nelas a comparacao VA1 x VA2 significa alguma coisa.
+# Classification with K reads, not with one.
+# Measured in tools/oscila.py: per page the behavior is DETERMINISTIC
+# (200/200 or 0/200), but there are intermittent pages and pages that heal on
+# their own. Labeling with a single read puts an intermittent one in the control
+# -- it already happened, and it inverted the conclusion. Only pages wrong 20/20
+# enter the test, because only there does the VA1 x VA2 comparison mean anything.
 K = 20
 say(f"  --- lendo tudo pela VA original (VA1), {K}x por pagina ---")
 maus, bom = [], None
@@ -216,7 +217,7 @@ if not maus:
     sys.exit(0)
 say(f"    {len(maus)} paginas divergentes")
 
-# monta os handles: o controle (pagina boa) e ate 4 divergentes
+# builds the handles: the control (good page) plus up to 4 divergent ones
 alvos = []
 if bom:
     alvos.append(("CONTROLE", bom[0], bom[1]))
@@ -277,7 +278,7 @@ if ctrl_ok is not True:
     say("  Nada aqui vale. Instrumento descartado.")
     sys.exit(4)
 
-# controle 2: a VA1 ainda erra?
+# control 2: does VA1 still fail?
 say(f"  --- controle 2: a VA1 ainda erra, em {K} leituras? ---")
 ainda = 0
 for k, pag, got0 in maus[:4]:

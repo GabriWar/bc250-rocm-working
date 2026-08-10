@@ -1,41 +1,41 @@
 #!/bin/bash
-# A/B do bc250_no_empty_cache: duas medidas por boot, analise primaria na primeira.
+# A/B of bc250_no_empty_cache: two measurements per boot, primary analysis on the first.
 #
-# Pergunta: com o patch de SDMA aplicado, o no_empty_cache ainda importa?
+# Question: with the SDMA patch applied, does no_empty_cache still matter?
 #
-# Desenho
-# -------
-# Cada boot rende DUAS medidas, uma de cada braco:
+# Design
+# ------
+# Each boot yields TWO measurements, one per arm:
 #
-#   posicao 1  -> braco da ordem contrabalanceada  1 0 0 1 1 0
-#   posicao 2  -> o braco complementar
+#   position 1  -> arm from the counterbalanced order  1 0 0 1 1 0
+#   position 2  -> the complementary arm
 #
-# ANALISE PRIMARIA: so as medidas de posicao 1. Todas na mesma condicao --
-# primeira carga de GPU de um boot limpo -- entao posicao nao e variavel ali.
-# E a ordem entre boots e contrabalanceada, nao alternada: `1 0 0 1 1 0` da a
-# cada braco posicoes impares e pares. Alternar (`1 0 1 0`) deixaria um braco
-# com todas as impares, inclusive a primeira, e neste board a primeira medida
-# de um boot se comporta diferente.
+# PRIMARY ANALYSIS: position 1 measurements only. All under the same condition --
+# first GPU load of a clean boot -- so position is not a variable there.
+# And the order across boots is counterbalanced, not alternating: `1 0 0 1 1 0`
+# gives each arm both odd and even positions. Alternating (`1 0 1 0`) would give
+# one arm all the odd ones, including the first, and on this board a boot's first
+# measurement behaves differently.
 #
-# SECUNDARIA: as medidas de posicao 2, como dado exploratorio. Elas carregam o
-# efeito de posicao, que foi medido e e real: na bateria do h2d_check, a run 1
-# de cada boot dava 0/3 corrompidos e as seguintes 3/3, com ZERO page fault em
-# todas. Posicao no boot e variavel propria, nao sujeira.
+# SECONDARY: position 2 measurements, as exploratory data. They carry the
+# position effect, which was measured and is real: in the h2d_check batch, run 1
+# of each boot gave 0/3 corrupted and the following ones 3/3, with ZERO page
+# faults in all of them. Position within the boot is a variable of its own, not noise.
 #
-# Como a posicao 2 tambem sai contrabalanceada (`0 1 1 0 0 1`), comparar
-# primaria com secundaria diz se a posicao importa para ESTA medida. Se o mesmo
-# braco der o mesmo resultado nas duas posicoes, da para juntar tudo.
+# Since position 2 also comes out counterbalanced (`0 1 1 0 0 1`), comparing
+# primary against secondary says whether position matters for THIS measurement. If
+# the same arm gives the same result in both positions, everything can be pooled.
 #
-# Regras herdadas da investigacao (2026-08-05/06):
-#   - aborta se `page fault != 0`: mediria envenenamento, nao a hipotese
-#   - aborta se sobrou ComfyUI orfao na porta: ja se disfarcou de falha de GPU
-#   - imagem valida e validada por estatistica de pixel, nao por existir:
-#     corrompida da std ~10 e ~2000 cores, boa da std ~75 e ~100k
+# Rules inherited from the investigation (2026-08-05/06):
+#   - abort if `page fault != 0`: it would measure poisoning, not the hypothesis
+#   - abort if an orphan ComfyUI is left on the port: it has already masqueraded
+#     as a GPU failure
+#   - a valid image is validated by pixel statistics, not by existing:
+#     corrupted gives std ~10 and ~2000 colors, good gives std ~75 and ~100k
+# Fixed in both arms: BC250_CONV_FIX=0, BC250_WARMUP=1.
 #
-# Fixo nos dois bracos: BC250_CONV_FIX=0, BC250_WARMUP=1.
-#
-# Uso: rodar DUAS vezes depois de cada boot. O script descobre sozinho em que
-# medida e em que posicao esta.
+# Usage: run TWICE after each boot. The script figures out on its own which
+# measurement and which position it is on.
 
 H=/home/gabriwar/bc250-grimoire/ab_no_empty_cache.historico
 R=/home/gabriwar/bc250-grimoire/rocm-test
@@ -47,12 +47,12 @@ S() { printf 'grdg\n' | sudo -S "$@" 2>/dev/null; }
 BOOT=$(cat /proc/sys/kernel/random/boot_id | cut -c1-8)
 touch "$H"
 
-# CUIDADO: `grep -c` imprime a contagem E retorna exit 1 quando ela e zero.
-# Escrever `$(grep -c ... || echo 0)` faz o fallback disparar por cima, e a
-# variavel vira duas linhas ("0\n0"), quebrando todo `[ "$v" -eq ... ]` depois.
-# Isso ja aconteceu aqui: os testes erraram com "integer expected", o fluxo caiu
-# no ramo errado, e o script rodou o braco errado na posicao errada.
-# grep -c sempre imprime um numero, entao nao precisa de fallback nenhum.
+# CAREFUL: `grep -c` prints the count AND returns exit 1 when it is zero.
+# Writing `$(grep -c ... || echo 0)` makes the fallback fire on top, and the
+# variable becomes two lines ("0\n0"), breaking every later `[ "$v" -eq ... ]`.
+# This already happened here: the tests failed with "integer expected", the flow
+# took the wrong branch, and the script ran the wrong arm in the wrong position.
+# grep -c always prints a number, so no fallback is needed at all.
 NP1=$(grep -c 'pos=1' "$H" 2>/dev/null)
 JA=$(grep -c "boot=$BOOT" "$H" 2>/dev/null)
 
@@ -69,7 +69,7 @@ if [ "$JA" -eq 0 ]; then
     W=$(echo $ORDEM | cut -d' ' -f$IDX)
 else
     POS=2
-    # complementar do que ja rodou neste boot
+    # the complement of what already ran in this boot
     ANT=$(grep "boot=$BOOT" "$H" | grep -oE 'NEC=[01]' | head -1 | cut -d= -f2)
     W=$((1 - ANT))
     IDX=$(grep "boot=$BOOT" "$H" | grep -oE 'medida=[0-9]+' | head -1 | cut -d= -f2)

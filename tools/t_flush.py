@@ -1,5 +1,5 @@
-# Hipotese: e a TRANSICAO entre fases pesadas que quebra.
-# Teste: sincronizar + esvaziar o cache do alocador entre cada fase.
+# Hypothesis: it is the TRANSITION between heavy phases that breaks.
+# Test: synchronize + empty the allocator cache between each phase.
 import sys, os, torch
 sys.path.insert(0,"/home/gabriwar/ComfyUI")
 C="/home/gabriwar/bc250-grimoire/rocm-test/fl_crumb.txt"

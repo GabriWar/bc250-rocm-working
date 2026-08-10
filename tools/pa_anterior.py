@@ -1,44 +1,45 @@
 #!/usr/bin/env python3
-"""A PROVA DE NASCIMENTO: o PA entregue ja foi a traducao daquela VA antes?
+"""THE BIRTH PROOF: was the delivered PA ever that VA's translation before?
 
-A pergunta
+The question
+------------
+It is measured (doc 23) that the error follows the VA, not the PA: the same
+physical memory read through a second mapping comes back correct while the first
+one fails 20/20. That proves the failure is in the translation. But it does not
+say WHICH translation.
+
+Two possibilities still fit:
+
+  stale      the entry holds the PREVIOUS mapping of that VA. It was born in the
+             hipFree that did not invalidate. Fix: invalidate on unmap.
+  wrong tag  the PA was never a valid translation of that VA -- the entry answers
+             a VA that is not its own. A different defect, a different fix, and
+             invalidating on unmap would NOT solve it.
+
+Doc 17 collected 2266 (expected PA, delivered PA) pairs. None of them was
+compared against the PA that the SAME VA had in the previous generation. That is
+the comparison that separates the two.
+
+The method
 ----------
-Esta medido (doc 23) que o erro segue a VA, nao o PA: a mesma memoria fisica
-lida por um segundo mapeamento vem correta enquanto o primeiro erra 20/20. Isso
-prova que a falha esta na traducao. Mas nao diz QUAL traducao.
+  1  churn phase: allocate, and for each page ask the driver for the PA
+     (bc250_ptwalk).  ->  GENERATION 0 map:  VA -> PA
+     free everything
+  2  allocate again (the allocator tends to reuse the same VAs), write
+     markers, and ask for the PA again.  ->  GENERATION 1 map:  VA -> PA
+  3  find the deterministically wrong pages (20 reads)
+  4  for each one, at the VA v that delivered it (block j, page p):
 
-Duas coisas ainda cabem:
+        PA_should = GEN1[v]                      what the table says today
+        PA_used   = GEN1[VA of (j,p)]            where the delivered data lives
+        PA_before = GEN0[v]                      what that VA pointed at before
 
-  obsoleta   a entrada guarda o mapeamento ANTERIOR daquela VA. Nasceu no
-             hipFree que nao invalidou. Conserto: invalidar no unmap.
-  tag errada o PA nunca foi traducao valida daquela VA -- a entrada responde a
-             uma VA que nao e a dela. Outro defeito, outro conserto, e
-             invalidar no unmap NAO resolveria.
+     PA_used == PA_before  ->  STALE ENTRY, proven
+     PA_used != PA_before  ->  not stale; the entry answers someone else's VA
 
-O doc 17 coletou 2266 pares (PA esperado, PA entregue). Nenhum deles foi
-comparado com o PA que aquela MESMA VA tinha na geracao anterior. E essa a
-comparacao que separa as duas.
-
-O metodo
---------
-  1  fase de churn: aloca, e para cada pagina pergunta ao driver o PA
-     (bc250_ptwalk).  ->  mapa GERACAO 0:  VA -> PA
-     libera tudo
-  2  aloca de novo (o alocador tende a reusar as mesmas VAs), escreve
-     marcadores, e pergunta o PA de novo.  ->  mapa GERACAO 1:  VA -> PA
-  3  acha as paginas deterministicamente erradas (20 leituras)
-  4  para cada uma, na VA v que entregou (bloco j, pagina p):
-
-        PA_deveria = GER1[v]                     o que a tabela diz hoje
-        PA_usado   = GER1[VA de (j,p)]           onde o dado entregue mora
-        PA_antes   = GER0[v]                     o que aquela VA apontava antes
-
-     PA_usado == PA_antes  ->  ENTRADA OBSOLETA, provado
-     PA_usado != PA_antes  ->  nao e obsoleta; entrada responde a VA alheia
-
-Uso:
-    pa_anterior.py --formato    despeja UMA caminhada, para calibrar o parser
-    pa_anterior.py              o experimento
+Usage:
+    pa_anterior.py --formato    dumps ONE walk, to calibrate the parser
+    pa_anterior.py              the experiment
 """
 import ctypes
 import os
@@ -73,17 +74,17 @@ WALK = achar_walk()
 
 
 def caminhar(pid, va):
-    """Texto bruto da caminhada do driver para (pid, va)."""
+    """Raw text of the driver's walk for (pid, va)."""
     return caminhar_lote(pid, [va]).get(va, "")
 
 
 def caminhar_lote(pid, vas):
-    """Caminha varias VAs numa unica invocacao de root.
+    """Walks several VAs in a single root invocation.
 
-    A versao anterior gastava DUAS invocacoes (su + pty) por VA. Cobrir o
-    aquecimento, que cria dezenas de mapeamentos, era inviavel assim -- e a
-    falta dessa cobertura foi exatamente o que impediu de decidir se as
-    entradas 'alheias' vinham de geracoes nao registradas.
+    The previous version spent TWO invocations (su + pty) per VA. Covering the
+    warmup, which creates dozens of mappings, was unfeasible that way -- and the
+    lack of that coverage was exactly what prevented deciding whether the
+    'foreign' entries came from unrecorded generations.
     """
     if not vas:
         return {}
@@ -107,14 +108,14 @@ def caminhar_lote(pid, vas):
     return out
 
 
-# Padroes de PA aceitos, em ordem de preferencia. Sao varios porque o formato
-# do instrumento mudou entre versoes e adivinhar deu errado antes; se nenhum
-# casar, o script para em vez de inventar um numero.
+# Accepted PA patterns, in order of preference. There are several because the
+# instrument's format changed between versions and guessing went wrong before; if
+# none matches, the script stops instead of inventing a number.
 PADROES = [
-    # 'PA final' e o conteudo REAL da PTE -- e isso que a tabela manda a GPU
-    # usar. 'PA que o driver DEVERIA ter escrito' e a referencia calculada, e
-    # so coincide enquanto a PTE estiver correta; para montar o mapa VA->PA de
-    # cada geracao o que vale e o conteudo, nao a referencia.
+    # 'PA final' is the REAL content of the PTE -- that is what the table tells the
+    # GPU to use. 'PA the driver SHOULD have written' is the computed reference, and
+    # it only coincides while the PTE is correct; to build the VA->PA map of each
+    # generation what counts is the content, not the reference.
     r'PA final\s*=\s*(0x[0-9a-f]+)',
     r'PA (?:que o driver DEVERIA ter escrito|the driver should have written)\s*:?\s*(0x[0-9a-f]+)',
     r'fragmento fisico\s+(0x[0-9a-f]+)',
@@ -185,7 +186,7 @@ def ler(base, off):
 
 
 def aquecer(hist=None, cada=6):
-    """Aquecimento, agora com as geracoes do alocador do torch registradas."""
+    """Warmup, now with the torch allocator's generations recorded."""
     import torch.nn.functional as F
     n = 0
     for _ in range(2):
@@ -205,7 +206,7 @@ def aquecer(hist=None, cada=6):
 
 
 def mapear_vas(vas, rotulo=None):
-    """VA -> PA para uma lista de VAs, em lote."""
+    """VA -> PA for a list of VAs, in batch."""
     m, falhas = {}, 0
     for i in range(0, len(vas), 32):
         for va, txt in caminhar_lote(PID, vas[i:i + 32]).items():
@@ -227,11 +228,11 @@ def mapear_geracao(blocos, rotulo):
 
 
 def vas_do_torch():
-    """VAs de 2 MiB dos segmentos que o alocador do PyTorch segura agora.
+    """2 MiB VAs of the segments PyTorch's allocator is holding right now.
 
-    O aquecimento aloca e libera dezenas de tensores; sem isto, qualquer
-    entrada obsoleta nascida ali era classificada como 'alheia' por falta de
-    dado, e um resultado negativo nao valia nada.
+    The warmup allocates and frees dozens of tensors; without this, any stale
+    entry born there was classified as 'foreign' for lack of data, and a negative
+    result was worth nothing.
     """
     try:
         seg = torch.cuda.memory_snapshot()
@@ -252,13 +253,13 @@ say("")
 say("=" * 74)
 say(f"boot={open('/proc/sys/kernel/random/boot_id').read().strip()[:8]} pid={PID}")
 
-# TODAS as geracoes por VA, nao so a ultima, e agora incluindo o aquecimento.
-# Duas versoes anteriores erraram por cobertura: a primeira usava ger0.update(),
-# que so guardava a ultima rodada de churn; a segunda guardava as 3 rodadas mas
-# ignorava o aquecimento, que cria dezenas de mapeamentos pelo alocador do
-# torch. Nos dois casos uma entrada obsoleta vinda de fora da cobertura saia
-# classificada como "alheia" -- e um resultado negativo nao valia nada.
-ger0 = {}          # va -> [(rotulo, pa), ...]
+# ALL generations per VA, not just the last, and now including the warmup.
+# Two previous versions got the coverage wrong: the first used ger0.update(),
+# which only kept the last churn round; the second kept all 3 rounds but ignored
+# the warmup, which creates dozens of mappings through torch's allocator. In both
+# cases a stale entry born outside the coverage came out classified as
+# "foreign" -- and a negative result was worth nothing.
+ger0 = {}          # va -> [(label, pa), ...]
 
 say("  fase 0: aquecimento, registrando as geracoes do alocador do torch")
 aquecer(ger0)
@@ -280,7 +281,7 @@ for rodada in range(3):
     for _, p, _t in tmp:
         ck(hip.hipFree(p), "hipFree")
 
-# --- GERACAO 1: as alocacoes finais ---
+# --- GENERATION 1: the final allocations ---
 say("  fase 2: geracao 1 (final), registrando VA -> PA")
 blocos = []
 for rodada in ("A", "B"):
@@ -304,7 +305,7 @@ if not reusadas:
     say("  >>> NENHUMA VA reusada. Sem reuso nao pode existir entrada obsoleta,")
     say("  >>> e se ainda assim houver divergencia, ela NAO e obsoleta.")
 
-# --- paginas deterministicamente erradas ---
+# --- deterministically wrong pages ---
 say("  fase 3: classificando paginas (20 leituras cada)")
 maus = []
 for k, (rot, p, t) in enumerate(blocos):
@@ -349,7 +350,7 @@ for k, pag, (kj, pj) in maus:
             ", ".join(f"{r}={hex(a)}" for r, a in hist[-6:]))
     else:
         say("      antes   : VA nao existia em nenhuma rodada de churn")
-    # tambem: o PA usado bate com o PA de QUALQUER VA em QUALQUER rodada?
+    # also: does the used PA match the PA of ANY VA in ANY round?
     onde = [(v, r, a) for v, h in ger0.items() for r, a in h if a == pa_usado]
     if onde:
         say("      o PA usado ja foi de: " +

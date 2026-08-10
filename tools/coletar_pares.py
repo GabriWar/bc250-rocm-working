@@ -1,40 +1,40 @@
 #!/usr/bin/env python3
-"""Coleta em escala os pares (PA esperado, PA entregue) do aliasing da GPU.
+"""Collects the (expected PA, delivered PA) pairs of the GPU aliasing at scale.
 
-Por que em escala
------------------
-Com poucas amostras apareceram duas invariantes que sumiram quando o n cresceu:
+Why at scale
+------------
+With few samples two invariants showed up that vanished once n grew:
 
-  bateria 1 (6 amostras)  o PA ENTREGUE era sempre 0x176000000 ou 0x176800000
-  bateria 2 (2 amostras)  o PA ESPERADO era sempre 0x170000000, entregues variados
+  batch 1 (6 samples)  the DELIVERED PA was always 0x176000000 or 0x176800000
+  batch 2 (2 samples)  the EXPECTED PA was always 0x170000000, delivered varied
 
-As duas leituras se contradizem, e cada uma sozinha teria justificado um patch
-diferente -- reserva de pagina fisica numa, nada na outra. Refutado tambem, com
-4 execucoes por braco: reuso de faixa de VA nao e o gatilho (1/4 contra 2/4).
+The two readings contradict each other, and each one alone would have justified a
+different patch -- physical page reservation in one, nothing in the other. Also
+refuted, with 4 runs per arm: VA range reuse is not the trigger (1/4 against 2/4).
 
-Entao o que falta e volume, nao mais uma hipotese. Este script existe para
-responder se existe ALGUMA invariante nos pares, e nao para testar um palpite.
+So what is missing is volume, not one more hypothesis. This script exists to
+answer whether there is ANY invariant in the pairs, not to test a hunch.
 
-Como ficou rapido sem perder integridade
----------------------------------------
-O custo antigo era ~160 s por amostra: 40 s de aquecimento, ~110 s varrendo os
-12 GiB de VRAM e ~10 s de teste. As varreduras serviam para calibrar a base do
-FB e provar que a memoria fisica contem o dado certo -- ja feito, fechou em 11
-de 11 blocos, base 0x170000000.
+How it got fast without losing integrity
+----------------------------------------
+The old cost was ~160 s per sample: 40 s of warmup, ~110 s scanning the 12 GiB
+of VRAM and ~10 s of test. The scans served to calibrate the FB base and to
+prove that physical memory holds the right data -- already done, 11 of 11 blocks
+matched, base 0x170000000.
 
-Aqui:
-  - a varredura completa roda UMA vez por processo, no primeiro ciclo, so para
-    confirmar a base. Se nao confirmar, o processo aborta em vez de produzir
-    dado sob referencial errado.
-  - o aquecimento roda UMA vez e vale para todos os ciclos.
-  - cada ciclo seguinte custa segundos: aloca, marca, le, registra, libera.
+Here:
+  - the full scan runs ONCE per process, on the first cycle, only to confirm the
+    base. If it does not confirm, the process aborts instead of producing data
+    under the wrong frame of reference.
+  - the warmup runs ONCE and applies to every cycle.
+  - each subsequent cycle costs seconds: allocate, mark, read, record, free.
 
-O trace e limpo a cada ciclo, entao a atribuicao de PTE a bloco fica sem
-ambiguidade de geracao -- o erro que ja me fez ler o trace de uma execucao
-contra o repro de outra.
+The trace is cleared every cycle, so the PTE-to-block attribution has no
+generation ambiguity -- the mistake that already made me read one run's trace
+against another run's repro.
 
-Saida: uma linha por par, em ~/bc250-grimoire/pares.tsv
-    ciclo  bloco  tam  va  pa_esperado  bloco_entregue  pa_entregue
+Output: one line per pair, in ~/bc250-grimoire/pares.tsv
+    cycle  block  size  va  expected_pa  delivered_block  delivered_pa
 """
 import ctypes
 import os
@@ -120,16 +120,16 @@ def um_ciclo(n, com_varredura):
             p = ctypes.c_void_p()
             ck(hip.hipMalloc(ctypes.byref(p), ctypes.c_size_t(t)), "hipMalloc")
             blocos.append((f"{rodada}{t}", p, t))
-    # A memoria e write-combining: escrever 8 bytes e sincronizar a GPU NAO
-    # garante que o marcador chegou na memoria -- hipDeviceSynchronize nao
-    # descarrega buffer de WC da CPU. A primeira versao deste script fazia
-    # exatamente isso e produziu 7 "divergencias" em TODOS os 40 ciclos, sempre
-    # nos mesmos blocos e em anel fechado: cada bloco via o marcador da geracao
-    # anterior daquele endereco. 1889 pares de puro artefato.
+    # The memory is write-combining: writing 8 bytes and syncing the GPU does NOT
+    # guarantee the marker reached memory -- hipDeviceSynchronize does not flush
+    # the CPU's WC buffer. The first version of this script did exactly that and
+    # produced 7 "divergences" in ALL 40 cycles, always in the same blocks and in a
+    # closed ring: each block saw the marker of the previous generation of that
+    # address. 1889 pairs of pure artifact.
     #
-    # Duas travas: encher 4 KiB por pagina, o que forca o WC a descarregar, e
-    # CONFERIR pela CPU que o marcador esta la antes de perguntar a GPU. Bloco
-    # que nao passar e descartado em vez de virar par.
+    # Two safeguards: fill 4 KiB per page, which forces the WC buffer to flush, and
+    # VERIFY from the CPU that the marker is there before asking the GPU. A block
+    # that does not pass is discarded instead of becoming a pair.
     marca = {}
     for k, (rot, p, t) in enumerate(blocos):
         for off in range(0, t, 2 << 20):
@@ -146,8 +146,8 @@ def um_ciclo(n, com_varredura):
     root(["sh", "-c", f"echo 0 > {TRC}/tracing_on"])
     trace = root(["cat", f"{TRC}/trace"])
 
-    # PA de cada bloco. O trace foi limpo neste ciclo, entao so existe uma
-    # geracao de mapeamento e nao ha ambiguidade de qual entrada e de quem.
+    # PA of each block. The trace was cleared this cycle, so only one mapping
+    # generation exists and there is no ambiguity about which entry belongs to whom.
     seq = []
     pend = None
     for ln in trace.splitlines():
@@ -164,7 +164,7 @@ def um_ciclo(n, com_varredura):
             pa[k] = c[-1]
 
     if com_varredura:
-        # ancora de integridade: confirma a base do FB uma vez por processo
+        # integrity anchor: confirms the FB base once per process
         r = root(["python3", os.path.expanduser("~/bc250-grimoire/varrer_vram.py"),
                   hex(MAGIC), str(VRAM)])
         ach = {}
@@ -200,7 +200,7 @@ def um_ciclo(n, com_varredura):
         outro = got - MAGIC if (got >> 48) == 0x5A5A else None
         if outro == k:
             continue
-        # so conta se a origem tambem teve marcador confirmado pela CPU
+        # only counts if the source also had its marker confirmed by the CPU
         if outro is not None and outro < len(blocos) and not marca.get(outro, False):
             continue
         achados += 1
@@ -219,10 +219,10 @@ def um_ciclo(n, com_varredura):
 
 ok = 0
 for n in range(1, CICLOS + 1):
-    # Varredura nos DOIS primeiros ciclos, nao so no primeiro. O ciclo 1 (com
-    # varredura) da zero divergencias e os seguintes dao 10 -- ou a varredura
-    # muda alguma coisa, ou a divergencia dos ciclos 2+ e artefato da minha
-    # escrita de marcador. Comparar os dois com a mesma verificacao decide.
+    # Scan on the FIRST TWO cycles, not just the first. Cycle 1 (with the
+    # scan) gives zero divergences and the following ones give 10 -- either the scan
+    # changes something, or the divergence of cycles 2+ is an artifact of my
+    # marker writing. Comparing the two under the same verification decides it.
     r = um_ciclo(n, com_varredura=(n <= 2))
     if r is None:
         break

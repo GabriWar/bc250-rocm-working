@@ -5,9 +5,9 @@
  #include <cstddef>
  
 +
-+// BC-250 / gfx1013: a placa nao expoe telemetria completa (rocm-smi lanca
-+// "Exception caught: map::at"), entao GfxFrequency/Power/TemperatureHot podem
-+// vir vazios. std::stoi sem protecao abortava o cliente inteiro (SIGABRT 134).
++// BC-250 / gfx1013: the board does not expose full telemetry (rocm-smi throws
++// "Exception caught: map::at"), so GfxFrequency/Power/TemperatureHot may come
++// back empty. std::stoi without protection aborted the whole client (SIGABRT 134).
 +namespace
 +{
 +    int safeStoi(std::string const& v)

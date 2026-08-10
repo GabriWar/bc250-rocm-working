@@ -1,5 +1,5 @@
-# Deriva os shapes de GEMM do VAE decode SEM tocar a GPU.
-# Roda o decode em CPU com hook em cada op de matriz.
+# Derives the VAE decode's GEMM shapes WITHOUT touching the GPU.
+# Runs the decode on CPU with a hook on every matrix op.
 import sys, os, json, torch
 sys.argv = [sys.argv[0], "--cpu"]
 sys.path.insert(0,"/home/gabriwar/ComfyUI")
@@ -34,7 +34,7 @@ for px in (256, 512):
     lat = px // 8
     shapes.clear()
     m = vae.first_stage_model
-    m.float()  # fp32: shapes identicos, CPU muito mais rapida
+    m.float()  # fp32: identical shapes, CPU much faster
     dt = torch.float32
     x = torch.zeros(1, 4, lat, lat, dtype=dt)
     with torch.no_grad(), Rec():

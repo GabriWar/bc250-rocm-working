@@ -1,6 +1,6 @@
-# REPRODUTOR MINIMO do bug de ordem na BC-250.
-# Aquece N kernels, depois faz um matmul trivial. Sem modelo, sem ComfyUI.
-# Uso: repro_min.py [N_KERNELS_DE_AQUECIMENTO]
+# MINIMAL REPRODUCER of the ordering bug on the BC-250.
+# Warms up N kernels, then does a trivial matmul. No model, no ComfyUI.
+# Usage: repro_min.py [N_WARMUP_KERNELS]
 import sys, os, time, torch
 import torch.nn.functional as F
 
@@ -13,7 +13,7 @@ def say(s):
 t0 = time.time()
 say(f"A_start alvo={N}_kernels")
 
-# --- fase 1: aquecer N kernels variados ---
+# --- phase 1: warm up N assorted kernels ---
 feitos = 0
 a32 = torch.randn(256,256, device='cuda')
 c   = torch.randn(1,8,32,32, device='cuda')
@@ -39,7 +39,7 @@ while feitos < N:
     i += 1
 say(f"B_aquecidos={feitos} t={time.time()-t0:.1f}s")
 
-# --- fase 2: o teste — matmul trivial, as 4 transposicoes ---
+# --- phase 2: the test -- trivial matmul, all 4 transpositions ---
 falhou = None
 for dt in (torch.float16, torch.float32):
     tn = str(dt).split('.')[-1]

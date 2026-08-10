@@ -1,5 +1,5 @@
-# Depois da 1a passada, exatamente 5 shapes erram em toda repeticao.
-# Quais sao, e o conjunto e o mesmo entre repeticoes?
+# After the 1st pass, exactly 5 shapes fail on every repetition.
+# Which are they, and is the set the same across repetitions?
 import torch, torch.nn.functional as F, os
 d="cuda"; torch.manual_seed(0)
 out=open(os.path.expanduser("~/bc250-grimoire/quais5.result"),"w",buffering=1)

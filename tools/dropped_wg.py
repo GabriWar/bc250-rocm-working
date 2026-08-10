@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Os erros estao organizados por CANAL DE SAIDA (= workgroup)?
+"""Are the errors organized by OUTPUT CHANNEL (= workgroup)?
 
-O naive conv do MIOpen lanca um workgroup por canal de saida:
+MIOpen's naive conv launches one workgroup per output channel:
     bid = blockIdx.x;  ik = bid % k_per_group;  ...  p_out += ik * ho * wo;
-Entao c=320 sao 320 workgroups e c=64 sao 64. So c=320 falha.
+So c=320 is 320 workgroups and c=64 is 64. Only c=320 fails.
 
-Se workgroups nao executam, canais INTEIROS ficam com o conteudo anterior do
-buffer -- que nao e zero, e lixo do tensor que ocupava aquela memoria. Foi por
-procurar zeros que eu descartei essa hipotese antes, e o teste estava errado.
+If workgroups do not execute, WHOLE channels keep the buffer's previous content
+-- which is not zero, but garbage from the tensor that used to occupy that
+memory. Looking for zeros is why I discarded this hypothesis before, and the
+test was wrong.
 """
 import os, torch, torch.nn.functional as F
 d="cuda"; torch.manual_seed(0)
@@ -29,7 +30,7 @@ for h,c in [(112,320),(104,320),(128,320),(64,64)]:
     g=F.conv2d(x.to(d),w.to(d),padding=1); torch.cuda.synchronize()
     gc=g.float().cpu(); r=F.conv2d(x.float(),w.float(),padding=1)
     scale=max(r.abs().max().item(),1e-6)
-    bad=((gc-r).abs()/scale > 1e-2).reshape(c,-1)   # (canais, pixels)
+    bad=((gc-r).abs()/scale > 1e-2).reshape(c,-1)   # (channels, pixels)
     porcanal=bad.sum(1); pix=bad.shape[1]
     nafet=int((porcanal>0).sum()); ninteiro=int((porcanal==pix).sum())
     tot=int(bad.sum())

@@ -1,16 +1,16 @@
 #!/bin/bash
-# Captura os eventos de VM do amdgpu junto com marcadores do proprio reprodutor.
-# So tracepoints de baixa frequencia: o set_ptes (938 eventos, dentro do laco de
-# escrita de PTE) fez o fenomeno sumir em 6 de 6 execucoes.
+# Captures amdgpu VM events together with markers from the reproducer itself.
+# Low-frequency tracepoints only: set_ptes (938 events, inside the PTE write
+# loop) made the phenomenon disappear in 6 of 6 runs.
 T=/sys/kernel/tracing
 O=/home/gabriwar/bc250-grimoire/trace_matriz
 S() { printf 'grdg\n' | sudo -S "$@" 2>/dev/null; }
 mkdir -p "$O"
 S sh -c "echo 16384 > $T/buffer_size_kb"
-# set_ptes e o unico que rende addr= (o endereco fisico gravado na entrada), mas
-# sem filtro sao ~938 eventos dentro do laco de escrita de PTE e o fenomeno some
-# (6 de 6 limpas). O filtro por incr==2MiB deixa so as entradas de pagina grande,
-# que sao as que cobrem nossos blocos, e derruba o volume.
+# set_ptes is the only one that yields addr= (the physical address written into
+# the entry), but unfiltered it is ~938 events inside the PTE write loop and the
+# phenomenon disappears (6 of 6 clean). Filtering by incr==2MiB leaves only the
+# large-page entries, which are the ones covering our blocks, and cuts the volume.
 S sh -c "echo 'incr == 2097152' > $T/events/amdgpu/amdgpu_vm_set_ptes/filter"
 for e in amdgpu_vm_update_ptes amdgpu_vm_bo_mapping amdgpu_vm_bo_unmap amdgpu_vm_set_ptes; do
     S sh -c "echo 1 > $T/events/amdgpu/$e/enable"

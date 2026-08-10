@@ -1,40 +1,40 @@
 #!/usr/bin/env python3
-"""De onde vem o dado errado? Planta marca IMPOSSIVEL e le a etiqueta.
+"""Where does the wrong data come from? Plant an IMPOSSIBLE mark and read the tag.
 
-Historico das hipoteses sobre a origem do dado errado, todas caidas:
+History of the hypotheses about the origin of the wrong data, all of them fallen:
 
-  "saida antiga de convolucao"      nunca verificado direto
-  "chunk seguinte da transferencia" refutado: nao casa com nenhum offset do
-                                    proprio tensor (+-8 MiB, passo 64 KiB)
-  "reciclagem do buffer de staging" refutado: chunk de 16 e 64 MiB, muito acima
-                                    do maior tensor, nao mudou a corrupcao
+  "old convolution output"          never verified directly
+  "next chunk of the transfer"      refuted: does not match any offset of the
+                                    tensor itself (+-8 MiB, 64 KiB stride)
+  "staging buffer recycling"        refuted: 16 and 64 MiB chunks, far above the
+                                    largest tensor, did not change the corruption
 
-E a primeira versao DESTE script tambem estava errada, de dois jeitos:
+And the first version of THIS script was wrong too, in two ways:
 
-  1. A marca ficava nos 4 bits altos, base 7 -> faixa 7..14. Em fp16 o bit 15 e
-     o sinal, entao TODO valor negativo cai em 8..F. As "marcas encontradas"
-     (8,9,10,11,12) eram so os negativos: somavam exatamente metade dos
-     elementos errados, que e a fracao de negativos numa normal.
-  2. Os 8 buffers eram criados e deletados um por vez, entao o alocador
-     devolvia sempre o MESMO endereco e so o ultimo padrao sobrevivia.
+  1. The mark sat in the high 4 bits, base 7 -> range 7..14. In fp16 bit 15 is
+     the sign, so EVERY negative value falls in 8..F. The "marks found"
+     (8,9,10,11,12) were just the negatives: they added up to exactly half the
+     wrong elements, which is the fraction of negatives in a normal.
+  2. The 8 buffers were created and deleted one at a time, so the allocator
+     always handed back the SAME address and only the last pattern survived.
 
-Versao corrigida
-----------------
-A marca agora e NaN de fp16: expoente 11111 com mantissa nao nula. `randn` nunca
-produz NaN, entao qualquer NaN na regiao errada e prova sem ambiguidade -- nao
-existe faixa de valor legitimo que colida.
+Corrected version
+-----------------
+The mark is now an fp16 NaN: exponent 11111 with a non-zero mantissa. `randn`
+never produces NaN, so any NaN in the wrong region is unambiguous proof -- there
+is no legitimate value range that could collide.
 
-    valor = 0x7C00 | (buffer << 7) | (bloco & 0x7F)
+    value = 0x7C00 | (buffer << 7) | (block & 0x7F)
 
-    bits 14..10  expoente 11111  -> NaN, impossivel em randn
-    bits  9..7   qual buffer plantado (0..7)
-    bits  6..0   qual bloco de 4096 elementos dentro dele
+    bits 14..10  exponent 11111  -> NaN, impossible in randn
+    bits  9..7   which planted buffer (0..7)
+    bits  6..0   which 4096-element block inside it
 
-E os buffers sao mantidos VIVOS ao mesmo tempo antes de liberar, para ocuparem
-enderecos distintos.
+And the buffers are kept ALIVE at the same time before being freed, so they take
+distinct addresses.
 
-Controle negativo embutido: conta quantos NaN existem no dado CORRETO. Tem que
-ser zero; se nao for, a deteccao esta furada de novo.
+Built-in negative control: counts how many NaN exist in the CORRECT data. It has
+to be zero; if it is not, the detection is broken again.
 """
 import os
 from collections import Counter
@@ -57,12 +57,12 @@ BLOCO = 4096
 
 
 def marca(buf, n):
-    """int16 onde cada elemento e um NaN de fp16 codificando buffer e bloco.
+    """int16 where every element is an fp16 NaN encoding buffer and block.
 
-    0x7C00 = expoente 11111, mantissa 0 -> isso e infinito, nao NaN. A mantissa
-    so fica nao nula quando (buf<<7)|bloco != 0, e o par (0,0) existe. Forca o
-    bit 0 ligado para que TODO elemento seja NaN de verdade, e desloca o campo
-    de bloco um bit para a esquerda para nao colidir com esse bit.
+    0x7C00 = exponent 11111, mantissa 0 -> that is infinity, not NaN. The mantissa
+    is only non-zero when (buf<<7)|block != 0, and the pair (0,0) exists. Force
+    bit 0 on so that EVERY element is a real NaN, and shift the block field one
+    bit left so it does not collide with that bit.
     """
     idx = torch.arange(n, dtype=torch.int32)
     v = 0x7C00 | ((buf & 0x7) << 8) | (((idx // BLOCO) & 0x7F) << 1) | 1
@@ -70,14 +70,15 @@ def marca(buf, n):
 
 
 def procurar(volta, i0, fontes):
-    """O trecho errado existe, exato, em algum tensor de origem ja visto?
+    """Does the wrong stretch exist, exactly, in some source tensor already seen?
 
-    A versao anterior varria deslocamentos numa grade de 64 KiB dentro do proprio
-    tensor -- se a origem fosse OUTRO tensor, ou um offset fora da grade, passava
-    batido. Aqui a busca e exaustiva e casa bit a bit: pega os primeiros indices
-    onde o valor bate e so entao compara a janela inteira.
+    The previous version scanned offsets on a 64 KiB grid inside the tensor
+    itself -- if the source were ANOTHER tensor, or an offset off the grid, it
+    slipped through. Here the search is exhaustive and matches bit for bit: it
+    takes the first indices where the value matches and only then compares the
+    whole window.
 
-    Compara como int16 porque em fp16 `nan != nan` estragaria a igualdade.
+    Compares as int16 because in fp16 `nan != nan` would break the equality.
     """
     import numpy as np
     JAN = 64
@@ -96,7 +97,7 @@ def procurar(volta, i0, fontes):
     return achados
 
 
-REG = []   # (rotulo, endereco, bytes) de TODA alocacao ja feita neste processo
+REG = []   # (label, address, bytes) of EVERY allocation made in this process
 
 
 def registrar(rot, t):
@@ -104,12 +105,12 @@ def registrar(rot, t):
 
 
 def quem_mora_em(a):
-    """Que alocacoes ja ocuparam este endereco? Inclui blocos ja liberados.
+    """Which allocations have occupied this address? Includes already freed blocks.
 
-    A pergunta e se o endereco onde o dado extraviado caiu foi destino de uma
-    transferencia ANTERIOR. Se for, a escrita usou um endereco obsoleto -- e o
-    defeito e descritor/kernarg reciclado antes da conclusao, nao corrida de
-    dado.
+    The question is whether the address where the stray data landed was the
+    destination of an EARLIER transfer. If it was, the write used a stale address
+    -- and the defect is a descriptor/kernarg recycled before completion, not a
+    data race.
     """
     out = []
     for rot, base, n in REG:
@@ -132,23 +133,23 @@ def aquecer():
 
 
 def plantar():
-    """Marca os blocos que o lote vai reusar, com as MESMAS formas.
+    """Marks the blocks the batch will reuse, with the SAME shapes.
 
-    Plantar em buffers de tamanho arbitrario nao serve: o alocador do PyTorch
-    entrega blocos por classe de tamanho, entao a rajada pegaria blocos que
-    nunca foram marcados. Pior, alocar e liberar 64 MiB extras muda o estado do
-    alocador o bastante para a corrupcao sumir -- foi o que aconteceu na
-    primeira tentativa: 0 corrompidos em 3 ciclos, teste sem sinal nenhum.
+    Planting into arbitrarily sized buffers is useless: PyTorch's allocator hands
+    out blocks by size class, so the burst would grab blocks that were never
+    marked. Worse, allocating and freeing an extra 64 MiB changes the allocator
+    state enough for the corruption to vanish -- which is what happened on the
+    first attempt: 0 corrupted in 3 cycles, a test with no signal at all.
 
-    Aqui as formas sao identicas as do lote (int16 de n elementos ocupa os
-    mesmos bytes que fp16 de n elementos), com sync a cada upload para que a
-    marca chegue integra. Ao liberar, esses blocos exatos voltam para o cache e
-    a rajada seguinte os recebe de volta.
+    Here the shapes are identical to the batch's (int16 of n elements occupies the
+    same bytes as fp16 of n elements), with a sync on each upload so the mark
+    arrives intact. On free, those exact blocks go back to the cache and the next
+    burst gets them back.
     """
     ms, addrs = [], []
     for i, (h, c) in enumerate(ALVOS):
         p = marca(i, c * h * h).to(DEV)
-        torch.cuda.synchronize()              # marca tem que chegar correta
+        torch.cuda.synchronize()              # the mark has to arrive correct
         registrar(f"MARCA c={c} h={h}", p)
         ms.append(p)
         addrs.append(p.data_ptr())
@@ -162,7 +163,7 @@ say("")
 
 torch.manual_seed(0)
 total_nan_correto = 0
-fontes = []          # todo tensor de origem ja visto, para a busca exaustiva
+fontes = []          # every source tensor seen so far, for the exhaustive search
 for ciclo in (1, 2, 3, 4, 5):
     plantados = plantar()
 
@@ -171,7 +172,7 @@ for ciclo in (1, 2, 3, 4, 5):
         x = torch.randn(1, c, h, h, dtype=torch.float16)
         cpu.append((h, c, x))
         fontes.append((f"ciclo{ciclo} c={c} h={h}", x))
-        g = x.to(DEV)                         # rajada, sem sync entre uploads
+        g = x.to(DEV)                         # burst, no sync between uploads
         registrar(f"ciclo{ciclo} c={c} h={h}", g)
         gpu.append(g)
     torch.cuda.synchronize()
@@ -180,7 +181,7 @@ for ciclo in (1, 2, 3, 4, 5):
     say(f"  ciclo{ciclo}: {len(marcado)}/{len(ALVOS)} tensores cairam em bloco marcado")
 
     for (h, c, x), xg in zip(cpu, gpu):
-        total_nan_correto += int(torch.isnan(x).sum())   # controle negativo
+        total_nan_correto += int(torch.isnan(x).sum())   # negative control
         volta = xg.cpu()
         dif = (volta != x)
         nd = int(dif.sum())
@@ -190,8 +191,8 @@ for ciclo in (1, 2, 3, 4, 5):
         errados = volta.flatten()[idx]
         nan = torch.isnan(errados)
         nnan = int(nan.sum())
-        # CRITICO: o argumento "sem NaN => nao e memoria velha" so vale se ESTE
-        # bloco estava marcado. Sem isso, ausencia de NaN nao diz nada.
+        # CRITICAL: the argument "no NaN => not stale memory" only holds if THIS
+        # block was marked. Without that, the absence of NaN says nothing.
         est = "MARCADO" if xg.data_ptr() in marcado else "nao-marcado (teste cego)"
         say(f"  ciclo{ciclo} c={c} h={h}: {nd} errados, primeiro em {int(idx[0])}, "
             f"ptr=0x{xg.data_ptr():x} [{est}]")
@@ -205,7 +206,7 @@ for ciclo in (1, 2, 3, 4, 5):
                 say(f"      sem NaN, mas o bloco nao estava marcado -- inconclusivo")
             say(f"      errado:  min={f32.min():.3f} max={f32.max():.3f} std={f32.std():.3f}")
             say(f"      correto: min={cor.min():.3f} max={cor.max():.3f} std={cor.std():.3f}")
-            # endereco ABSOLUTO onde o dado extraviado foi parar
+            # ABSOLUTE address where the stray data ended up
             abs_a = xg.data_ptr() + int(idx[0]) * 2
             al = "".join("2MiB" if abs_a % (2<<20) == 0 else
                          "1MiB" if abs_a % (1<<20) == 0 else

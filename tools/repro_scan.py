@@ -1,4 +1,4 @@
-# Varre as variaveis candidatas: memoria alocada e volume de trabalho.
+# Sweeps the candidate variables: allocated memory and amount of work.
 import sys, os, time, torch
 import torch.nn.functional as F
 C="/home/gabriwar/bc250-grimoire/rocm-test/rs_crumb.txt"
@@ -6,14 +6,14 @@ _f=open(C,"a",buffering=1)
 def say(s):
     _f.write(s+"\n"); _f.flush(); os.fsync(_f.fileno()); print(s, flush=True)
 
-MB   = int(sys.argv[1])   # MB residentes antes do teste
-TAM  = int(sys.argv[2])   # lado das matrizes do aquecimento
-ITER = int(sys.argv[3])   # quantas iteracoes de trabalho
+MB   = int(sys.argv[1])   # resident MB before the test
+TAM  = int(sys.argv[2])   # side of the warmup matrices
+ITER = int(sys.argv[3])   # how many work iterations
 
 say(f"A_start mem={MB}MB tam={TAM} iter={ITER}")
 t0=time.time()
 
-# ocupa memoria
+# occupy memory
 blobs=[]
 try:
     for _ in range(max(0, MB//64)):
@@ -23,7 +23,7 @@ except Exception as e:
     say(f"ALLOC_FALHOU_{type(e).__name__}")
 say(f"B_mem alocada={torch.cuda.memory_allocated()//1048576}MB")
 
-# trabalho pesado
+# heavy work
 a=torch.randn(TAM,TAM,device='cuda',dtype=torch.float16)
 b=torch.randn(TAM,TAM,device='cuda',dtype=torch.float16)
 try:
@@ -35,7 +35,7 @@ except Exception as e:
     say(f"C_trabalho_FALHOU_{type(e).__name__}"); say("Z_FIM"); sys.exit(2)
 del a,b,c
 
-# o teste
+# the test
 falhou=None
 for dt in (torch.float16, torch.float32):
     tn=str(dt).split('.')[-1]

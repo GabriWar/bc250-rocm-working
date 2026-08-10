@@ -225,19 +225,19 @@
   * Flush the TLB for the requested pasid.
   */
 +
-+/* BC-250: quem o hardware acha que e quem.
++/* BC-250: who the hardware thinks is who.
 + *
-+ * A invalidacao de compute (gmc_v10_0_flush_gpu_tlb_pasid) NAO invalida "o
-+ * processo": ela varre os 16 VMIDs perguntando ao ATC qual deles carrega o
-+ * nosso PASID, e so invalida esse. Se a consulta responder errado -- e a
-+ * anotacao acima diz que ela pode -- o flush cai no VMID de outro processo,
-+ * ou em nenhum, e volta. E o contador kfd_last_flushed_seq e atualizado ANTES
-+ * disso (amdgpu_vm.c:1757), entao ele diz "invalidado" de qualquer forma.
++ * Compute invalidation (gmc_v10_0_flush_gpu_tlb_pasid) does NOT invalidate "the
++ * process": it scans the 16 VMIDs asking the ATC which one carries our
++ * PASID, and invalidates only that one. If the query answers wrong -- and the
++ * note above says it can -- the flush lands on another process's VMID,
++ * or on none, and returns. And the kfd_last_flushed_seq counter is updated
++ * BEFORE that (amdgpu_vm.c:1757), so it says "invalidated" either way.
 + *
-+ * Este despejo separa as duas visoes:
-+ *   ATC pasid      o que o HARDWARE acha que cada VMID contem
-+ *   pd_gpu_addr    qual page directory o DRIVER carregou em cada VMID
-+ * Se nenhum VMID casar com o nosso PASID, a invalidacao nao atinge nada.
++ * This dump separates the two views:
++ *   ATC pasid      what the HARDWARE thinks each VMID holds
++ *   pd_gpu_addr    which page directory the DRIVER loaded into each VMID
++ * If no VMID matches our PASID, the invalidation hits nothing.
 + */
 +void amdgpu_bc250_dump_vmids(struct amdgpu_device *adev, uint64_t nosso_pd,
 +			     uint16_t nosso_pasid, struct seq_file *m)
@@ -331,8 +331,8 @@
  		}
  	}
 +
-+	/* zero aqui significa: a invalidacao foi pedida, o contador de sequencia
-+	 * ja foi marcado, e nenhum VMID foi realmente invalidado.
++	/* zero here means: the invalidation was requested, the sequence counter
++	 * was already marked, and no VMID was actually invalidated.
 +	 */
 +	if (bc250_tlb_trace)
 +		dev_info_ratelimited(adev->dev,

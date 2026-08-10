@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
-"""Mede a TAXA de conv2d errado, nao a contagem. Substitui repro_inproc.py
-para validar patches.
+"""Measures the RATE of wrong conv2d, not the count. Replaces repro_inproc.py
+for validating patches.
 
-Por que existe
+Why it exists
 -------------
-O repro_inproc.py roda 26 shapes e reporta quantos erraram. Em 04-05/ago isso
-dava 8-14 de 26 de forma consistente. Em 05/ago a noite passou a dar 0-6 de 26,
-com o baseline variando de 0 a 5 entre rodadas identicas.
+repro_inproc.py runs 26 shapes and reports how many failed. On Aug 04-05 that
+consistently gave 8-14 out of 26. On the night of Aug 05 it started giving 0-6
+out of 26, with the baseline varying from 0 to 5 between identical runs.
 
-Com essa variancia um teste de 26 amostras nao consegue distinguir "o patch
-corrigiu" de "deu sorte". Varias conclusoes tiradas naquele dia -- inclusive
-resultados negativos que eu reportei como se fossem definitivos -- nao tinham
-poder estatistico nenhum.
+With that variance a 26-sample test cannot distinguish "the patch fixed it" from
+"we got lucky". Several conclusions drawn that day -- including negative results
+I reported as if they were definitive -- had no statistical power at all.
 
-Aqui a saida e uma taxa com intervalo de confianca, sobre algumas centenas de
-operacoes. Assim da para dizer se dois estados diferem de verdade.
+Here the output is a rate with a confidence interval, over a few hundred
+operations. That way we can say whether two states really differ.
 
-Uso
----
-    repro_rate.py [n_repeticoes]      padrao 8 -> 208 operacoes
+Usage
+-----
+    repro_rate.py [repetitions]      default 8 -> 208 operations
 
-Saida: contagem, taxa, IC 95% (Wilson), e a primeira operacao que errou.
-Grava em disco com fsync a cada bloco, entao um travamento deixa rastro.
+Output: count, rate, 95% CI (Wilson), and the first operation that failed.
+Writes to disk with fsync every block, so a hang leaves a trail.
 """
 import math
 import os
@@ -44,7 +43,7 @@ def say(s):
 
 
 def wilson(k, n, z=1.96):
-    """IC de Wilson: honesto perto de 0, ao contrario do intervalo normal."""
+    """Wilson CI: honest near 0, unlike the normal interval."""
     if n == 0:
         return (0.0, 0.0)
     p = k / n
@@ -64,8 +63,8 @@ def conv_err(h, c):
 
 
 reps = int(sys.argv[1]) if len(sys.argv) > 1 else 8
-# mesmos shapes do repro_inproc, repetidos: mantem comparabilidade com o
-# historico e ao mesmo tempo da amostra suficiente
+# same shapes as repro_inproc, repeated: keeps comparability with the
+# history while giving a large enough sample
 shapes = [(h, c) for h in range(32, 136, 8) for c in (64, 320)]
 
 torch.manual_seed(0)

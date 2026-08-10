@@ -1,4 +1,4 @@
-# Reproduz o GEMM do VAE via torch — mesmo caminho do SD.
+# Reproduces the VAE's GEMM through torch -- the same path SD takes.
 # NT = A[M,K] @ B[N,K].T
 import sys, os, time, torch
 C="/home/gabriwar/bc250-grimoire/rocm-test/gp_crumb.txt"
@@ -15,7 +15,7 @@ try:
     c = a @ b.T
     torch.cuda.synchronize()
     say(f"OK saida={tuple(c.shape)}")
-    # medicao
+    # measurement
     for _ in range(3): c = a @ b.T
     torch.cuda.synchronize()
     t0=time.time()

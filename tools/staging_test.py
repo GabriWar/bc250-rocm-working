@@ -1,41 +1,41 @@
 #!/usr/bin/env python3
-"""A corrupcao de H2D vem da reciclagem do buffer de staging do ROCclr?
+"""Does the H2D corruption come from ROCclr's staging buffer recycling?
 
-Achado lendo o fonte (clr/rocclr/device/rocm/rocblit.cpp e rocvirtual.cpp):
+Found by reading the source (clr/rocclr/device/rocm/rocblit.cpp and rocvirtual.cpp):
 
-  hsaCopyStagedOrPinned, caminho D2H:
+  hsaCopyStagedOrPinned, D2H path:
       rocrCopyBuffer(...)
-      gpu().Barriers().WaitCurrent();          <-- ESPERA antes de tocar o staging
+      gpu().Barriers().WaitCurrent();          <-- WAITS before touching staging
       memcpy(hostDst + copyOffset, stagingBuffer, copysize);
 
-  hsaCopyStagedOrPinned, caminho H2D:
+  hsaCopyStagedOrPinned, H2D path:
       memcpy(stagingBuffer, hostSrc + copyOffset, copysize);
-      rocrCopyBuffer(...)                      <-- assincrono
-      // laco volta e faz memcpy no MESMO staging, sem esperar
+      rocrCopyBuffer(...)                      <-- asynchronous
+      // the loop comes back and memcpys into the SAME staging, without waiting
 
-A protecao do H2D e indireta, em ManagedBuffer::Acquire: pool de 4 chunks de
-1 MiB em round-robin, com barreira ao encher um chunk e espera do sinal do
-proximo. O caminho rapido do Acquire nao espera nada -- so avanca um offset.
+The H2D protection is indirect, in ManagedBuffer::Acquire: a pool of 4 chunks of
+1 MiB in round-robin, with a barrier when a chunk fills up and a wait on the next
+one's signal. Acquire's fast path waits for nothing -- it just advances an offset.
 
-Ou seja, tudo depende da barreira ordenar contra as copias em voo e do sinal
-refletir conclusao real. Nesta placa as duas coisas sao suspeitas: todo boot
-registra "Fence fallback timer expired on ring sdma0", que so aparece quando o
-trabalho terminou e a interrupcao se perdeu.
+In other words, everything depends on the barrier ordering against the in-flight
+copies and on the signal reflecting real completion. On this board both are
+suspect: every boot logs "Fence fallback timer expired on ring sdma0", which only
+shows up when the work finished and the interrupt was lost.
 
-Se a hipotese estiver certa, o dado errado nao e lixo nem saida antiga de
-convolucao: e o CHUNK SEGUINTE da propria transferencia, que sobrescreveu o
-staging antes da GPU ler. Mesma distribuicao, magnitude coerente, nenhum zero
--- exatamente o que medimos.
+If the hypothesis is right, the wrong data is neither garbage nor old convolution
+output: it is the NEXT CHUNK of the transfer itself, which overwrote staging
+before the GPU read it. Same distribution, coherent magnitude, no zeros -- exactly
+what we measured.
 
-Este script faz duas coisas:
+This script does two things:
 
-  TESTE 1  varia GPU_STAGING_BUFFER_SIZE. Se transferencias couberem num chunk
-           so, nao ha reciclagem e nao deveria haver corrupcao. Rodado por fora,
-           via env, ver staging_ab.sh.
+  TEST 1  varies GPU_STAGING_BUFFER_SIZE. If transfers fit in a single chunk,
+          there is no recycling and there should be no corruption. Driven from
+          outside, via env, see staging_ab.sh.
 
-  TESTE 2  quando detecta corrupcao, procura o conteudo errado DENTRO do proprio
-           tensor de origem, em outros offsets. Se o dado em K for o que
-           pertence a K +- N, e prova direta de reciclagem de staging.
+  TEST 2  when it detects corruption, it looks for the wrong content INSIDE the
+          source tensor itself, at other offsets. If the data at K is what
+          belongs at K +- N, that is direct proof of staging recycling.
 """
 import os
 import sys
@@ -67,10 +67,10 @@ def aquecer():
 
 
 def de_onde_veio(orig, volta, ruins):
-    """A regiao errada contem dado de outro offset do MESMO tensor?
+    """Does the wrong region contain data from another offset of the SAME tensor?
 
-    Compara o trecho corrompido contra o proprio tensor de origem deslocado.
-    Se casar num deslocamento D, o staging entregou o pedaco de outro chunk.
+    Compares the corrupted stretch against the source tensor itself, shifted.
+    If it matches at a shift D, staging delivered another chunk's piece.
     """
     o = orig.flatten()
     v = volta.flatten()
@@ -79,7 +79,7 @@ def de_onde_veio(orig, volta, ruins):
     if n < 64:
         return None
     trecho = v[i0:i0 + n]
-    # varre deslocamentos em multiplos de 64 KiB ate +-8 MiB
+    # sweeps shifts in multiples of 64 KiB up to +-8 MiB
     passo = 32768
     for d in range(-256, 257):
         if d == 0:
@@ -98,7 +98,7 @@ def rodada(rotulo):
     for h, c in ALVOS:
         x = torch.randn(1, c, h, h, dtype=torch.float16)
         cpu.append((h, c, x))
-        gpu.append(x.to(DEV))          # rajada, sem sync entre uploads
+        gpu.append(x.to(DEV))          # burst, no sync between uploads
     torch.cuda.synchronize()
 
     achou = 0
