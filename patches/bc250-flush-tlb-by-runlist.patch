@@ -50,19 +50,60 @@ kfd_hws_hang() and a GPU reset. There is also clear room to tune: one cycle per
 batch of unmaps instead of one per unmap, or only when a VA range is actually
 being reused -- the only case that can produce a stale entry at all.
 
+Applies with: patch -p1 < bc250-flush-tlb-by-runlist.patch  (or git apply)
+Generated against a pristine tree; verified to apply on linux 6.19/7.0 and on
+torvalds/linux master (offsets only, no fuzz).
+
+diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c b/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
+index 0a2e356..479e832 100644
+--- a/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
++++ b/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
+@@ -1454,8 +1454,17 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
+ 		peer_pdd = kfd_process_device_data_by_id(p, devices_arr[i]);
+ 		if (WARN_ON_ONCE(!peer_pdd))
+ 			continue;
+-		if (flush_tlb)
++		if (flush_tlb) {
+ 			kfd_flush_tlb(peer_pdd);
++			/* BC-250: the flush above invalidates nothing on this
++			 * board -- the PASID scan never finds a VMID. Rebuilding
++			 * the runlist makes the firmware invalidate for real,
++			 * and it is the only invalidation measured working here.
++			 * This is the only safe place to ask for it: p->mutex
++			 * held, dqm_lock free.
++			 */
++			kfd_bc250_flush_by_runlist(peer_pdd->dev);
++		}
+ 
+ 		/* Remove dma mapping after tlb flush to avoid IO_PAGE_FAULT */
+ 		err = amdgpu_amdkfd_gpuvm_dmaunmap_mem(mem, peer_pdd->drm_priv);
+diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.c b/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.c
+index ed5e1e2..53f3e54 100644
 --- a/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.c
 +++ b/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.c
-@@ before execute_queues_cpsch @@
-+/* BC-250/gfx1013: invalidate the TLB by rebuilding the runlist.
+@@ -24,6 +24,7 @@
+ 
+ #include <linux/ratelimit.h>
+ #include <linux/printk.h>
++#include <linux/module.h>
+ #include <linux/slab.h>
+ #include <linux/list.h>
+ #include <linux/types.h>
+@@ -2480,6 +2481,83 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm,
+ 	return retval;
+ }
+ 
++/* BC-250/gfx1013: invalidate the compute TLB by rebuilding the runlist.
 + *
 + * The problem
 + * -----------
-+ * On this board compute TLB invalidation NEVER happens. The PASID scan depends
-+ * on mmATC_VMID*_PASID_MAPPING, which on gfx10 under HWS is never written --
-+ * measured: 20 of 20 flushes hitting zero VMIDs, and the same "0 VMID(s)
-+ * flushed" reproduced on another machine. Forcing it via MMIO does not help:
-+ * neither the KIQ route nor the direct-register one gets an ACK, and the attempt
-+ * wedges the translation unit (see gmc_v10_0.c).
++ * On this board compute TLB invalidation NEVER happens. The PASID scan in
++ * gmc_v10_0_flush_gpu_tlb_pasid() depends on mmATC_VMID*_PASID_MAPPING, which
++ * on gfx10 under HWS is never written -- measured: 20 of 20 flushes hitting
++ * zero VMIDs, and the same "0 VMID(s) flushed" reproduced on another machine.
++ * Forcing it over MMIO does not help either: neither the KIQ route nor the
++ * direct-register one is acknowledged, and the attempt wedges the translation
++ * unit and resets the GPU.
 + *
 + * Consequence: hipFree tears the mapping down, hipMalloc reuses the same VA
 + * range with a different physical address, the new PTEs are correct in memory,
@@ -70,21 +111,17 @@ being reused -- the only case that can produce a stale entry at all.
 + *
 + * What is left, and why this path
 + * -------------------------------
-+ * Measured in tools/cura_por_pressao.py and tools/cura_propria.py:
++ * A process CANNOT clear its own stale translation: 32 accesses to fresh pages
++ * plus a compute dispatch leave the page wrong 20/20, before and after. ONE
++ * access by ANOTHER process clears it immediately, 0/20. Mapping the same BO
++ * into a second VM without accessing it does NOT clear it.
 + *
-+ *   - the process itself CANNOT clear its own wrong translation: 32
-+ *     accesses to new pages plus a compute dispatch leave the page
-+ *     wrong 20/20, before and after
-+ *   - ONE access by ANOTHER process clears it immediately, 0/20
-+ *   - mapping the same BO in a second VM without accessing it does NOT clear it
-+ *
-+ * In other words: there is an invalidation that works on this silicon, and what
-+ * triggers it is the hardware scheduler activating another process -- it
-+ * preempts the queues, rebuilds the runlist, reassigns VMIDs. It has to
-+ * invalidate, otherwise a process would inherit the previous one's translation
-+ * along with the VMID.
-+ * This function asks for that same cycle on purpose, on unmap, so the wrong
-+ * translation is never even generated.
++ * So an invalidation that works does exist on this silicon, and what triggers
++ * it is the hardware scheduler activating another process -- it preempts the
++ * queues, rebuilds the runlist and reassigns VMIDs. It has to invalidate,
++ * otherwise a process would inherit the previous one's translations along with
++ * its VMID. This function asks for that same cycle on purpose, on unmap, so the
++ * stale translation is never generated in the first place.
 + *
 + * Where it can and cannot be called
 + * ---------------------------------
@@ -94,16 +131,16 @@ being reused -- the only case that can produce a stale entry at all.
 + * here hangs the machine, not just the GPU. The only call site is the unmap
 + * ioctl in kfd_chardev.c, which holds p->mutex and not dqm_lock (the ordering
 + * p->mutex -> dqm_lock is the same one pqm_create_queue already uses).
++ *
++ * Off by default:  amdgpu.bc250_flush_by_runlist=1
 + */
 +#define BC250_PCI_DEVICE_ID 0x13FE
 +
 +static int bc250_flush_by_runlist;
 +module_param(bc250_flush_by_runlist, int, 0644);
 +MODULE_PARM_DESC(bc250_flush_by_runlist,
-+	"BC-250: 1=no unmap, invalidar TLB refazendo o runlist (0 = padrao)");
-
-@@ after execute_queues_cpsch @@
-+/* See the long comment above the bc250_flush_by_runlist declaration. */
++	"BC-250: 1=on unmap, invalidate the TLB by rebuilding the runlist (0 = default)");
++
 +int kfd_bc250_flush_by_runlist(struct kfd_node *dev)
 +{
 +	struct device_queue_manager *dqm;
@@ -116,7 +153,8 @@ being reused -- the only case that can produce a stale entry at all.
 +
 +	dqm = dev->dqm;
 +	/* Only makes sense under hardware scheduling: it is the firmware that
-+	 * reassigns VMIDs when rebuilding the runlist. Without HWS there is no runlist.
++	 * reassigns VMIDs when rebuilding the runlist. Without HWS there is no
++	 * runlist.
 +	 */
 +	if (!dqm || dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
 +		return 0;
@@ -128,33 +166,27 @@ being reused -- the only case that can produce a stale entry at all.
 +
 +	if (r)
 +		dev_err_ratelimited(dev->adev->dev,
-+			"BC-250: refazer o runlist falhou (%d)\n", r);
++			"BC-250: rebuilding the runlist failed (%d)\n", r);
 +	return r;
 +}
-
++
+ static int wait_on_destroy_queue(struct device_queue_manager *dqm,
+ 				 struct queue *q)
+ {
+diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.h b/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.h
+index ef07e44..e641b47 100644
 --- a/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.h
 +++ b/drivers/gpu/drm/amd/amdkfd/kfd_device_queue_manager.h
-@@ declaration @@
+@@ -310,6 +310,12 @@ unsigned int get_num_sdma_queues(struct device_queue_manager *dqm);
+ unsigned int get_num_xgmi_sdma_queues(struct device_queue_manager *dqm);
+ int reserve_debug_trap_vmid(struct device_queue_manager *dqm,
+ 			struct qcm_process_device *qpd);
 +
 +/* BC-250: rebuilds the runlist so the firmware invalidates the compute TLB.
 + * Full documentation in kfd_device_queue_manager.c, above
 + * bc250_flush_by_runlist. Takes dqm_lock -- never call it while holding it.
 + */
 +int kfd_bc250_flush_by_runlist(struct kfd_node *dev);
-
---- a/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
-+++ b/drivers/gpu/drm/amd/amdkfd/kfd_chardev.c
-@@ in kfd_ioctl_unmap_memory_from_gpu @@
- 			 * dqm_lock livre.
- 			 */
- 			kfd_bc250_flush_by_runlist(peer_pdd->dev);
- 		}
- 
- 		/* Remove dma mapping after tlb flush to avoid IO_PAGE_FAULT */
- 		err = amdgpu_amdkfd_gpuvm_dmaunmap_mem(mem, peer_pdd->drm_priv);
- 		if (err)
- 			goto sync_memory_failed;
- 	}
- 
- 	mutex_unlock(&p->mutex);
- 
+ int release_debug_trap_vmid(struct device_queue_manager *dqm,
+ 			struct qcm_process_device *qpd);
+ int suspend_queues(struct kfd_process *p,
